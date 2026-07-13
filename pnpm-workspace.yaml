@@ -1,0 +1,11 @@
+packages:
+  - "."
+
+# pnpm >=10 reads the built-dependency allowlist from here, not package.json's
+# `pnpm.onlyBuiltDependencies` (deprecated/ignored in v10+). Without this,
+# `pnpm install --frozen-lockfile` fails in CI with ERR_PNPM_IGNORED_BUILDS
+# because esbuild (transitive via vitest/vite) ships a postinstall build script.
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true
