@@ -109,7 +109,7 @@ const macKeychain: KeychainBackend = {
     return value.length > 0 ? value : null;
   },
   async set(secret) {
-    await runSecurity([
+    const { code } = await runSecurity([
       "add-generic-password",
       "-U", // update if it already exists
       "-s",
@@ -119,7 +119,16 @@ const macKeychain: KeychainBackend = {
       "-w",
       secret,
     ]);
-  },
+    if (code !== 0) {
+      throw new AxiError(
+        `Failed to write API token to macOS Keychain (security exit ${code})`,
+        "UNKNOWN",
+        [
+          "Set ATLASSIAN_AXI_NO_KEYCHAIN=1 to store the token in the 0600 config file instead",
+        ],
+      );
+    }
+  }
   async remove() {
     await runSecurity([
       "delete-generic-password",
@@ -273,9 +282,13 @@ export async function saveCredential(
 ): Promise<{ tokenStore: "keychain" | "file" }> {
   const keychain = getKeychain();
   if (keychain) {
-    await keychain.set(credential.apiToken);
-    writeStoredConfig({ site: credential.site, email: credential.email });
-    return { tokenStore: "keychain" };
+    try {
+      await keychain.set(credential.apiToken);
+      writeStoredConfig({ site: credential.site, email: credential.email });
+      return { tokenStore: "keychain" };
+    } catch {
+      // Keychain unavailable/locked at runtime; fall back to the 0600 file path.
+    }
   }
   writeStoredConfig({
     site: credential.site,
@@ -283,7 +296,6 @@ export async function saveCredential(
     token: credential.apiToken,
   });
   return { tokenStore: "file" };
-}
 
 /** Remove all persisted state: delete the config file and keychain token. */
 export async function clearCredential(): Promise<void> {

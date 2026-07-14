@@ -184,6 +184,13 @@ async function authStatus(): Promise<string> {
   ].join("\n");
 
   if (!ok) {
+    if (acliState === "not installed") {
+      throw new AxiError(
+        `acli is not installed — see https://developer.atlassian.com/cloud/acli/\n${detail}`,
+        "ACLI_NOT_INSTALLED",
+        ["Install with `brew install acli`, then `acli --version` to verify"],
+      );
+    }
     throw new AxiError(`auth check failed\n${detail}`, "AUTH_REQUIRED", [
       acliState !== "logged in"
         ? "Re-run `atlassian-axi auth login` to bootstrap acli"
@@ -239,7 +246,10 @@ async function authLogout(): Promise<string> {
   let acliState = "skipped (not installed)";
   if (await acliInstalled()) {
     const result = await acliRaw(["jira", "auth", "logout"]);
-    acliState = result.exitCode === 0 ? "logged out" : "already logged out";
+    acliState =
+      result.exitCode === 0
+        ? "logged out"
+        : `failed (exit ${result.exitCode}): ${result.stderr.trim() || result.stdout.trim() || "unknown error"}`;
   }
 
   return renderOutput([
