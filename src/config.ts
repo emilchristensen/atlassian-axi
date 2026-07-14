@@ -128,7 +128,7 @@ const macKeychain: KeychainBackend = {
         ],
       );
     }
-  }
+  },
   async remove() {
     await runSecurity([
       "delete-generic-password",
@@ -296,6 +296,7 @@ export async function saveCredential(
     token: credential.apiToken,
   });
   return { tokenStore: "file" };
+}
 
 /** Remove all persisted state: delete the config file and keychain token. */
 export async function clearCredential(): Promise<void> {
