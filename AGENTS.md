@@ -4,7 +4,9 @@ Project-intrinsic knowledge for `atlassian-axi`: an AXI-family CLI wrapping Atla
 
 ## What ships today (phasing)
 
-Phase 0 (this scaffold) ships a publishable green-CI skeleton: the no-arg dashboard, `setup hooks`, the inherited `update` command, and the ported domain-agnostic framework. **No `jira`/`confluence`/`auth` commands yet** - those are separate later phases. The full plan lives in the scout report (`atlas-axi-scout-x7/report.md`), section 4.8.
+Phase 0 shipped the publishable green-CI skeleton (dashboard, `setup hooks`, inherited `update`, ported framework). Phase 1 shipped **auth + config** - `src/config.ts` (unified credential), `src/acli.ts` (acli shell-out), and the `auth login/status/logout` commands. **No `jira`/`confluence` command surfaces yet** - those are separate later phases. The full plan lives in the scout report (`atlas-axi-scout-x7/report.md`), section 4.8.
+
+**Auth/config seams (Phase 1).** `config.ts` is the single credential source of truth: resolution is env (`ATLASSIAN_SITE`/`_EMAIL`/`_API_TOKEN`) > keychain > 0600 `~/.config/atlassian-axi/config.json` (path honours `XDG_CONFIG_HOME`). Token is stdin-only (`readTokenFromStdin` throws on TTY). acli is a *derived cache*: `auth login` persists to our store, then status-gates `acli jira auth status` before bootstrapping `acli jira auth login`. For tests, inject fakes via `setAcliRunner()` (acli.ts) and `setKeychainBackend()` (config.ts); force the file-fallback path with `ATLASSIAN_AXI_NO_KEYCHAIN=1`. Never let tests hit real acli/keychain/network - the `security` CLI and `fetch` (Confluence REST ping) are stubbed.
 
 ## Build / test / release commands
 
