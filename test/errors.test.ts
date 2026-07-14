@@ -39,6 +39,11 @@ describe("errors", () => {
     expect(mapError("✗ Error: error in the JQL Query").code).toBe(
       "VALIDATION_ERROR",
     );
+    expect(
+      mapError(
+        "✗ Error: Unbounded JQL queries are not allowed here. Please add a search restriction to your query.",
+      ).code,
+    ).toBe("VALIDATION_ERROR");
   });
 
   it("mapError falls back to the first line as UNKNOWN when nothing matches", () => {

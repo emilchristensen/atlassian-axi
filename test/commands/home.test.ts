@@ -71,6 +71,26 @@ describe("homeCommand", () => {
     expect(degraded).not.toContain("my_open_workitems");
   });
 
+  it("caps the workitems fetch at its budget so a hung acli cannot stall the hook", async () => {
+    vi.useFakeTimers();
+    try {
+      config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+      acli.acliJson.mockReturnValue(new Promise(() => {})); // never settles
+      const pending = homeCommand([]);
+      await vi.advanceTimersByTimeAsync(2_100);
+      const out = await pending;
+      expect(out).toContain("auth: ok");
+      expect(out).not.toContain("my_open_workitems");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not advertise the unrouted confluence command", async () => {
+    const out = await homeCommand([]);
+    expect(out).not.toContain("confluence");
+  });
+
   it("reports acli not installed", async () => {
     acli.acliInstalled.mockResolvedValue(false);
     const out = await homeCommand([]);

@@ -21,7 +21,7 @@ type MainOptions = {
 
 export const TOP_HELP = `usage: atlassian-axi [command] [args] [flags]
 commands[4]:
-  (none)=dashboard, auth, jira, confluence, setup
+  (none)=dashboard, auth, jira, setup
 flags[3]:
   --site <site> (after command) or ATLASSIAN_SITE env, --help, -v/-V/--version
 examples:

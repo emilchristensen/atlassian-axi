@@ -1,5 +1,7 @@
 import { custom, extract, relativeTime, type FieldDef } from "../../toon.js";
+import { takeBoolFlag, takeFlag } from "../../args.js";
 import { truncateBody } from "../../body.js";
+import { AxiError } from "../../errors.js";
 
 /**
  * Shared tolerant accessors + FieldDef schemas for the acli-backed Jira half.
@@ -84,13 +86,17 @@ function assigneeOf(item: JsonRecord): string {
   return nameOf(fieldOf(item, "assignee")) ?? "unassigned";
 }
 
-/** List schema: key, summary, short status, assignee, relative updated. */
+/**
+ * List schema: key, summary, short status, assignee. No `updated` column:
+ * acli's search --fields whitelist rejects `updated` (verified live against
+ * v1.3.22: "field 'updated' is not allowed"), so search payloads can never
+ * carry it. `view` fetches it explicitly instead.
+ */
 export const workitemListSchema: FieldDef[] = [
   custom("key", (item: JsonRecord) => item.key ?? null),
   custom("summary", (item: JsonRecord) => nameOf(fieldOf(item, "summary"))),
   custom("status", shortStatus),
   custom("assignee", assigneeOf),
-  custom("updated", (item: JsonRecord) => relativeOf(item, "updated")),
 ];
 
 /** Compact schema for the home dashboard's my-open-workitems block. */
@@ -126,16 +132,24 @@ export function workitemViewSchema(full: boolean): FieldDef[] {
   ];
 }
 
-/** Comment schema: author, relative created, truncated body. */
-export const commentSchema: FieldDef[] = [
-  custom("author", (item: JsonRecord) => nameOf(item.author) ?? "unknown"),
-  custom("created", (item: JsonRecord) => relativeOf(item, "created")),
-  custom("body", (item: JsonRecord) =>
-    truncateBody(textOf(item.body).trim(), 300, {
-      fullHint: "use `view <KEY> --full --comments` for complete bodies",
+/**
+ * Comment schema: author, body (truncated unless --full). No `created` column:
+ * acli's comment list --json carries only {id, author, body, visibility}
+ * (verified live against v1.3.22); author arrives as a plain string.
+ */
+export function commentSchema(full: boolean): FieldDef[] {
+  return [
+    custom("author", (item: JsonRecord) => nameOf(item.author) ?? "unknown"),
+    custom("body", (item: JsonRecord) => {
+      const text = textOf(item.body).trim();
+      return full
+        ? text
+        : truncateBody(text, 300, {
+            fullHint: "use `view <KEY> --full --comments` for complete bodies",
+          });
     }),
-  ),
-];
+  ];
+}
 
 /** Render a nested Jira timestamp via the shared relativeTime formatter. */
 function relativeOf(item: JsonRecord, name: string): string {
@@ -158,6 +172,53 @@ export function itemsOf(payload: unknown, ...keys: string[]): JsonRecord[] {
     }
   }
   return [];
+}
+
+export interface ParsedFlags {
+  /** Value flags, keyed by flag name (e.g. "--limit"). */
+  values: Record<string, string | undefined>;
+  /** Boolean flags, keyed by flag name (e.g. "--full"). */
+  bools: Record<string, boolean>;
+  /** True when a standalone --help remained after flag consumption. */
+  help: boolean;
+  /** The first remaining positional (flags and their values already removed). */
+  positional: string | undefined;
+}
+
+/**
+ * Consume a subcommand's known flags from `args` (mutating it), THEN read the
+ * first remaining positional. Consuming flag values first is what keeps
+ * `transition --to Done TEAM-1` from parsing "Done" as the key, and keeps a
+ * flag value that happens to be "--help" from hijacking the subcommand into
+ * help output (body flags must be taken by the caller before calling this).
+ */
+export function parseFlags(
+  args: string[],
+  spec: { values?: string[]; bools?: string[] },
+): ParsedFlags {
+  const values: Record<string, string | undefined> = {};
+  for (const flag of spec.values ?? []) {
+    values[flag] = takeFlag(args, flag);
+  }
+  const bools: Record<string, boolean> = {};
+  for (const flag of spec.bools ?? []) {
+    bools[flag] = takeBoolFlag(args, flag);
+  }
+  const help = takeBoolFlag(args, "--help");
+  const positional = args.slice(1).find((a) => !a.startsWith("--"));
+  return { values, bools, help, positional };
+}
+
+const DEFAULT_LIMIT = 30;
+
+/** Parse a --limit value; positive integer or a VALIDATION_ERROR. */
+export function parseLimit(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_LIMIT;
+  const n = parseInt(raw, 10);
+  if (isNaN(n) || n <= 0) {
+    throw new AxiError(`Invalid --limit: ${raw}`, "VALIDATION_ERROR");
+  }
+  return n;
 }
 
 /**

@@ -42,7 +42,7 @@ const table: SuggestionEntry[] = [
   {
     match: (c) => c.domain === "home",
     lines: () => [
-      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, confluence, setup",
+      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, setup",
     ],
   },
 

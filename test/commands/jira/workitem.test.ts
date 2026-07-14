@@ -43,16 +43,16 @@ describe("workitem list", () => {
     const out = await workitemCommand(["list"]);
     expect(out).toMatchInlineSnapshot(`
       "count: 2
-      workitems[2]{key,summary,status,assignee,updated}:
-        TEAM-1,Fix login redirect loop,wip,Jane Doe,1d ago
-        TEAM-2,Add audit log export,todo,unassigned,3d ago
+      workitems[2]{key,summary,status,assignee}:
+        TEAM-1,Fix login redirect loop,wip,Jane Doe
+        TEAM-2,Add audit log export,todo,unassigned
       help[2]:
         Run \`atlassian-axi jira workitem view <KEY>\` to view details
         Run \`atlassian-axi jira workitem transition <KEY> --to <status>\` to move one"
     `);
   });
 
-  it("defaults to ORDER BY updated DESC with limit 30", async () => {
+  it("defaults to a bounded 30-day window (acli rejects unbounded JQL) with limit 30", async () => {
     const { runner, calls } = makeAcliFake([
       { match: isSearch, result: searchPayload },
     ]);
@@ -65,7 +65,7 @@ describe("workitem list", () => {
       "workitem",
       "search",
       "--jql",
-      "ORDER BY updated DESC",
+      "updated >= -30d ORDER BY updated DESC",
       "--limit",
       "30",
       "--json",
@@ -126,6 +126,28 @@ describe("workitem list", () => {
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 
+  it("escapes backslashes and quotes in built JQL values", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isSearch, result: [] },
+    ]);
+    setAcliRunner(runner);
+
+    await workitemCommand(["list", "--status", 'Weird "st\\atus"\\']);
+    const call = searchCall(calls);
+    const jql = call?.args[call.args.indexOf("--jql") + 1];
+    expect(jql).toBe(
+      'status = "Weird \\"st\\\\atus\\"\\\\" ORDER BY updated DESC',
+    );
+  });
+
+  it("returns help for `list --help` without shelling out", async () => {
+    const { runner, calls } = makeAcliFake([]);
+    setAcliRunner(runner);
+    const out = await workitemCommand(["list", "--help"]);
+    expect(out).toContain("usage: atlassian-axi jira workitem");
+    expect(calls).toHaveLength(0);
+  });
+
   it("renders empty-state suggestions when nothing matches", async () => {
     const { runner } = makeAcliFake([{ match: isSearch, result: [] }]);
     setAcliRunner(runner);
@@ -157,6 +179,19 @@ describe("workitem search", () => {
     await expect(workitemCommand(["search"])).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
     });
+  });
+
+  it("does not mistake flag values for the positional JQL (flags first)", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isSearch, result: searchPayload },
+    ]);
+    setAcliRunner(runner);
+
+    await workitemCommand(["search", "--limit", "5", "project = TEAM"]);
+    const call = searchCall(calls);
+    const jql = call?.args[call.args.indexOf("--jql") + 1];
+    expect(jql).toBe("project = TEAM");
+    expect(call?.args).toContain("5");
   });
 });
 
@@ -202,9 +237,42 @@ describe("workitem view", () => {
     setAcliRunner(runner);
 
     const out = await workitemCommand(["view", "TEAM-1", "--comments"]);
-    expect(out).toContain("comments[2]{author,created,body}:");
+    expect(out).toContain("comments[2]{author,body}:");
     expect(out).toContain("Reproduced on staging.");
     expect(out).toContain("Plain-text comments also occur.");
+  });
+
+  it("does not truncate comment bodies with --full --comments", async () => {
+    const longBody = "x".repeat(400);
+    const { runner } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+      {
+        match: (args) => args[2] === "comment" && args[3] === "list",
+        result: {
+          comments: [
+            {
+              author: { displayName: "Jane Doe" },
+              body: longBody,
+              created: "2026-07-13T12:00:00.000+0000",
+            },
+          ],
+        },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const truncated = await workitemCommand(["view", "TEAM-1", "--comments"]);
+    expect(truncated).toContain("truncated");
+    expect(truncated).not.toContain(longBody);
+
+    const full = await workitemCommand([
+      "view",
+      "TEAM-1",
+      "--full",
+      "--comments",
+    ]);
+    expect(full).toContain(longBody);
+    expect(full).not.toContain("truncated");
   });
 
   it("uppercases the key and requires one", async () => {
@@ -359,6 +427,25 @@ describe("workitem transition", () => {
     expect(out).not.toContain("message: Already");
   });
 
+  it("parses the key correctly when flags precede the positional", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+
+    // "In Progress" is the --to value, not the key; TEAM-1 must be fetched
+    // (and since it already is In Progress, this stays a no-op success).
+    const out = await workitemCommand([
+      "transition",
+      "--to",
+      "In Progress",
+      "TEAM-1",
+    ]);
+    expect(calls[0].args).toContain("TEAM-1");
+    expect(out).toContain("key: TEAM-1");
+    expect(out).toContain("message: Already In Progress");
+  });
+
   it("requires --to", async () => {
     setAcliRunner(makeAcliFake([]).runner);
     await expect(
@@ -457,6 +544,31 @@ describe("workitem comment", () => {
     expect(create?.args).toContain("Deployed a fix to staging");
     expect(out).toContain("message: Comment added");
     expect(out).toContain("--comments");
+  });
+
+  it("treats a body value of --help as text, not a help request", async () => {
+    const { runner, calls } = makeAcliFake([
+      {
+        match: (args) => args[2] === "comment" && args[3] === "create",
+        result: {},
+      },
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand(["comment", "TEAM-1", "--body", "--help"]);
+    const create = calls.find(
+      (c) => c.args[2] === "comment" && c.args[3] === "create",
+    );
+    expect(create).toBeDefined();
+    expect(out).toContain("message: Comment added");
+    expect(out).not.toContain("usage:");
+  });
+
+  it("returns help for `comment --help` instead of a missing-body error", async () => {
+    setAcliRunner(makeAcliFake([]).runner);
+    const out = await workitemCommand(["comment", "--help"]);
+    expect(out).toContain("usage: atlassian-axi jira workitem");
   });
 });
 

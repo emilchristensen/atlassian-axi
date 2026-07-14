@@ -1,5 +1,4 @@
 import { acliJson } from "../../acli.js";
-import { getFlag, getPositional, hasFlag } from "../../args.js";
 import { takeBody } from "../../body.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
@@ -19,6 +18,8 @@ import {
   fieldOf,
   itemsOf,
   nameOf,
+  parseFlags,
+  parseLimit,
   workitemListSchema,
   workitemViewSchema,
   type JsonRecord,
@@ -28,9 +29,9 @@ export const WORKITEM_HELP = `usage: atlassian-axi jira workitem <subcommand> [f
 subcommands[8]:
   list, view <KEY>, create, edit <KEY>, transition <KEY>, assign <KEY>, comment <KEY>, search "<JQL>"
 flags{list}:
-  --jql <query> (verbatim; exclusive with the filters below), --project <KEY>, --assignee <email|@me>, --status <name>, --limit <n> (default 30), --fields <a,b,c>
+  --jql <query> (verbatim; exclusive with the filters below), --project <KEY>, --assignee <email|@me>, --status <name>, --limit <n> (default 30), --fields <a,b,c> (no filters => updated >= -30d window; acli rejects unbounded JQL)
 flags{view}:
-  --comments, --full (complete body without truncation)
+  --comments, --full (complete bodies without truncation)
 flags{create}:
   --project <KEY> (required), --type <name> (required), --summary <text> (required), --body <text> or --body-file <path> (description), --assignee <email|@me>, --label <a,b>
 flags{edit}:
@@ -50,15 +51,13 @@ examples:
   atlassian-axi jira workitem transition TEAM-1 --to Done
   atlassian-axi jira workitem search "assignee = currentUser() AND resolution = EMPTY"`;
 
-const DEFAULT_LIMIT = 30;
-
 export async function workitemCommand(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
   const sub = args[0];
 
-  if (!sub || hasFlag(args, "--help")) {
+  if (!sub || sub === "--help") {
     return WORKITEM_HELP;
   }
 
@@ -92,28 +91,16 @@ export async function workitemCommand(
 // Shared plumbing
 // ---------------------------------------------------------------------------
 
-function requireKey(args: string[], sub: string): string {
-  const key = getPositional(args, 1);
-  if (!key) {
+function requireKey(positional: string | undefined, sub: string): string {
+  if (!positional) {
     throw new AxiError(`Missing work item key`, "VALIDATION_ERROR", [
       `Run \`atlassian-axi jira workitem ${sub} <KEY> ...\``,
     ]);
   }
-  return key.toUpperCase();
+  return positional.toUpperCase();
 }
 
-function parseLimit(args: string[]): number {
-  const raw = getFlag(args, "--limit");
-  if (raw === undefined) return DEFAULT_LIMIT;
-  const n = parseInt(raw, 10);
-  if (isNaN(n) || n <= 0) {
-    throw new AxiError(`Invalid --limit: ${raw}`, "VALIDATION_ERROR");
-  }
-  return n;
-}
-
-function parseFields(args: string[]): string[] | undefined {
-  const raw = getFlag(args, "--fields");
+function splitFields(raw: string | undefined): string[] | undefined {
   if (!raw) return undefined;
   const fields = raw
     .split(",")
@@ -122,6 +109,11 @@ function parseFields(args: string[]): string[] | undefined {
   return fields.length > 0 ? fields : undefined;
 }
 
+// acli view's default field set omits created/updated/priority; request the
+// full detail set explicitly (verified allowed against acli v1.3.22).
+const VIEW_FIELDS =
+  "key,summary,status,assignee,description,created,updated,priority,issuetype";
+
 /** Fetch one work item by key (acli view --json; tolerate array envelopes). */
 async function fetchWorkitem(key: string): Promise<JsonRecord> {
   const payload = await acliJson<unknown>([
@@ -129,6 +121,8 @@ async function fetchWorkitem(key: string): Promise<JsonRecord> {
     "workitem",
     "view",
     key,
+    "--fields",
+    VIEW_FIELDS,
     "--json",
   ]);
   const item = Array.isArray(payload) ? payload[0] : payload;
@@ -195,12 +189,24 @@ async function listWorkitems(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const jqlFlag = getFlag(args, "--jql");
-  const project = getFlag(args, "--project");
-  const assignee = getFlag(args, "--assignee");
-  const status = getFlag(args, "--status");
-  const limit = parseLimit(args);
-  const fields = parseFields(args);
+  const parsed = parseFlags(args, {
+    values: [
+      "--jql",
+      "--project",
+      "--assignee",
+      "--status",
+      "--limit",
+      "--fields",
+    ],
+  });
+  if (parsed.help) return WORKITEM_HELP;
+
+  const jqlFlag = parsed.values["--jql"];
+  const project = parsed.values["--project"];
+  const assignee = parsed.values["--assignee"];
+  const status = parsed.values["--status"];
+  const limit = parseLimit(parsed.values["--limit"]);
+  const fields = splitFields(parsed.values["--fields"]);
 
   if (jqlFlag && (project || assignee || status)) {
     throw new AxiError(
@@ -234,25 +240,33 @@ function buildJql(filters: {
     clauses.push(`status = ${quoteJql(filters.status)}`);
   }
   const where = clauses.join(" AND ");
-  return where ? `${where} ORDER BY updated DESC` : "ORDER BY updated DESC";
+  // acli rejects unbounded JQL ("Unbounded JQL queries are not allowed"), so a
+  // bare `list` gets a recency window instead of an unrestricted query.
+  return where
+    ? `${where} ORDER BY updated DESC`
+    : "updated >= -30d ORDER BY updated DESC";
 }
 
+/** Quote a JQL string value; backslashes first, then quotes, per JQL escaping. */
 function quoteJql(value: string): string {
-  return `"${value.replace(/"/g, '\\"')}"`;
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
 async function searchWorkitems(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const jql = getPositional(args, 1);
+  const parsed = parseFlags(args, { values: ["--limit", "--fields"] });
+  if (parsed.help) return WORKITEM_HELP;
+
+  const jql = parsed.positional;
   if (!jql) {
     throw new AxiError("Missing JQL query", "VALIDATION_ERROR", [
       'Run `atlassian-axi jira workitem search "<JQL>"`',
     ]);
   }
-  const limit = parseLimit(args);
-  const fields = parseFields(args);
+  const limit = parseLimit(parsed.values["--limit"]);
+  const fields = splitFields(parsed.values["--fields"]);
   const items = await runSearch(jql, limit, fields);
   return renderSearchResults("search", items, limit, fields, ctx);
 }
@@ -265,9 +279,12 @@ async function viewWorkitem(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const key = requireKey(args, "view");
-  const full = hasFlag(args, "--full");
-  const withComments = hasFlag(args, "--comments");
+  const parsed = parseFlags(args, { bools: ["--full", "--comments"] });
+  if (parsed.help) return WORKITEM_HELP;
+
+  const key = requireKey(parsed.positional, "view");
+  const full = parsed.bools["--full"];
+  const withComments = parsed.bools["--comments"];
 
   const item = await fetchWorkitem(key);
   const blocks: string[] = [
@@ -286,7 +303,7 @@ async function viewWorkitem(
     ]);
     const comments = itemsOf(payload, "comments", "values");
     if (comments.length > 0) {
-      blocks.push(renderList("comments", comments, commentSchema));
+      blocks.push(renderList("comments", comments, commentSchema(full)));
     } else {
       blocks.push("comments: none");
     }
@@ -309,11 +326,16 @@ async function createWorkitem(
   ctx?: SiteContext,
 ): Promise<string> {
   const body = takeBody(args);
-  const project = getFlag(args, "--project");
-  const type = getFlag(args, "--type");
-  const summary = getFlag(args, "--summary");
-  const assignee = getFlag(args, "--assignee");
-  const label = getFlag(args, "--label");
+  const parsed = parseFlags(args, {
+    values: ["--project", "--type", "--summary", "--assignee", "--label"],
+  });
+  if (parsed.help) return WORKITEM_HELP;
+
+  const project = parsed.values["--project"];
+  const type = parsed.values["--type"];
+  const summary = parsed.values["--summary"];
+  const assignee = parsed.values["--assignee"];
+  const label = parsed.values["--label"];
 
   const missing = [
     !project ? "--project" : null,
@@ -406,22 +428,40 @@ async function editWorkitem(
   ctx?: SiteContext,
 ): Promise<string> {
   const body = takeBody(args);
-  const key = requireKey(args, "edit");
-  const summary = getFlag(args, "--summary");
-  const assignee = getFlag(args, "--assignee");
-  const type = getFlag(args, "--type");
-  const labels = getFlag(args, "--labels");
-  const removeLabels = getFlag(args, "--remove-labels");
+  const parsed = parseFlags(args, {
+    values: [
+      "--summary",
+      "--assignee",
+      "--type",
+      "--labels",
+      "--remove-labels",
+    ],
+  });
+  if (parsed.help) return WORKITEM_HELP;
+
+  const key = requireKey(parsed.positional, "edit");
+  const summary = parsed.values["--summary"];
+  const assignee = parsed.values["--assignee"];
+  const type = parsed.values["--type"];
+  const labels = parsed.values["--labels"];
+  const removeLabels = parsed.values["--remove-labels"];
 
   const acliArgs = ["jira", "workitem", "edit", "--key", key, "--yes", "--json"];
-  if (summary) acliArgs.push("--summary", summary);
-  if (body) acliArgs.push("--description", body);
-  if (assignee) acliArgs.push("--assignee", assignee);
-  if (type) acliArgs.push("--type", type);
-  if (labels) acliArgs.push("--labels", labels);
-  if (removeLabels) acliArgs.push("--remove-labels", removeLabels);
+  let hasChanges = false;
+  const pushChange = (flag: string, value: string | undefined) => {
+    if (value) {
+      acliArgs.push(flag, value);
+      hasChanges = true;
+    }
+  };
+  pushChange("--summary", summary);
+  pushChange("--description", body);
+  pushChange("--assignee", assignee);
+  pushChange("--type", type);
+  pushChange("--labels", labels);
+  pushChange("--remove-labels", removeLabels);
 
-  if (acliArgs.length === 7) {
+  if (!hasChanges) {
     throw new AxiError("No changes specified", "VALIDATION_ERROR", [
       'Pass at least one of --summary, --body/--body-file, --assignee, --type, --labels, --remove-labels',
     ]);
@@ -446,8 +486,11 @@ async function transitionWorkitem(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const key = requireKey(args, "transition");
-  const to = getFlag(args, "--to");
+  const parsed = parseFlags(args, { values: ["--to"] });
+  if (parsed.help) return WORKITEM_HELP;
+
+  const key = requireKey(parsed.positional, "transition");
+  const to = parsed.values["--to"];
   if (!to) {
     throw new AxiError("Missing --to <status>", "VALIDATION_ERROR", [
       "Run `atlassian-axi jira workitem transition <KEY> --to <status>`",
@@ -517,8 +560,11 @@ async function assignWorkitem(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const key = requireKey(args, "assign");
-  const assignee = getFlag(args, "--assignee");
+  const parsed = parseFlags(args, { values: ["--assignee"] });
+  if (parsed.help) return WORKITEM_HELP;
+
+  const key = requireKey(parsed.positional, "assign");
+  const assignee = parsed.values["--assignee"];
   if (!assignee) {
     throw new AxiError("Missing --assignee <email|@me>", "VALIDATION_ERROR", [
       "Run `atlassian-axi jira workitem assign <KEY> --assignee <email|@me>`",
@@ -593,8 +639,17 @@ async function commentWorkitem(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const body = takeBody(args, { required: true, label: "comment" });
-  const key = requireKey(args, "comment");
+  // Optional at first so `comment --help` reaches the help path; enforced below.
+  const body = takeBody(args, { label: "comment" });
+  const parsed = parseFlags(args, {});
+  if (parsed.help) return WORKITEM_HELP;
+
+  if (body === undefined) {
+    throw new AxiError("--body or --body-file is required", "VALIDATION_ERROR", [
+      'Use --body "..." for inline comment, or --body-file <path> for markdown from a file',
+    ]);
+  }
+  const key = requireKey(parsed.positional, "comment");
 
   await acliJson<unknown>([
     "jira",

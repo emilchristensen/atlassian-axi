@@ -63,7 +63,16 @@ const patterns: ErrorPattern[] = [
     ],
   },
   {
-    pattern: /invalid|bad request|cannot be parsed|error in the jql|malformed/i,
+    pattern: /unbounded jql/i,
+    code: "VALIDATION_ERROR",
+    message: (_m, raw) => cleanAcliError(raw),
+    suggestions: () => [
+      "Add a restriction (project, assignee, status, or an updated >= -30d window) to the JQL",
+    ],
+  },
+  {
+    pattern:
+      /invalid|bad request|cannot be parsed|error in the jql|malformed|not allowed/i,
     code: "VALIDATION_ERROR",
     message: (_m, raw) => cleanAcliError(raw),
   },

@@ -1,5 +1,4 @@
 import { acliJson } from "../../acli.js";
-import { getFlag, getPositional, hasFlag } from "../../args.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
 import { formatCountLine } from "../../format.js";
@@ -13,7 +12,13 @@ import {
   renderOutput,
   type FieldDef,
 } from "../../toon.js";
-import { itemsOf, nameOf, type JsonRecord } from "./shared.js";
+import {
+  itemsOf,
+  nameOf,
+  parseFlags,
+  parseLimit,
+  type JsonRecord,
+} from "./shared.js";
 
 export const PROJECT_HELP = `usage: atlassian-axi jira project <subcommand> [flags]
 subcommands[2]:
@@ -23,8 +28,6 @@ flags{list}:
 examples:
   atlassian-axi jira project list
   atlassian-axi jira project view TEAM`;
-
-const DEFAULT_LIMIT = 30;
 
 /**
  * Project schema: key, name, type. acli project payloads mirror the Jira REST
@@ -52,7 +55,7 @@ export async function projectCommand(
 ): Promise<string> {
   const sub = args[0];
 
-  if (!sub || hasFlag(args, "--help")) {
+  if (!sub || sub === "--help") {
     return PROJECT_HELP;
   }
 
@@ -74,11 +77,9 @@ async function listProjects(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const rawLimit = getFlag(args, "--limit");
-  const limit = rawLimit === undefined ? DEFAULT_LIMIT : parseInt(rawLimit, 10);
-  if (isNaN(limit) || limit <= 0) {
-    throw new AxiError(`Invalid --limit: ${rawLimit}`, "VALIDATION_ERROR");
-  }
+  const parsed = parseFlags(args, { values: ["--limit"] });
+  if (parsed.help) return PROJECT_HELP;
+  const limit = parseLimit(parsed.values["--limit"]);
 
   const payload = await acliJson<unknown>([
     "jira",
@@ -111,7 +112,9 @@ async function viewProject(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const key = getPositional(args, 1)?.toUpperCase();
+  const parsed = parseFlags(args, {});
+  if (parsed.help) return PROJECT_HELP;
+  const key = parsed.positional?.toUpperCase();
   if (!key) {
     throw new AxiError("Missing project key", "VALIDATION_ERROR", [
       "Run `atlassian-axi jira project view <KEY>`",

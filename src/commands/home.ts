@@ -40,11 +40,53 @@ export async function homeCommand(
 
   blocks.push(
     renderHelp([
-      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, confluence, setup",
+      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, setup",
     ]),
   );
 
   return renderOutput(blocks);
+}
+
+// The dashboard runs inside the SessionStart hook's 10 s budget, so the
+// best-effort acli search gets a short leash: a hung acli must not stall
+// every agent session start (the runner's own timeout is 15 s).
+const WORKITEMS_BUDGET_MS = 2_000;
+
+/** Best-effort my-open-workitems fetch (report §4.5); errors degrade to []. */
+async function myOpenWorkitems(): Promise<JsonRecord[]> {
+  const payload = await withBudget(
+    acliJson<unknown>([
+      "jira",
+      "workitem",
+      "search",
+      "--jql",
+      MY_OPEN_JQL,
+      "--limit",
+      "3",
+      "--json",
+    ]),
+    WORKITEMS_BUDGET_MS,
+    [] as unknown,
+  );
+  return itemsOf(payload, "issues", "workItems", "results", "values").slice(0, 3);
+}
+
+/** Resolve to `fallback` when `promise` misses the deadline or rejects. */
+function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    timer.unref?.();
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
 }
 
 /**
@@ -52,21 +94,6 @@ export async function homeCommand(
  * error would poison every session's SessionStart block) and does no network:
  * it reports acli presence and whether a full credential resolves.
  */
-/** Best-effort my-open-workitems fetch (report §4.5); errors degrade to []. */
-async function myOpenWorkitems(): Promise<JsonRecord[]> {
-  const payload = await acliJson<unknown>([
-    "jira",
-    "workitem",
-    "search",
-    "--jql",
-    MY_OPEN_JQL,
-    "--limit",
-    "3",
-    "--json",
-  ]);
-  return itemsOf(payload, "issues", "workItems", "results", "values").slice(0, 3);
-}
-
 async function resolveAuthLine(): Promise<string> {
   try {
     if (!(await acliInstalled())) {
