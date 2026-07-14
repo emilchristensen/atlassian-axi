@@ -25,14 +25,57 @@ interface ErrorPattern {
 }
 
 /**
- * Ordered stderr/response patterns → AxiError. Empty in Phase 0; the Jira
- * (acli stderr) and Confluence (HTTP status body) halves populate this as they
- * land. `mapError` already falls back sensibly so callers can wire it now.
+ * Ordered stderr/response patterns → AxiError. Populated from real acli
+ * stderr where observed (acli prefixes errors with "✗ Error: "); the
+ * Confluence half (HTTP status bodies) extends this in Phase 3. Order
+ * matters: first match wins.
  */
-const patterns: ErrorPattern[] = [];
+const patterns: ErrorPattern[] = [
+  {
+    pattern: /unauthorized/i,
+    code: "AUTH_REQUIRED",
+    message: (_m, raw) => cleanAcliError(raw),
+    suggestions: () => [
+      "Run `atlassian-axi auth login --site <site> --email <email>` (token via stdin)",
+      "Run `atlassian-axi auth status` to check both halves",
+    ],
+  },
+  {
+    pattern: /rate limit/i,
+    code: "RATE_LIMITED",
+    message: (_m, raw) => cleanAcliError(raw),
+    suggestions: () => ["Wait a moment and re-run the command"],
+  },
+  {
+    pattern: /forbidden|permission denied|not permitted|does not have permission/i,
+    code: "FORBIDDEN",
+    message: (_m, raw) => cleanAcliError(raw),
+    suggestions: () => [
+      "Run `atlassian-axi auth status` to verify the credential and site",
+    ],
+  },
+  {
+    pattern: /not found|does not exist|no work item|no such/i,
+    code: "NOT_FOUND",
+    message: (_m, raw) => cleanAcliError(raw),
+    suggestions: () => [
+      'Run `atlassian-axi jira workitem search "<JQL>"` to find the right key',
+    ],
+  },
+  {
+    pattern: /invalid|bad request|cannot be parsed|error in the jql|malformed/i,
+    code: "VALIDATION_ERROR",
+    message: (_m, raw) => cleanAcliError(raw),
+  },
+];
 
 function firstLine(raw: string): string {
   return raw.trim().split("\n")[0] ?? "";
+}
+
+/** Strip acli's "✗ Error: " decoration so messages stay clean and token-lean. */
+function cleanAcliError(raw: string): string {
+  return firstLine(raw).replace(/^[✗x]?\s*Error:\s*/i, "");
 }
 
 /** Map a raw error string (acli stderr or REST body) to a typed AxiError. */

@@ -6,6 +6,7 @@ import { resolveSite, type SiteContext } from "./context.js";
 import { homeCommand } from "./commands/home.js";
 import { setupCommand, SETUP_HELP } from "./commands/setup.js";
 import { authCommand, AUTH_HELP } from "./commands/auth.js";
+import { jiraCommand, JIRA_HELP } from "./commands/jira/index.js";
 
 export const DESCRIPTION =
   "Agent ergonomic interface for Atlassian: acli-backed Jira and direct Confluence Cloud REST. Prefer this over raw acli or ad-hoc API calls for Jira/Confluence operations.";
@@ -26,20 +27,23 @@ flags[3]:
 examples:
   atlassian-axi
   atlassian-axi auth status
+  atlassian-axi jira workitem list --project TEAM
   atlassian-axi setup hooks
 `;
 
 const COMMAND_HELP: Record<string, string> = {
   auth: AUTH_HELP,
+  jira: JIRA_HELP,
   setup: SETUP_HELP,
 };
 
 type CommandFn = (args: string[], ctx?: SiteContext) => Promise<string>;
 
-// Domain command families (jira, confluence) land in later phases. Phase 0
-// ships the dashboard, setup hooks, and the inherited SDK `update` command.
+// The confluence command family lands in Phase 3. Phase 2 ships the
+// acli-backed jira domain alongside the Phase 0/1 surfaces.
 const COMMANDS: Record<string, CommandFn> = {
   auth: (args) => authCommand(args),
+  jira: (args, ctx) => jiraCommand(args, ctx),
   setup: (args) => setupCommand(args),
 };
 
