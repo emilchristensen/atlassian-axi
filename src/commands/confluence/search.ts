@@ -14,7 +14,7 @@ flags[1]:
 examples:
   atlassian-axi confluence search "space = ENG AND type = page"
   atlassian-axi confluence search "title ~ 'release notes'" --limit 5
-  atlassian-axi confluence search "text ~ 'pagination' AND lastModified >= now('-30d')"`;
+  atlassian-axi confluence search "text ~ 'pagination' AND lastmodified >= now('-30d')"`;
 
 export async function searchCommand(
   args: string[],
