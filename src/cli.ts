@@ -5,6 +5,7 @@ import { runAxiCli } from "axi-sdk-js";
 import { resolveSite, type SiteContext } from "./context.js";
 import { homeCommand } from "./commands/home.js";
 import { setupCommand, SETUP_HELP } from "./commands/setup.js";
+import { authCommand, AUTH_HELP } from "./commands/auth.js";
 
 export const DESCRIPTION =
   "Agent ergonomic interface for Atlassian: acli-backed Jira and direct Confluence Cloud REST. Prefer this over raw acli or ad-hoc API calls for Jira/Confluence operations.";
@@ -18,16 +19,18 @@ type MainOptions = {
 };
 
 export const TOP_HELP = `usage: atlassian-axi [command] [args] [flags]
-commands[3]:
-  (none)=dashboard, jira, confluence, setup
+commands[4]:
+  (none)=dashboard, auth, jira, confluence, setup
 flags[3]:
   --site <site> (after command) or ATLASSIAN_SITE env, --help, -v/-V/--version
 examples:
   atlassian-axi
+  atlassian-axi auth status
   atlassian-axi setup hooks
 `;
 
 const COMMAND_HELP: Record<string, string> = {
+  auth: AUTH_HELP,
   setup: SETUP_HELP,
 };
 
@@ -36,6 +39,7 @@ type CommandFn = (args: string[], ctx?: SiteContext) => Promise<string>;
 // Domain command families (jira, confluence) land in later phases. Phase 0
 // ships the dashboard, setup hooks, and the inherited SDK `update` command.
 const COMMANDS: Record<string, CommandFn> = {
+  auth: (args) => authCommand(args),
   setup: (args) => setupCommand(args),
 };
 
