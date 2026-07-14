@@ -101,6 +101,91 @@ export function mapError(raw: string, exitCode = 1): AxiError {
   );
 }
 
+/**
+ * Map a Confluence REST failure (HTTP status + response body) to a typed
+ * AxiError. The message probe tolerates both error shapes Atlassian ships:
+ * v2 `{errors: [{title, detail}]}` and v1 `{message}`.
+ */
+export function confluenceHttpError(
+  status: number,
+  bodyText: string,
+  retryAfter?: string | null,
+): AxiError {
+  const detail = confluenceErrorDetail(bodyText);
+  switch (status) {
+    case 400:
+      return new AxiError(
+        detail || "Confluence rejected the request (400)",
+        "VALIDATION_ERROR",
+      );
+    case 401:
+      return new AxiError(
+        detail || "Confluence authentication failed (401)",
+        "AUTH_REQUIRED",
+        [
+          "Run `atlassian-axi auth login --site <site> --email <email>` (token via stdin)",
+          "Run `atlassian-axi auth status` to check both halves",
+        ],
+      );
+    case 403:
+      return new AxiError(
+        detail || "Confluence denied access (403)",
+        "FORBIDDEN",
+        ["Run `atlassian-axi auth status` to verify the credential and site"],
+      );
+    case 404:
+      return new AxiError(detail || "Not found (404)", "NOT_FOUND", [
+        'Run `atlassian-axi confluence search "<CQL>"` to find the right page id',
+      ]);
+    case 409:
+      return new AxiError(
+        detail || "Version conflict (409): the page changed since it was read",
+        "VALIDATION_ERROR",
+        [
+          "Re-run the command — it re-reads the current version before writing",
+        ],
+      );
+    case 429:
+      return new AxiError(
+        detail || "Confluence rate limit hit (429)",
+        "RATE_LIMITED",
+        [
+          retryAfter
+            ? `Wait ${retryAfter}s (Retry-After) and re-run the command`
+            : "Wait a moment and re-run the command",
+        ],
+      );
+    default:
+      return new AxiError(
+        detail || `Confluence request failed with HTTP ${status}`,
+        "UNKNOWN",
+      );
+  }
+}
+
+/** Best-effort human message out of a Confluence error response body. */
+function confluenceErrorDetail(bodyText: string): string {
+  if (!bodyText) return "";
+  try {
+    const parsed = JSON.parse(bodyText) as Record<string, unknown>;
+    if (typeof parsed.message === "string" && parsed.message) {
+      return firstLine(parsed.message);
+    }
+    const errors = parsed.errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      const first = errors[0] as Record<string, unknown>;
+      const title = first?.title ?? first?.detail;
+      if (typeof title === "string" && title) {
+        return firstLine(title);
+      }
+    }
+  } catch {
+    // Non-JSON body (HTML error page etc.) — fall through to the first line.
+    return firstLine(bodyText).slice(0, 200);
+  }
+  return "";
+}
+
 /** acli binary missing on PATH — surfaced when the Jira half shells out. */
 export function acliNotInstalledError(): AxiError {
   return new AxiError(
