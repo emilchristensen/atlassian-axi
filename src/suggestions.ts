@@ -452,17 +452,20 @@ export function getSuggestions(ctx: SuggestionContext): string[] {
 }
 
 /**
- * Closest known command for did-you-mean on typos. Only fires when the typo
- * is close (edit distance <= 2) so unrelated input never gets a bogus hint.
+ * Closest known command for did-you-mean on typos. The threshold scales with
+ * input length (1 edit for short inputs, up to 2 for longer ones) so terse
+ * unrelated input like `at` or `jr` never gets a bogus hint.
  */
 export function closestCommand(
   input: string,
   known: readonly string[],
 ): string | undefined {
+  const threshold = Math.min(2, Math.floor(input.length / 3) + 1);
+  const normalized = input.toLowerCase();
   let best: { name: string; distance: number } | undefined;
   for (const name of known) {
-    const distance = editDistance(input.toLowerCase(), name);
-    if (distance <= 2 && (!best || distance < best.distance)) {
+    const distance = editDistance(normalized, name.toLowerCase());
+    if (distance <= threshold && (!best || distance < best.distance)) {
       best = { name, distance };
     }
   }

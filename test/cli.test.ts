@@ -146,6 +146,13 @@ describe("cli help/version contract", () => {
     expect(process.exitCode).toBe(2);
   });
 
+  it("exits 2 on an unknown confluence subcommand", async () => {
+    const cap = capture();
+    await main({ argv: ["confluence", "page", "gett"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Unknown page subcommand: gett");
+    expect(process.exitCode).toBe(2);
+  });
+
   it("rejects a leading flag before the command", async () => {
     const cap = capture();
     await main({ argv: ["--site=acme.atlassian.net", "foo"], stdout: cap.stdout });
