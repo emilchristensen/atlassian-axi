@@ -275,6 +275,36 @@ describe("workitem view", () => {
     expect(full).not.toContain("truncated");
   });
 
+  it("passes a user --fields list to acli (key always included) and renders only those", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand([
+      "view",
+      "TEAM-1",
+      "--fields",
+      "status,updated",
+    ]);
+
+    const call = calls[0];
+    expect(call.args[call.args.indexOf("--fields") + 1]).toBe(
+      "key,status,updated",
+    );
+    expect(out).toContain("key: TEAM-1");
+    expect(out).toContain("status: In Progress");
+    expect(out).toContain("updated: 1d ago");
+    expect(out).not.toContain("summary:");
+  });
+
+  it("rejects --full combined with --fields instead of silently ignoring --full", async () => {
+    setAcliRunner(makeAcliFake([]).runner);
+    await expect(
+      workitemCommand(["view", "TEAM-1", "--fields", "status", "--full"]),
+    ).rejects.toThrow(/--full cannot be combined with --fields/);
+  });
+
   it("uppercases the key and requires one", async () => {
     const { runner, calls } = makeAcliFake([
       { match: isView("TEAM-1"), result: viewPayload },
