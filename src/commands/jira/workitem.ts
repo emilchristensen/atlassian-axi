@@ -20,6 +20,7 @@ import {
   nameOf,
   parseFlags,
   parseLimit,
+  splitFields,
   workitemListSchema,
   workitemViewSchema,
   type JsonRecord,
@@ -31,7 +32,7 @@ subcommands[8]:
 flags{list}:
   --jql <query> (verbatim; exclusive with the filters below), --project <KEY>, --assignee <email|@me>, --status <name>, --limit <n> (default 30), --fields <a,b,c> (no filters => updated >= -30d window; acli rejects unbounded JQL)
 flags{view}:
-  --comments, --full (complete bodies without truncation)
+  --comments, --full (complete bodies without truncation), --fields <a,b,c> (render only these fields; key is always included)
 flags{create}:
   --project <KEY> (required), --type <name> (required), --summary <text> (required), --body <text> or --body-file <path> (description), --assignee <email|@me>, --label <a,b>
 flags{edit}:
@@ -100,29 +101,30 @@ function requireKey(positional: string | undefined, sub: string): string {
   return positional.toUpperCase();
 }
 
-function splitFields(raw: string | undefined): string[] | undefined {
-  if (!raw) return undefined;
-  const fields = raw
-    .split(",")
-    .map((f) => f.trim())
-    .filter(Boolean);
-  return fields.length > 0 ? fields : undefined;
-}
-
 // acli view's default field set omits created/updated/priority; request the
 // full detail set explicitly (verified allowed against acli v1.3.22).
 const VIEW_FIELDS =
   "key,summary,status,assignee,description,created,updated,priority,issuetype";
 
-/** Fetch one work item by key (acli view --json; tolerate array envelopes). */
-async function fetchWorkitem(key: string): Promise<JsonRecord> {
+/**
+ * Fetch one work item by key (acli view --json; tolerate array envelopes).
+ * A user --fields list replaces the default detail set (`key` always rides
+ * along so the render can anchor on it).
+ */
+async function fetchWorkitem(
+  key: string,
+  fields?: string[],
+): Promise<JsonRecord> {
+  const requested = fields
+    ? [...new Set(["key", ...fields])].join(",")
+    : VIEW_FIELDS;
   const payload = await acliJson<unknown>([
     "jira",
     "workitem",
     "view",
     key,
     "--fields",
-    VIEW_FIELDS,
+    requested,
     "--json",
   ]);
   const item = Array.isArray(payload) ? payload[0] : payload;
@@ -279,17 +281,52 @@ async function viewWorkitem(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const parsed = parseFlags(args, { bools: ["--full", "--comments"] });
+  const parsed = parseFlags(args, {
+    values: ["--fields"],
+    bools: ["--full", "--comments"],
+  });
   if (parsed.help) return WORKITEM_HELP;
 
   const key = requireKey(parsed.positional, "view");
   const full = parsed.bools["--full"];
   const withComments = parsed.bools["--comments"];
+  const fields = splitFields(parsed.values["--fields"]);
 
-  const item = await fetchWorkitem(key);
+  // --full governs body truncation in the DEFAULT schema; a --fields render
+  // never truncates, so the combination would be a silent no-op — reject it.
+  if (fields && full) {
+    throw new AxiError(
+      "--full cannot be combined with --fields (a --fields render is never truncated)",
+      "VALIDATION_ERROR",
+      ["Drop --full, or drop --fields to render the default field set"],
+    );
+  }
+
+  const item = await fetchWorkitem(key, fields);
   const blocks: string[] = [
-    renderDetail("workitem", item, workitemViewSchema(full)),
+    renderDetail(
+      "workitem",
+      item,
+      fields ? fieldsSchema(fields) : workitemViewSchema(full),
+    ),
   ];
+
+  // Mirror sprint list-workitems: surface --fields values acli did not
+  // return, so a `bogus: null` row is never mistaken for an empty field.
+  if (fields) {
+    const nested = item.fields;
+    const dropped = fields.filter(
+      (name) =>
+        name !== "key" &&
+        !(nested && typeof nested === "object" && name in nested) &&
+        !(name in item),
+    );
+    if (dropped.length > 0) {
+      blocks.push(
+        `note: acli did not return field(s) ${dropped.join(", ")} (unknown field name, or unsupported by workitem view)`,
+      );
+    }
+  }
 
   if (withComments) {
     const payload = await acliJson<unknown>([

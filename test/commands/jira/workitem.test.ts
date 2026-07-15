@@ -275,6 +275,73 @@ describe("workitem view", () => {
     expect(full).not.toContain("truncated");
   });
 
+  it("passes a user --fields list to acli (key always included) and renders only those", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand([
+      "view",
+      "TEAM-1",
+      "--fields",
+      "status,updated",
+    ]);
+
+    const call = calls[0];
+    expect(call.args[call.args.indexOf("--fields") + 1]).toBe(
+      "key,status,updated",
+    );
+    expect(out).toContain("key: TEAM-1");
+    expect(out).toContain("status: In Progress");
+    expect(out).toContain("updated: 1d ago");
+    expect(out).not.toContain("summary:");
+  });
+
+  it("rejects --full combined with --fields instead of silently ignoring --full", async () => {
+    setAcliRunner(makeAcliFake([]).runner);
+    await expect(
+      workitemCommand(["view", "TEAM-1", "--fields", "status", "--full"]),
+    ).rejects.toThrow(/--full cannot be combined with --fields/);
+  });
+
+  it("rejects a degenerate --fields list instead of falling back to the default set", async () => {
+    // Review finding: `--fields ,` used to silently render the full default
+    // field set (and slip past the --full+--fields reject).
+    const { runner, calls } = makeAcliFake([]);
+    setAcliRunner(runner);
+    for (const raw of [",", "a,,b", ""]) {
+      await expect(
+        workitemCommand(["view", "TEAM-1", "--fields", raw]),
+      ).rejects.toThrow(/Invalid --fields value/);
+    }
+    await expect(
+      workitemCommand(["list", "--fields", ","]),
+    ).rejects.toThrow(/Invalid --fields value/);
+    await expect(
+      workitemCommand(["search", "key = TEAM-1", "--fields", ","]),
+    ).rejects.toThrow(/Invalid --fields value/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("surfaces --fields values acli did not return instead of rendering silent nulls", async () => {
+    const { runner } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+    const out = await workitemCommand([
+      "view",
+      "TEAM-1",
+      "--fields",
+      "status,bogusfield",
+    ]);
+    expect(out).toContain(
+      "note: acli did not return field(s) bogusfield",
+    );
+    const clean = await workitemCommand(["view", "TEAM-1", "--fields", "status"]);
+    expect(clean).not.toContain("note: acli did not return");
+  });
+
   it("uppercases the key and requires one", async () => {
     const { runner, calls } = makeAcliFake([
       { match: isView("TEAM-1"), result: viewPayload },

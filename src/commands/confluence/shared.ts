@@ -1,5 +1,6 @@
 import { custom, extract, relativeTime, type FieldDef } from "../../toon.js";
 import { truncateBody } from "../../body.js";
+import { AxiError } from "../../errors.js";
 
 /**
  * Tolerant accessors + FieldDef schemas for the direct-REST Confluence half.
@@ -152,3 +153,76 @@ function contentOf(item: JsonRecord): JsonRecord {
   const content = item?.content;
   return content && typeof content === "object" ? (content as JsonRecord) : {};
 }
+
+/**
+ * Require exactly one positional page id for a `page <sub>` subcommand.
+ * Shared by page.ts and page-extras.ts (a silently ignored second positional
+ * would act on a different page than the caller intended).
+ */
+export function requirePageId(
+  args: string[],
+  positional: string | undefined,
+  sub: string,
+): string {
+  if (!positional) {
+    throw new AxiError("Missing page id", "VALIDATION_ERROR", [
+      `Run \`atlassian-axi confluence page ${sub} <id> ...\``,
+      'Find page ids with `atlassian-axi confluence search "<CQL>"`',
+    ]);
+  }
+  const extra = args.slice(1).filter((a) => !a.startsWith("--"))[1];
+  if (extra !== undefined) {
+    throw new AxiError(
+      `Unexpected extra argument: ${extra}`,
+      "VALIDATION_ERROR",
+      [`Run \`atlassian-axi confluence page ${sub} <id>\` with a single id`],
+    );
+  }
+  return positional;
+}
+
+/** Human-readable file size (attachments); integer bytes in, "12.3 KB" out. */
+export function formatBytes(raw: unknown): string | null {
+  if (typeof raw !== "number" || !isFinite(raw) || raw < 0) return null;
+  if (raw < 1024) return `${raw} B`;
+  const display = (value: number): number =>
+    value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = raw;
+  let unit = "B";
+  for (const next of units) {
+    value = value / 1024;
+    unit = next;
+    // Compare what would be DISPLAYED, not the raw value: 1048064 bytes is
+    // 1023.5 KB, which rounds to the nonsense "1024 KB" — bump it to "1 MB".
+    if (display(value) < 1024 || next === units[units.length - 1]) break;
+  }
+  return `${display(value)} ${unit}`;
+}
+
+/** List schema for `page attachments` (v2 AttachmentBulk shape). */
+export const attachmentListSchema: FieldDef[] = [
+  custom("id", (item: JsonRecord) => item.id ?? null),
+  custom("title", (item: JsonRecord) => item.title ?? null),
+  custom("mediaType", (item: JsonRecord) => item.mediaType ?? null),
+  custom("size", (item: JsonRecord) => formatBytes(item.fileSize) ?? "unknown"),
+  custom("version", versionOf),
+  custom("updated", (item: JsonRecord) =>
+    relativeOf((item.version as JsonRecord | undefined)?.createdAt),
+  ),
+];
+
+/** List schema for `page labels` (v2 Label shape: id/name/prefix). */
+export const labelListSchema: FieldDef[] = [
+  custom("name", (item: JsonRecord) => item.name ?? null),
+  custom("prefix", (item: JsonRecord) => item.prefix ?? null),
+  custom("id", (item: JsonRecord) => item.id ?? null),
+];
+
+/** List schema for `page children` (v2 ChildPage shape). */
+export const childPageListSchema: FieldDef[] = [
+  custom("id", (item: JsonRecord) => item.id ?? null),
+  custom("title", (item: JsonRecord) => item.title ?? null),
+  custom("status", (item: JsonRecord) => item.status ?? null),
+  custom("position", (item: JsonRecord) => item.childPosition ?? null),
+];

@@ -9,7 +9,7 @@ export const CONFLUENCE_HELP = `usage: atlassian-axi confluence <resource> <subc
 resources[3]:
   page, space, search
 page:
-  get <id>, create --space <KEY> --title <text> --body-file <path>, update <id>, delete <id>
+  get <id>, create --space <KEY> --title <text> --body-file <path>, update <id>, delete <id>, attachments <id>, labels <id> [--add|--remove <names>], children <id>
 space:
   list
 search:

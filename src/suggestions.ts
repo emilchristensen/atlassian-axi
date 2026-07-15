@@ -320,7 +320,75 @@ const table: SuggestionEntry[] = [
     match: (c) => c.domain === "page" && c.action === "get",
     lines: (c) => [
       `Run \`atlassian-axi confluence page update ${c.id} --body-file <path>\` to edit it`,
+      `Run \`atlassian-axi confluence page children ${c.id}\` to list its child pages`,
       'Run `atlassian-axi confluence search "<CQL>"` to find related pages',
+    ],
+  },
+
+  // Confluence page attachments
+  {
+    match: (c) => c.domain === "page" && c.action === "attachments" && !c.isEmpty,
+    lines: (c) => [
+      `Narrow with \`atlassian-axi confluence page attachments ${c.id} --filename <name>\` or \`--media-type <type>\``,
+      `Run \`atlassian-axi confluence page get ${c.id}\` to read the page itself`,
+    ],
+  },
+  {
+    match: (c) =>
+      c.domain === "page" &&
+      c.action === "attachments" &&
+      c.isEmpty === true &&
+      c.state === "filtered",
+    lines: (c) => [
+      `Broaden the search: drop --filename/--media-type, or run \`atlassian-axi confluence page attachments ${c.id}\` to list everything`,
+    ],
+  },
+  {
+    match: (c) =>
+      c.domain === "page" && c.action === "attachments" && c.isEmpty === true,
+    lines: (c) => [
+      `Run \`atlassian-axi confluence page get ${c.id}\` to read the page (attachments are added in the Confluence UI)`,
+    ],
+  },
+
+  // Confluence page labels (list and mutations share the follow-ups)
+  {
+    match: (c) =>
+      c.domain === "page" &&
+      (c.action === "labels-add" || c.action === "labels-remove"),
+    lines: (c) => [
+      `Run \`atlassian-axi confluence page labels ${c.id}\` to list the labels again`,
+      "Run `atlassian-axi confluence search \"label = '<name>'\"` to find content sharing a label",
+    ],
+  },
+  {
+    match: (c) => c.domain === "page" && c.action === "labels" && !c.isEmpty,
+    lines: (c) => [
+      "Run `atlassian-axi confluence search \"label = '<name>'\"` to find content sharing a label",
+      `Run \`atlassian-axi confluence page labels ${c.id} --add <name>\` or \`--remove <name>\` to change them`,
+    ],
+  },
+  {
+    match: (c) =>
+      c.domain === "page" && c.action === "labels" && c.isEmpty === true,
+    lines: (c) => [
+      `Run \`atlassian-axi confluence page labels ${c.id} --add <name,name,...>\` to add labels`,
+    ],
+  },
+
+  // Confluence page children
+  {
+    match: (c) => c.domain === "page" && c.action === "children" && !c.isEmpty,
+    lines: () => [
+      "Run `atlassian-axi confluence page get <id>` to read a child page",
+      "Run `atlassian-axi confluence page children <id>` to descend another level",
+    ],
+  },
+  {
+    match: (c) =>
+      c.domain === "page" && c.action === "children" && c.isEmpty === true,
+    lines: (c) => [
+      `Run \`atlassian-axi confluence page create --space <KEY> --title "..." --body-file <path> --parent ${c.id}\` to create a child page`,
     ],
   },
 

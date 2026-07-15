@@ -15,6 +15,16 @@
  *    `{results, start, limit, size, totalSize, _links}`; each hit nests the
  *    entity under `content` and decorates top-level title/excerpt with
  *    `@@@hl@@@...@@@endhl@@@` highlight markers.
+ *  - Phase 4b additions (hand-authored 2026-07-15 from the same published
+ *    contracts): v2 `GET /pages/{id}/attachments` returns AttachmentBulk
+ *    results (id/status/title/mediaType/fileSize are top-level, ids are
+ *    strings, fileSize is a number, version nests like pages); v2
+ *    `GET /pages/{id}/labels` returns Label results ({id, name, prefix});
+ *    v2 `GET /pages/{id}/children` returns ChildPage results
+ *    ({id, status, title, spaceId, childPosition}). Label MUTATIONS are v1
+ *    only (v2 has none): `POST /wiki/rest/api/content/{id}/label` takes a
+ *    bare LabelCreate array (`[{prefix, name}]`) and returns a LabelArray;
+ *    `DELETE .../label?name=<name>` returns 204.
  *
  * If a live capture ever disagrees, re-capture and update these together with
  * the tolerant accessors in src/commands/confluence/shared.ts.
@@ -217,6 +227,159 @@ export const searchPayload = {
     base: "https://example.atlassian.net/wiki",
     context: "/wiki",
     self: "https://example.atlassian.net/wiki/rest/api/search?cql=...",
+  },
+};
+
+/** `GET /wiki/api/v2/pages/12345/attachments` — two attachments, no next. */
+export const attachmentsPayload = {
+  results: [
+    {
+      id: "att900001",
+      status: "current",
+      title: "architecture.png",
+      createdAt: "2026-07-10T09:00:00.000Z",
+      pageId: "12345",
+      mediaType: "image/png",
+      mediaTypeDescription: "PNG Image",
+      comment: "",
+      fileId: "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
+      fileSize: 482133,
+      webuiLink: "/pages/viewpageattachments.action?pageId=12345",
+      downloadLink: "/download/attachments/12345/architecture.png",
+      version: {
+        authorId: "5b10a2844c20165700ede21g",
+        createdAt: "2026-07-12T12:00:00.000Z",
+        message: "",
+        minorEdit: false,
+        number: 2,
+      },
+      _links: {
+        webui: "/pages/viewpageattachments.action?pageId=12345",
+        download: "/download/attachments/12345/architecture.png",
+      },
+    },
+    {
+      id: "att900002",
+      status: "current",
+      title: "meeting-notes.pdf",
+      createdAt: "2026-07-13T15:30:00.000Z",
+      pageId: "12345",
+      mediaType: "application/pdf",
+      mediaTypeDescription: "PDF Document",
+      comment: "July sync",
+      fileId: "a9b8c7d6-e5f4-3210-fedc-ba0987654321",
+      fileSize: 812,
+      webuiLink: "/pages/viewpageattachments.action?pageId=12345",
+      downloadLink: "/download/attachments/12345/meeting-notes.pdf",
+      version: {
+        authorId: "62beca8b174792b4ae0aa763",
+        createdAt: "2026-07-13T15:30:00.000Z",
+        message: "",
+        minorEdit: false,
+        number: 1,
+      },
+      _links: {
+        webui: "/pages/viewpageattachments.action?pageId=12345",
+        download: "/download/attachments/12345/meeting-notes.pdf",
+      },
+    },
+  ],
+  _links: { base: "https://example.atlassian.net/wiki" },
+};
+
+/** Same envelope with a cursor `next` link — more attachments exist. */
+export const attachmentsPayloadWithNext = {
+  ...attachmentsPayload,
+  _links: {
+    base: "https://example.atlassian.net/wiki",
+    next: "/wiki/api/v2/pages/12345/attachments?cursor=eyJpZCI6OTAwMDAyfQ==&limit=2",
+  },
+};
+
+/** `GET /wiki/api/v2/pages/12345/labels` — two global labels. */
+export const labelsPayload = {
+  results: [
+    { id: "50001", name: "release", prefix: "global" },
+    { id: "50002", name: "engineering", prefix: "global" },
+  ],
+  _links: { base: "https://example.atlassian.net/wiki" },
+};
+
+/** Same label set with a cursor `next` link — the page has MORE labels. */
+export const labelsPayloadTruncated = {
+  ...labelsPayload,
+  _links: {
+    base: "https://example.atlassian.net/wiki",
+    next: "/wiki/api/v2/pages/12345/labels?cursor=eyJpZCI6NTAwMDJ9&limit=250",
+  },
+};
+
+/** A page whose only label is TEAM-prefixed (no global labels at all). */
+export const labelsTeamOnlyPayload = {
+  results: [{ id: "50009", name: "release", prefix: "team" }],
+  _links: { base: "https://example.atlassian.net/wiki" },
+};
+
+/** The label set after `labels --add july` (v2 re-fetch post-mutation). */
+export const labelsAfterAddPayload = {
+  results: [
+    { id: "50001", name: "release", prefix: "global" },
+    { id: "50002", name: "engineering", prefix: "global" },
+    { id: "50003", name: "july", prefix: "global" },
+  ],
+  _links: { base: "https://example.atlassian.net/wiki" },
+};
+
+/** The label set after `labels --remove engineering` (v2 re-fetch). */
+export const labelsAfterRemovePayload = {
+  results: [{ id: "50001", name: "release", prefix: "global" }],
+  _links: { base: "https://example.atlassian.net/wiki" },
+};
+
+/**
+ * `POST /wiki/rest/api/content/12345/label` — v1 LabelArray response. The
+ * CLI never parses it (the v2 re-fetch is authoritative), but the fake
+ * returns the realistic shape anyway.
+ */
+export const labelAddedV1Payload = {
+  results: [{ prefix: "global", name: "july", id: "50003", label: "july" }],
+  start: 0,
+  limit: 200,
+  size: 1,
+  _links: {
+    base: "https://example.atlassian.net/wiki",
+    context: "/wiki",
+    self: "https://example.atlassian.net/wiki/rest/api/content/12345/label",
+  },
+};
+
+/** `GET /wiki/api/v2/pages/12345/children` — two child pages, no next. */
+export const childrenPayload = {
+  results: [
+    {
+      id: "20001",
+      status: "current",
+      title: "Release notes / July details",
+      spaceId: "111",
+      childPosition: 1,
+    },
+    {
+      id: "20002",
+      status: "current",
+      title: "Release notes / rollout checklist",
+      spaceId: "111",
+      childPosition: 2,
+    },
+  ],
+  _links: { base: "https://example.atlassian.net/wiki" },
+};
+
+/** Same envelope with a cursor `next` link — more children exist. */
+export const childrenPayloadWithNext = {
+  ...childrenPayload,
+  _links: {
+    base: "https://example.atlassian.net/wiki",
+    next: "/wiki/api/v2/pages/12345/children?cursor=eyJpZCI6MjAwMDJ9&limit=2",
   },
 };
 

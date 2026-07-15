@@ -27,6 +27,25 @@ describe("parseFlags", () => {
     const parsed = parseFlags(["get", "--bogus", "--help"], { values: [] });
     expect(parsed.help).toBe(true);
   });
+
+  it("rejects a value flag with a missing value instead of dropping it", () => {
+    // `labels 12345 --add` used to silently degrade the mutation to a list.
+    expect(() =>
+      parseFlags(["labels", "12345", "--add"], { values: ["--add"] }),
+    ).toThrowError(/--add requires a value/);
+    expect(() =>
+      parseFlags(["labels", "12345", "--add=", "x"], { values: ["--add"] }),
+    ).not.toThrow(); // --add= is an explicit (empty) value; downstream validates
+  });
+
+  it("rejects a value flag that swallowed a sibling flag as its value", () => {
+    // `--add --remove` used to POST a label literally named "--remove".
+    expect(() =>
+      parseFlags(["labels", "12345", "--add", "--remove"], {
+        values: ["--add", "--remove"],
+      }),
+    ).toThrowError(/--add requires a value \(got the flag --remove instead\)/);
+  });
 });
 
 describe("parseLimit", () => {

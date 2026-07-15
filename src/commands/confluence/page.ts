@@ -11,8 +11,10 @@ import {
   renderOutput,
 } from "../../toon.js";
 import { parseFlags } from "../shared.js";
+import { attachmentsPage, childrenPage, labelsPage } from "./page-extras.js";
 import {
   pageDetailSchema,
+  requirePageId,
   resultsOf,
   strictBodyValueOf,
   versionOf,
@@ -20,19 +22,26 @@ import {
 } from "./shared.js";
 
 export const PAGE_HELP = `usage: atlassian-axi confluence page <subcommand> [flags]
-subcommands[4]:
-  get <id>, create, update <id>, delete <id>
+subcommands[7]:
+  get <id>, create, update <id>, delete <id>, attachments <id>, labels <id>, children <id>
 flags{get}:
   --full (complete body without truncation), --format <storage|adf> (default storage)
 flags{create}:
   --space <KEY> (required), --title <text> (required), --body <text> or --body-file <path> (storage format; required), --parent <id>
 flags{update}:
   --title <text>, --body <text> or --body-file <path> (storage format; at least one required; version bump is automatic)
+flags{attachments}:
+  --limit <n> (default 30), --media-type <type>, --filename <name>
+flags{labels}:
+  (no flags = list) --add <name,name,...> or --remove <name,name,...> (idempotent; exclusive; mutations manage GLOBAL-prefix labels only), --prefix <my|team|global|system> (list only), --limit <n> (list only, default 30)
+flags{children}:
+  --limit <n> (default 30)
 examples:
   atlassian-axi confluence page get 12345
   atlassian-axi confluence page create --space ENG --title "Release notes" --body-file notes.html
   atlassian-axi confluence page update 12345 --body "<p>Updated</p>"
-  atlassian-axi confluence page delete 12345`;
+  atlassian-axi confluence page labels 12345 --add release,july
+  atlassian-axi confluence page children 12345`;
 
 export async function pageCommand(
   args: string[],
@@ -53,6 +62,12 @@ export async function pageCommand(
       return updatePage(args, ctx);
     case "delete":
       return deletePage(args, ctx);
+    case "attachments":
+      return attachmentsPage(args, PAGE_HELP, ctx);
+    case "labels":
+      return labelsPage(args, PAGE_HELP, ctx);
+    case "children":
+      return childrenPage(args, PAGE_HELP, ctx);
     default:
       return renderError(
         `Unknown page subcommand: ${sub}`,
@@ -65,30 +80,6 @@ export async function pageCommand(
 // ---------------------------------------------------------------------------
 // Shared plumbing
 // ---------------------------------------------------------------------------
-
-function requireId(
-  args: string[],
-  positional: string | undefined,
-  sub: string,
-): string {
-  if (!positional) {
-    throw new AxiError("Missing page id", "VALIDATION_ERROR", [
-      `Run \`atlassian-axi confluence page ${sub} <id> ...\``,
-      'Find page ids with `atlassian-axi confluence search "<CQL>"`',
-    ]);
-  }
-  // Exactly one id: a silently ignored second positional would act on a
-  // different page than the caller intended (`delete 123 456` deletes 123).
-  const extra = args.slice(1).filter((a) => !a.startsWith("--"))[1];
-  if (extra !== undefined) {
-    throw new AxiError(
-      `Unexpected extra argument: ${extra}`,
-      "VALIDATION_ERROR",
-      [`Run \`atlassian-axi confluence page ${sub} <id>\` with a single id`],
-    );
-  }
-  return positional;
-}
 
 /** Map the user-facing --format value to the REST body-format parameter. */
 function resolveRepresentation(raw: string | undefined): string {
@@ -189,7 +180,7 @@ async function getPage(args: string[], ctx?: SiteContext): Promise<string> {
   });
   if (parsed.help) return PAGE_HELP;
 
-  const id = requireId(args, parsed.positional, "get");
+  const id = requirePageId(args, parsed.positional, "get");
   const representation = resolveRepresentation(parsed.values["--format"]);
   const page = await fetchPage(id, representation);
   return renderPage(page, {
@@ -304,7 +295,7 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
   const parsed = parseFlags(args, { values: ["--title"] });
   if (parsed.help) return PAGE_HELP;
 
-  const id = requireId(args, parsed.positional, "update");
+  const id = requirePageId(args, parsed.positional, "update");
   const title = parsed.values["--title"];
 
   if (title === undefined && body === undefined) {
@@ -369,7 +360,7 @@ async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
   const parsed = parseFlags(args, {});
   if (parsed.help) return PAGE_HELP;
 
-  const id = requireId(args, parsed.positional, "delete");
+  const id = requirePageId(args, parsed.positional, "delete");
 
   // Idempotent: deleting a page that is already gone is a no-op success.
   let current: JsonRecord;
