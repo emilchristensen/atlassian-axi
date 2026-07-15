@@ -198,6 +198,22 @@ function envValue(name: string): string | undefined {
 }
 
 /**
+ * Strip any scheme/trailing slash so we always hold a bare host. Applied at
+ * resolution time (not just `auth login`) because ATLASSIAN_SITE=https://...
+ * would otherwise reach URL building raw and parse to host "https".
+ */
+export function normalizeSite(site: string | undefined): string | undefined {
+  if (!site) {
+    return undefined;
+  }
+  const bare = site
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/, "");
+  return bare === "" ? undefined : bare;
+}
+
+/**
  * Resolve the credential with env winning over persisted state:
  *   site   : ATLASSIAN_SITE       > config.site
  *   email  : ATLASSIAN_EMAIL      > config.email
@@ -207,12 +223,13 @@ export async function resolveCredential(): Promise<ResolvedCredential> {
   const stored = readStoredConfig();
   const resolved: ResolvedCredential = { sources: {} };
 
-  const envSite = envValue("ATLASSIAN_SITE");
+  const envSite = normalizeSite(envValue("ATLASSIAN_SITE"));
+  const storedSite = normalizeSite(stored.site);
   if (envSite) {
     resolved.site = envSite;
     resolved.sources.site = "env";
-  } else if (stored.site) {
-    resolved.site = stored.site;
+  } else if (storedSite) {
+    resolved.site = storedSite;
     resolved.sources.site = "config";
   }
 

@@ -93,6 +93,30 @@ describe("confluence search", () => {
     expect(out).not.toContain("@@@endhl@@@");
   });
 
+  it("does not hint `page get` on a truncated non-page excerpt", async () => {
+    const longExcerpt = "y".repeat(300);
+    const payload = {
+      results: [
+        {
+          content: { id: "555", type: "blogpost", title: "A long blog post" },
+          title: "A long blog post",
+          excerpt: longExcerpt,
+          resultGlobalContainer: { title: "Engineering" },
+          lastModified: "2026-07-13T12:00:00.000Z",
+        },
+      ],
+      totalSize: 1,
+    };
+    const { fetchImpl } = makeConfluenceFake([
+      { match: searchRoute, result: payload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    const out = await searchCommand(["search", "type = blogpost"]);
+    expect(out).toContain("truncated");
+    expect(out).not.toContain("page get <id> --full");
+    expect(out).toContain("open the result in Confluence");
+  });
+
   it("accepts --limit before the positional CQL", async () => {
     const { fetchImpl, calls } = makeConfluenceFake([
       { match: searchRoute, result: searchPayload },

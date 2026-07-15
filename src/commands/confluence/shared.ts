@@ -47,6 +47,18 @@ export function versionOf(page: JsonRecord): number | null {
 
 /** Body value for a representation (`storage`/`atlas_doc_format`), if present. */
 export function bodyValueOf(page: JsonRecord, representation: string): string {
+  return strictBodyValueOf(page, representation) ?? "";
+}
+
+/**
+ * Body value distinguishing "missing" (null) from a genuinely empty body ("").
+ * Read paths tolerate a missing body as ""; WRITE paths must not — carrying a
+ * shape-drifted read into a PUT would wipe the page content (review finding).
+ */
+export function strictBodyValueOf(
+  page: JsonRecord,
+  representation: string,
+): string | null {
   const body = page?.body;
   const rep =
     body && typeof body === "object"
@@ -54,7 +66,7 @@ export function bodyValueOf(page: JsonRecord, representation: string): string {
       : undefined;
   const value =
     rep && typeof rep === "object" ? (rep as JsonRecord).value : undefined;
-  return typeof value === "string" ? value : "";
+  return typeof value === "string" ? value : null;
 }
 
 /** Strip v1 search highlight markers (`@@@hl@@@...@@@endhl@@@`). */
@@ -122,12 +134,18 @@ export const searchResultSchema: FieldDef[] = [
     return typeof title === "string" ? title : null;
   }),
   custom("modified", (item: JsonRecord) => relativeOf(item.lastModified)),
-  custom("excerpt", (item: JsonRecord) =>
-    truncateBody(stripHighlights(item.excerpt).trim(), 200, {
-      fullHint: "use `confluence page get <id> --full` for the full body",
-      originalHint: "use `confluence page get <id> --full` for the full body",
-    }),
-  ),
+  custom("excerpt", (item: JsonRecord) => {
+    // `page get` only works for page results; hinting it on a blogpost/
+    // attachment/comment hit would be a dead-end escape hatch.
+    const hint =
+      contentOf(item).type === "page"
+        ? "use `confluence page get <id> --full` for the full body"
+        : "open the result in Confluence for the full content";
+    return truncateBody(stripHighlights(item.excerpt).trim(), 200, {
+      fullHint: hint,
+      originalHint: hint,
+    });
+  }),
 ];
 
 function contentOf(item: JsonRecord): JsonRecord {

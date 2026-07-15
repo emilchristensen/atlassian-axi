@@ -136,6 +136,34 @@ describe("confluenceJson", () => {
     );
   });
 
+  it("normalizes a scheme/trailing-slash ATLASSIAN_SITE before building the URL", async () => {
+    process.env["ATLASSIAN_SITE"] = "https://example.atlassian.net/";
+    const { fetchImpl, calls } = makeConfluenceFake([
+      { match: () => true, result: { results: [] } },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await confluenceJson("/wiki/api/v2/spaces");
+    expect(calls[0].url.origin).toBe("https://example.atlassian.net");
+    expect(calls[0].url.pathname).toBe("/wiki/api/v2/spaces");
+  });
+
+  it("falls back to a generic wait hint when Retry-After is an HTTP-date", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      {
+        match: () => true,
+        result: {
+          status: 429,
+          headers: { "Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT" },
+        },
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await expect(confluenceJson("/wiki/api/v2/spaces")).rejects.toMatchObject({
+      code: "RATE_LIMITED",
+      suggestions: ["Wait a moment and re-run the command"],
+    });
+  });
+
   it("surfaces Retry-After in the 429 suggestion", async () => {
     const { fetchImpl } = makeConfluenceFake([
       {

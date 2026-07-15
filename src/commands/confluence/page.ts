@@ -12,9 +12,9 @@ import {
 } from "../../toon.js";
 import { parseFlags } from "../shared.js";
 import {
-  bodyValueOf,
   pageDetailSchema,
   resultsOf,
+  strictBodyValueOf,
   versionOf,
   type JsonRecord,
 } from "./shared.js";
@@ -66,12 +66,26 @@ export async function pageCommand(
 // Shared plumbing
 // ---------------------------------------------------------------------------
 
-function requireId(positional: string | undefined, sub: string): string {
+function requireId(
+  args: string[],
+  positional: string | undefined,
+  sub: string,
+): string {
   if (!positional) {
     throw new AxiError("Missing page id", "VALIDATION_ERROR", [
       `Run \`atlassian-axi confluence page ${sub} <id> ...\``,
       'Find page ids with `atlassian-axi confluence search "<CQL>"`',
     ]);
+  }
+  // Exactly one id: a silently ignored second positional would act on a
+  // different page than the caller intended (`delete 123 456` deletes 123).
+  const extra = args.slice(1).filter((a) => !a.startsWith("--"))[1];
+  if (extra !== undefined) {
+    throw new AxiError(
+      `Unexpected extra argument: ${extra}`,
+      "VALIDATION_ERROR",
+      [`Run \`atlassian-axi confluence page ${sub} <id>\` with a single id`],
+    );
   }
   return positional;
 }
@@ -99,19 +113,36 @@ async function fetchPage(
   return page;
 }
 
-/** Resolve a space key to its numeric v2 id (create needs the id). */
+/**
+ * Resolve a space key to its numeric v2 id (create needs the id). The v2
+ * `keys` filter is exact-match and space keys are usually uppercase, so a
+ * lowercase miss is retried uppercased — but only as a fallback, because
+ * personal-space keys (`~jdoe`) are legitimately lowercase.
+ */
 async function resolveSpaceId(key: string): Promise<string> {
+  const id = await lookupSpaceId(key);
+  if (id !== null) {
+    return id;
+  }
+  const upper = key.toUpperCase();
+  if (upper !== key) {
+    const upperId = await lookupSpaceId(upper);
+    if (upperId !== null) {
+      return upperId;
+    }
+  }
+  throw new AxiError(`Space not found: ${key}`, "NOT_FOUND", [
+    "Space keys are case-sensitive (usually uppercase)",
+    "Run `atlassian-axi confluence space list` to see available space keys",
+  ]);
+}
+
+async function lookupSpaceId(key: string): Promise<string | null> {
   const payload = await confluenceJson<unknown>("/wiki/api/v2/spaces", {
     query: { keys: key, limit: 1 },
   });
-  const space = resultsOf(payload)[0];
-  const id = space?.id;
-  if (id === undefined || id === null) {
-    throw new AxiError(`Space not found: ${key}`, "NOT_FOUND", [
-      "Run `atlassian-axi confluence space list` to see available space keys",
-    ]);
-  }
-  return String(id);
+  const id = resultsOf(payload)[0]?.id;
+  return id === undefined || id === null ? null : String(id);
 }
 
 function renderPage(
@@ -158,7 +189,7 @@ async function getPage(args: string[], ctx?: SiteContext): Promise<string> {
   });
   if (parsed.help) return PAGE_HELP;
 
-  const id = requireId(parsed.positional, "get");
+  const id = requireId(args, parsed.positional, "get");
   const representation = resolveRepresentation(parsed.values["--format"]);
   const page = await fetchPage(id, representation);
   return renderPage(page, {
@@ -174,7 +205,12 @@ async function getPage(args: string[], ctx?: SiteContext): Promise<string> {
 // ---------------------------------------------------------------------------
 
 async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
-  const body = takeBody(args, { label: "page body" });
+  // valueBoundaryFlags keeps `--body --space ENG` from swallowing the sibling
+  // flag as the body text (it errors with "--body requires text" instead).
+  const body = takeBody(args, {
+    label: "page body",
+    valueBoundaryFlags: ["--space", "--title", "--parent"],
+  });
   const parsed = parseFlags(args, {
     values: ["--space", "--title", "--parent"],
   });
@@ -201,11 +237,18 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
 
   const spaceId = await resolveSpaceId(space as string);
 
-  // Idempotent: an existing page with this exact title in the space is
-  // reported instead of duplicated, so re-running a failed create is safe.
+  // Idempotent: an existing CURRENT page with this exact title in the space
+  // is reported instead of duplicated, so re-running a failed create is safe.
+  // status=current keeps an archived same-title page from dead-ending create
+  // forever (the v2 default includes archived pages).
   const existing = resultsOf(
     await confluenceJson<unknown>("/wiki/api/v2/pages", {
-      query: { "space-id": spaceId, title: title as string, limit: 1 },
+      query: {
+        "space-id": spaceId,
+        title: title as string,
+        status: "current",
+        limit: 1,
+      },
     }),
   )[0];
   if (existing) {
@@ -252,11 +295,16 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
 // ---------------------------------------------------------------------------
 
 async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
-  const body = takeBody(args, { label: "page body" });
+  // valueBoundaryFlags keeps `--body --title "New"` from writing the literal
+  // string "--title" as the page body and dropping the title change.
+  const body = takeBody(args, {
+    label: "page body",
+    valueBoundaryFlags: ["--title"],
+  });
   const parsed = parseFlags(args, { values: ["--title"] });
   if (parsed.help) return PAGE_HELP;
 
-  const id = requireId(parsed.positional, "update");
+  const id = requireId(args, parsed.positional, "update");
   const title = parsed.values["--title"];
 
   if (title === undefined && body === undefined) {
@@ -276,10 +324,20 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
     );
   }
 
+  // Strict body read for the WRITE path: a shape-drifted (missing) body must
+  // never be carried into the PUT as "", which would wipe the page content.
+  const currentBody = strictBodyValueOf(current, "storage");
+  if (body === undefined && currentBody === null) {
+    throw new AxiError(
+      `Could not read the current body of page ${id} — refusing to overwrite it`,
+      "UNKNOWN",
+      ["Pass --body/--body-file explicitly to set the page body"],
+    );
+  }
+
   const nextTitle = title ?? (current.title as string);
-  const nextBody = body ?? bodyValueOf(current, "storage");
-  const unchanged =
-    nextTitle === current.title && nextBody === bodyValueOf(current, "storage");
+  const nextBody = body ?? (currentBody as string);
+  const unchanged = nextTitle === current.title && nextBody === currentBody;
   if (unchanged) {
     return renderPage(current, {
       message: "Already up to date",
@@ -311,7 +369,7 @@ async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
   const parsed = parseFlags(args, {});
   if (parsed.help) return PAGE_HELP;
 
-  const id = requireId(parsed.positional, "delete");
+  const id = requireId(args, parsed.positional, "delete");
 
   // Idempotent: deleting a page that is already gone is a no-op success.
   let current: JsonRecord;
@@ -332,14 +390,25 @@ async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
     throw error;
   }
 
-  await confluenceJson<undefined>(`/wiki/api/v2/pages/${id}`, {
-    method: "DELETE",
-  });
+  // A 404 on the DELETE itself (the page vanished between the pre-read and
+  // the delete) is the same no-op success as the pre-read miss above.
+  let message = "Deleted";
+  try {
+    await confluenceJson<undefined>(`/wiki/api/v2/pages/${id}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    if (error instanceof AxiError && error.code === "NOT_FOUND") {
+      message = "Already deleted";
+    } else {
+      throw error;
+    }
+  }
 
   return renderOutput([
     renderDetail(
       "page",
-      { id, title: current.title ?? null, _message: "Deleted" },
+      { id, title: current.title ?? null, _message: message },
       [field("id"), field("title"), field("_message", "message")],
     ),
     renderHelp(

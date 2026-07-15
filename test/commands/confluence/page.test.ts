@@ -75,6 +75,10 @@ describe("confluence router", () => {
     expect(out).toContain("VALIDATION_ERROR");
   });
 
+  it("treats a leading --help as help even with trailing args", async () => {
+    expect(await confluenceCommand(["--help", "page"])).toBe(CONFLUENCE_HELP);
+  });
+
   it("strips --site before routing so its value is never a positional", async () => {
     const { fetchImpl, calls } = makeConfluenceFake([
       { match: getPage, result: pagePayload },
@@ -169,6 +173,20 @@ describe("page get", () => {
     await expect(pageCommand(["get"])).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
     });
+  });
+
+  it("rejects an unknown (typo'd) flag instead of misreading its value as the id", async () => {
+    setConfluenceFetch(makeConfluenceFake([]).fetchImpl);
+    await expect(
+      pageCommand(["get", "--formt", "storage", "12345"]),
+    ).rejects.toThrow(/Unknown flag: --formt/);
+  });
+
+  it("rejects a second positional instead of silently ignoring it", async () => {
+    setConfluenceFetch(makeConfluenceFake([]).fetchImpl);
+    await expect(pageCommand(["get", "12345", "678"])).rejects.toThrow(
+      /Unexpected extra argument: 678/,
+    );
   });
 
   it("returns help for get --help without hitting the API", async () => {
@@ -319,6 +337,101 @@ describe("page create", () => {
     );
   });
 
+  it("refuses --body swallowing a sibling flag as its value", async () => {
+    // Without valueBoundaryFlags, `--body --title "T"` would write the
+    // literal string "--title" as the page body (HIGH review finding).
+    setConfluenceFetch(makeConfluenceFake([]).fetchImpl);
+    await expect(
+      pageCommand(["create", "--space", "ENG", "--body", "--title", "T"]),
+    ).rejects.toThrow(/--body requires text/);
+  });
+
+  it("scopes the duplicate probe to current pages (archived must not dead-end create)", async () => {
+    const { fetchImpl, calls } = makeConfluenceFake(
+      createRoutes(pagesLookupEmptyPayload),
+    );
+    setConfluenceFetch(fetchImpl);
+    await pageCommand([
+      "create",
+      "--space",
+      "ENG",
+      "--title",
+      "New page",
+      "--body",
+      "<p>x</p>",
+    ]);
+    const probe = calls.find(
+      (c: FetchCall) =>
+        c.method === "GET" && c.url.pathname === "/wiki/api/v2/pages",
+    );
+    expect(probe?.url.searchParams.get("status")).toBe("current");
+  });
+
+  it("retries a lowercase space key uppercased before failing", async () => {
+    const { fetchImpl, calls } = makeConfluenceFake([
+      {
+        match: (c: FetchCall) =>
+          c.url.pathname === "/wiki/api/v2/spaces" &&
+          c.url.searchParams.get("keys") === "eng",
+        result: { results: [] },
+      },
+      {
+        match: (c: FetchCall) =>
+          c.url.pathname === "/wiki/api/v2/spaces" &&
+          c.url.searchParams.get("keys") === "ENG",
+        result: spacesPayload,
+      },
+      { match: pagesLookup, result: pagesLookupEmptyPayload },
+      {
+        match: onPath("POST", "/wiki/api/v2/pages"),
+        result: pageCreatedPayload,
+      },
+      {
+        match: onPath("GET", "/wiki/api/v2/pages/67890"),
+        result: pageCreatedPayload,
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    const out = await pageCommand([
+      "create",
+      "--space",
+      "eng",
+      "--title",
+      "New page",
+      "--body",
+      "<p>x</p>",
+    ]);
+    expect(out).toContain('id: "67890"');
+    const keysTried = calls
+      .filter((c: FetchCall) => c.url.searchParams.has("keys"))
+      .map((c: FetchCall) => c.url.searchParams.get("keys"));
+    expect(keysTried).toEqual(["eng", "ENG"]);
+  });
+
+  it("mentions case-sensitivity when a space key is not found", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: spacesLookup, result: { results: [] } },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await expect(
+      pageCommand([
+        "create",
+        "--space",
+        "nope",
+        "--title",
+        "T",
+        "--body",
+        "<p>x</p>",
+      ]),
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      suggestions: [
+        expect.stringContaining("case-sensitive"),
+        expect.anything(),
+      ],
+    });
+  });
+
   it("does not let a --body value of --help hijack into help output", async () => {
     const { fetchImpl, calls } = makeConfluenceFake(
       createRoutes(pagesLookupEmptyPayload),
@@ -406,6 +519,46 @@ describe("page update", () => {
     expect(calls.every((c: FetchCall) => c.method === "GET")).toBe(true);
   });
 
+  it("refuses --body swallowing --title instead of writing '--title' as the body", async () => {
+    // HIGH review finding: `update 123 --body --title "New"` must not write
+    // the literal string "--title" as the page body.
+    setConfluenceFetch(makeConfluenceFake([]).fetchImpl);
+    await expect(
+      pageCommand(["update", "12345", "--body", "--title", "New"]),
+    ).rejects.toThrow(/--body requires text/);
+  });
+
+  it("refuses a title-only update when the current body cannot be read (never wipes content)", async () => {
+    // HIGH review finding: body-shape drift must not turn into PUT value:"".
+    const pageWithoutBody = { ...pagePayload, body: undefined };
+    const { fetchImpl, calls } = makeConfluenceFake([
+      { match: getPage, result: pageWithoutBody },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await expect(
+      pageCommand(["update", "12345", "--title", "Renamed"]),
+    ).rejects.toThrow(/refusing to overwrite/);
+    expect(calls.every((c: FetchCall) => c.method === "GET")).toBe(true);
+  });
+
+  it("still updates a genuinely empty (but present) body without refusing", async () => {
+    const emptyBodyPage = {
+      ...pagePayload,
+      body: { storage: { representation: "storage", value: "" } },
+    };
+    const { fetchImpl, calls } = makeConfluenceFake([
+      {
+        match: (c: FetchCall) => c.method === "PUT",
+        result: pagePayloadUpdated,
+      },
+      { match: getPage, result: emptyBodyPage },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await pageCommand(["update", "12345", "--title", "Renamed"]);
+    const put = calls.find((c: FetchCall) => c.method === "PUT");
+    expect((put?.body as { body: { value: string } }).body.value).toBe("");
+  });
+
   it("rejects an update with no changes specified", async () => {
     setConfluenceFetch(makeConfluenceFake([]).fetchImpl);
     await expect(pageCommand(["update", "12345"])).rejects.toMatchObject({
@@ -454,6 +607,26 @@ describe("page delete", () => {
     expect(out).toContain("message: Deleted");
     expect(out).toContain("title: Release notes");
     expect(calls.some((c: FetchCall) => c.method === "DELETE")).toBe(true);
+  });
+
+  it("treats a 404 on the DELETE itself (pre-read race) as already deleted", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: getPage, result: pagePayload },
+      {
+        match: (c: FetchCall) => c.method === "DELETE",
+        result: { status: 404, body: {} },
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    const out = await pageCommand(["delete", "12345"]);
+    expect(out).toContain("message: Already deleted");
+  });
+
+  it("rejects a second positional instead of deleting the wrong page", async () => {
+    setConfluenceFetch(makeConfluenceFake([]).fetchImpl);
+    await expect(pageCommand(["delete", "12345", "678"])).rejects.toThrow(
+      /Unexpected extra argument: 678/,
+    );
   });
 
   it("is idempotent: deleting an already-gone page is a no-op success", async () => {

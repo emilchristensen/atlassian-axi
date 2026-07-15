@@ -30,13 +30,17 @@ export async function homeCommand(
   const blocks: string[] = [];
 
   blocks.push(ctx?.site ? `site: ${ctx.site}` : "site: not configured");
-  const authLine = await resolveAuthLine();
-  blocks.push(`auth: ${authLine}`);
+  const auth = await resolveAuthState();
+  blocks.push(`auth: ${auth.line}`);
 
-  if (authLine.startsWith("ok")) {
-    // Both fetches are independent and budget-capped; run them in parallel.
+  if (auth.configured) {
+    // The two halves are gated independently: the Confluence spaces probe
+    // needs only the credential, the workitems probe additionally needs acli.
+    // Both fetches are budget-capped; run them in parallel.
     const [items, spacesLine] = await Promise.all([
-      myOpenWorkitems().catch(() => [] as JsonRecord[]),
+      auth.acliInstalled
+        ? myOpenWorkitems().catch(() => [] as JsonRecord[])
+        : Promise.resolve([] as JsonRecord[]),
       spacesCount().catch(() => null),
     ]);
     if (items.length > 0) {
@@ -120,24 +124,44 @@ function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T>
   });
 }
 
+interface AuthState {
+  line: string;
+  /** Full credential resolves — gates the Confluence spaces probe. */
+  configured: boolean;
+  /** acli on PATH — additionally gates the Jira workitems probe. */
+  acliInstalled: boolean;
+}
+
 /**
  * Best-effort auth summary for the ambient dashboard. Never throws (a thrown
  * error would poison every session's SessionStart block) and does no network:
- * it reports acli presence and whether a full credential resolves.
+ * it reports acli presence and whether a full credential resolves — as
+ * independent facts, because the Confluence half works without acli.
  */
-async function resolveAuthLine(): Promise<string> {
+async function resolveAuthState(): Promise<AuthState> {
   try {
-    if (!(await acliInstalled())) {
-      return "acli not installed";
-    }
-    const resolved = await resolveCredential();
+    const [installed, resolved] = await Promise.all([
+      acliInstalled().catch(() => false),
+      resolveCredential(),
+    ]);
     const configured = Boolean(
       resolved.site && resolved.email && resolved.apiToken,
     );
-    return configured
-      ? "ok (run `atlassian-axi auth status` to verify)"
-      : "not configured";
+    if (!configured) {
+      return {
+        line: installed ? "not configured" : "not configured (acli not installed)",
+        configured,
+        acliInstalled: installed,
+      };
+    }
+    return {
+      line: installed
+        ? "ok (run `atlassian-axi auth status` to verify)"
+        : "ok (Confluence only — acli not installed, Jira half unavailable)",
+      configured,
+      acliInstalled: installed,
+    };
   } catch {
-    return "not configured";
+    return { line: "not configured", configured: false, acliInstalled: false };
   }
 }

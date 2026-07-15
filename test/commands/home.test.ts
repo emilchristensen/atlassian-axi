@@ -133,10 +133,24 @@ describe("homeCommand", () => {
     expect(out).toContain("commands: auth, jira, confluence, setup");
   });
 
-  it("reports acli not installed", async () => {
+  it("reports acli not installed alongside the credential state", async () => {
     acli.acliInstalled.mockResolvedValue(false);
     const out = await homeCommand([]);
-    expect(out).toContain("auth: acli not installed");
+    expect(out).toContain("auth: not configured (acli not installed)");
+  });
+
+  it("serves the Confluence half without acli (credential ok, no acli)", async () => {
+    acli.acliInstalled.mockResolvedValue(false);
+    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    confluence.confluenceJson.mockResolvedValue({
+      results: [{ id: "111" }],
+      _links: {},
+    });
+    const out = await homeCommand([]);
+    expect(out).toContain("auth: ok (Confluence only");
+    expect(out).toContain("spaces: 1");
+    expect(out).not.toContain("my_open_workitems");
+    expect(acli.acliJson).not.toHaveBeenCalled();
   });
 
   it("never throws even when a data source rejects (session-hook safety)", async () => {

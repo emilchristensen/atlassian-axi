@@ -146,12 +146,14 @@ export function confluenceHttpError(
         ],
       );
     case 429:
+      // Retry-After may be delta-seconds or an HTTP-date (RFC 9110); only the
+      // numeric form reads sensibly as "Wait Ns".
       return new AxiError(
         detail || "Confluence rate limit hit (429)",
         "RATE_LIMITED",
         [
-          retryAfter
-            ? `Wait ${retryAfter}s (Retry-After) and re-run the command`
+          retryAfter && /^\d+$/.test(retryAfter.trim())
+            ? `Wait ${retryAfter.trim()}s (Retry-After) and re-run the command`
             : "Wait a moment and re-run the command",
         ],
       );

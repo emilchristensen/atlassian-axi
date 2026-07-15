@@ -1,7 +1,6 @@
 import { takeFlag } from "../../args.js";
 import type { SiteContext } from "../../context.js";
 import { renderError } from "../../toon.js";
-import { hasFlag } from "../../args.js";
 import { workitemCommand, WORKITEM_HELP } from "./workitem.js";
 import { projectCommand, PROJECT_HELP } from "./project.js";
 
@@ -30,8 +29,10 @@ export async function jiraCommand(
   const rest = [...args];
   takeFlag(rest, "--site");
 
+  // A leading --help is help regardless of what follows (same trap as the
+  // confluence router: `jira --help workitem` must not be an unknown resource).
   const resource = rest[0];
-  if (!resource || (rest.length === 1 && hasFlag(rest, "--help"))) {
+  if (!resource || resource === "--help") {
     return JIRA_HELP;
   }
 

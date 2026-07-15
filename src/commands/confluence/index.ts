@@ -1,4 +1,4 @@
-import { hasFlag, takeFlag } from "../../args.js";
+import { takeFlag } from "../../args.js";
 import type { SiteContext } from "../../context.js";
 import { renderError } from "../../toon.js";
 import { pageCommand, PAGE_HELP } from "./page.js";
@@ -32,8 +32,10 @@ export async function confluenceCommand(
   const rest = [...args];
   takeFlag(rest, "--site");
 
+  // A leading --help is help regardless of what follows (`confluence --help
+  // page` must not become "Unknown confluence resource: --help").
   const resource = rest[0];
-  if (!resource || (rest.length === 1 && hasFlag(rest, "--help"))) {
+  if (!resource || resource === "--help") {
     return CONFLUENCE_HELP;
   }
 

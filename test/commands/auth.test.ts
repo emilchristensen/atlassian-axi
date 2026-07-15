@@ -8,6 +8,15 @@ const config = vi.hoisted(() => ({
   saveCredential: vi.fn(),
   clearCredential: vi.fn(),
   readTokenFromStdin: vi.fn(),
+  // Real implementation is pure string cleanup; mirror it so authLogin's
+  // site normalization keeps working under the mock.
+  normalizeSite: (site: string | undefined) =>
+    site
+      ? site
+          .trim()
+          .replace(/^https?:\/\//i, "")
+          .replace(/\/+$/, "") || undefined
+      : undefined,
 }));
 
 vi.mock("../../src/config.js", () => config);

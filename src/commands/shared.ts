@@ -23,6 +23,10 @@ export interface ParsedFlags {
  * `transition --to Done TEAM-1` from parsing "Done" as the key, and keeps a
  * flag value that happens to be "--help" from hijacking the subcommand into
  * help output (body flags must be taken by the caller before calling this).
+ *
+ * Leftover `--*` tokens are unknown (or typo'd) flags and are rejected: a
+ * silently ignored `--formt storage` would otherwise turn its value into the
+ * positional and discard the real one (review finding).
  */
 export function parseFlags(
   args: string[],
@@ -37,18 +41,24 @@ export function parseFlags(
     bools[flag] = takeBoolFlag(args, flag);
   }
   const help = takeBoolFlag(args, "--help");
+  const unknown = args.slice(1).find((a) => a.startsWith("--"));
+  if (unknown !== undefined && !help) {
+    throw new AxiError(`Unknown flag: ${unknown}`, "VALIDATION_ERROR", [
+      "Run the command with --help to see the supported flags",
+    ]);
+  }
   const positional = args.slice(1).find((a) => !a.startsWith("--"));
   return { values, bools, help, positional };
 }
 
 const DEFAULT_LIMIT = 30;
 
-/** Parse a --limit value; positive integer or a VALIDATION_ERROR. */
+/** Parse a --limit value; strictly a positive integer or a VALIDATION_ERROR. */
 export function parseLimit(raw: string | undefined): number {
   if (raw === undefined) return DEFAULT_LIMIT;
-  const n = parseInt(raw, 10);
-  if (isNaN(n) || n <= 0) {
+  // parseInt would silently coerce "5abc"/"5.9" to 5; require pure digits.
+  if (!/^\d+$/.test(raw) || parseInt(raw, 10) <= 0) {
     throw new AxiError(`Invalid --limit: ${raw}`, "VALIDATION_ERROR");
   }
-  return n;
+  return parseInt(raw, 10);
 }
