@@ -1,5 +1,6 @@
 import { custom, extract, relativeTime, type FieldDef } from "../../toon.js";
 import { truncateBody } from "../../body.js";
+import { AxiError } from "../../errors.js";
 
 // Domain-agnostic plumbing lives in commands/shared.ts (also used by the
 // Confluence half); re-exported so jira modules keep one import site.
@@ -174,6 +175,50 @@ export function itemsOf(payload: unknown, ...keys: string[]): JsonRecord[] {
     }
   }
   return [];
+}
+
+/** Probe an acli collection envelope for its server-side total count. */
+export function totalOf(payload: unknown): number | undefined {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const total = (payload as JsonRecord).total;
+    if (typeof total === "number") return total;
+  }
+  return undefined;
+}
+
+/**
+ * Require a numeric ID positional/flag value (boards, sprints, and filters
+ * are ID-addressed, unlike key-addressed work items/projects). Rejecting
+ * non-digits up front turns a swapped positional into a clear error instead
+ * of a confusing acli failure.
+ */
+export function requireNumericId(
+  raw: string | undefined,
+  usage: string,
+  label = "ID",
+): string {
+  if (!raw) {
+    throw new AxiError(`Missing ${label}`, "VALIDATION_ERROR", [usage]);
+  }
+  if (!/^\d+$/.test(raw)) {
+    throw new AxiError(
+      `Invalid ${label}: ${raw} (expected a number)`,
+      "VALIDATION_ERROR",
+      [usage],
+    );
+  }
+  return raw;
+}
+
+/**
+ * Render an ISO timestamp as YYYY-MM-DD. Sprint dates are often in the
+ * future, where relativeTime's "just now"/"ago" phrasing misleads.
+ */
+export function dateOnly(value: unknown): string | null {
+  if (typeof value !== "string" || !value) return null;
+  const parsed = new Date(value);
+  if (isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
 }
 
 /**

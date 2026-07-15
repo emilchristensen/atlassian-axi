@@ -279,3 +279,320 @@ export const projectViewPayload = {
   simplified: false,
   style: "classic",
 };
+
+// ---------------------------------------------------------------------------
+// Phase 4a fixtures: board / sprint / filter / dashboard / field.
+//
+// PROVENANCE: read payloads (board search/view/list-sprints/list-projects,
+// sprint view/list-workitems, filter search/view, dashboard search) captured
+// LIVE from acli v1.3.22-stable on 2026-07-15 against a real authenticated
+// Jira Cloud site, then anonymized (ids kept realistic, names/hosts/keys
+// replaced). Mutation payloads (sprint create, filter list values, field
+// create) are HAND-AUTHORED from the published Jira REST contracts - the
+// commands could not be run against the production site. Verified facts:
+//  - `board search --json` returns {isLast, maxResults, startAt, total,
+//    values: [{id:number, location, name, type}]}; `board view --json` one
+//    flat object with an extra `link`.
+//  - `board list-sprints --json` wraps sprints under a `sprints` key (NOT
+//    `values`); `board list-projects --json` under `projects` (id is a
+//    STRING there, `type` not `projectTypeKey`).
+//  - `sprint view --json` is one flat agile-REST sprint; completeDate only
+//    appears on closed sprints; goal may be "".
+//  - `sprint list-workitems --json` wraps REST-shaped issues (key + fields)
+//    under `issues`; default fields are key,issuetype,summary,assignee,
+//    priority,status.
+//  - `filter search --json` and `dashboard search --json` return bare ARRAYS
+//    of {id:string, name, description, owner}; `filter view --json` adds
+//    jql/favourite/favouritedCount; `filter list --json` wraps under
+//    `values` (observed empty live; entry shape assumed = view shape).
+//
+// If a future acli version disagrees, re-capture and update these together
+// with the schemas in src/commands/jira/{board,sprint,filter,dashboard}.ts.
+// ---------------------------------------------------------------------------
+
+/** `acli jira board search --json` — {values} envelope with total. */
+export const boardSearchPayload = {
+  isLast: false,
+  maxResults: 30,
+  startAt: 0,
+  total: 35,
+  values: [
+    {
+      id: 1013,
+      location: "Team Project (TEAM)",
+      name: "Team Scrum",
+      type: "scrum",
+    },
+    {
+      id: 1333,
+      location: "Operations (OPS)",
+      name: "Ops Kanban",
+      type: "kanban",
+    },
+  ],
+};
+
+/** `acli jira board view --id 1013 --json` — one flat board. */
+export const boardViewPayload = {
+  id: 1013,
+  link: "https://example.atlassian.net/rest/agile/1.0/board/1013",
+  location: "Team Project (TEAM)",
+  name: "Team Scrum",
+  type: "scrum",
+};
+
+/** `acli jira board list-sprints --id 1013 --json` — sprints under `sprints`. */
+export const boardSprintsPayload = {
+  isLast: false,
+  maxResults: 30,
+  startAt: 0,
+  total: 10,
+  sprints: [
+    {
+      endDate: "2026-07-18T19:10:00.000Z",
+      goal: "Ship checkout",
+      id: 5205,
+      link: "https://example.atlassian.net/rest/agile/1.0/sprint/5205",
+      name: "Sprint 12",
+      startDate: "2026-07-07T16:34:59.388Z",
+      state: "active",
+    },
+    {
+      endDate: "2026-07-04T12:54:00.000Z",
+      goal: "",
+      id: 5206,
+      link: "https://example.atlassian.net/rest/agile/1.0/sprint/5206",
+      name: "Sprint 11",
+      startDate: "2026-06-22T10:18:00.351Z",
+      state: "closed",
+    },
+  ],
+};
+
+/** `acli jira board list-projects --id 1013 --json` — projects under `projects`. */
+export const boardProjectsPayload = {
+  isLast: true,
+  maxResults: 30,
+  startAt: 0,
+  total: 1,
+  projects: [
+    {
+      id: "21248",
+      key: "TEAM",
+      link: "https://example.atlassian.net/rest/api/2/project/21248",
+      name: "Team Project",
+      projectCategory: null,
+      type: "software",
+    },
+  ],
+};
+
+/** `acli jira sprint view --id 5205 --json` — one flat active sprint (no completeDate). */
+export const sprintViewPayload = {
+  endDate: "2026-07-18T19:10:00.000Z",
+  goal: "Ship checkout",
+  id: 5205,
+  name: "Sprint 12",
+  originBoardId: 1013,
+  startDate: "2026-07-07T16:34:59.388Z",
+  state: "active",
+};
+
+/** The same sprint after `update --state closed`, for post-mutation re-fetch. */
+export const sprintViewClosedPayload = {
+  ...sprintViewPayload,
+  completeDate: "2026-07-14T13:59:00.000Z",
+  state: "closed",
+};
+
+/** `acli jira sprint list-workitems --sprint 5205 --board 1013 --json`. */
+export const sprintWorkitemsPayload = {
+  issues: [
+    {
+      fields: {
+        assignee: {
+          accountId: "5b10a2844c20165700ede21g",
+          accountType: "atlassian",
+          active: true,
+          displayName: "Jane Doe",
+          emailAddress: "jane@acme.com",
+          self: "https://example.atlassian.net/rest/api/2/user?accountId=5b10a2844c20165700ede21g",
+          timeZone: "Europe/Amsterdam",
+        },
+        issuetype: {
+          description: "Issue type for a user story.",
+          hierarchyLevel: 0,
+          id: "10001",
+          name: "Story",
+          self: "https://example.atlassian.net/rest/api/2/issuetype/10001",
+          subtask: false,
+        },
+        priority: {
+          id: "10000",
+          name: "High",
+          self: "https://example.atlassian.net/rest/api/2/priority/10000",
+        },
+        status: {
+          id: "3",
+          name: "In Progress",
+          self: "https://example.atlassian.net/rest/api/2/status/3",
+          statusCategory: {
+            colorName: "yellow",
+            id: 4,
+            key: "indeterminate",
+            name: "In Progress",
+            self: "https://example.atlassian.net/rest/api/2/statuscategory/4",
+          },
+        },
+        summary: "Fix login redirect loop",
+      },
+      key: "TEAM-1",
+    },
+    {
+      fields: {
+        assignee: null,
+        issuetype: {
+          id: "10002",
+          name: "Task",
+          self: "https://example.atlassian.net/rest/api/2/issuetype/10002",
+          subtask: false,
+        },
+        priority: {
+          id: "10001",
+          name: "Medium",
+          self: "https://example.atlassian.net/rest/api/2/priority/10001",
+        },
+        status: {
+          id: "1",
+          name: "To Do",
+          self: "https://example.atlassian.net/rest/api/2/status/1",
+          statusCategory: {
+            colorName: "blue-gray",
+            id: 2,
+            key: "new",
+            name: "To Do",
+          },
+        },
+        summary: "Add audit log export",
+      },
+      key: "TEAM-2",
+    },
+  ],
+};
+
+/** `acli jira sprint create ... --json` — HAND-AUTHORED (agile REST POST /sprint). */
+export const sprintCreatePayload = {
+  goal: "Prepare release",
+  id: 5300,
+  name: "Sprint 13",
+  originBoardId: 1013,
+  self: "https://example.atlassian.net/rest/agile/1.0/sprint/5300",
+  state: "future",
+};
+
+/** The created sprint as `sprint view --id 5300 --json` returns it. */
+export const sprintViewCreatedPayload = {
+  goal: "Prepare release",
+  id: 5300,
+  name: "Sprint 13",
+  originBoardId: 1013,
+  state: "future",
+};
+
+/** `acli jira filter list --my --json` — values envelope (entry shape from view contract). */
+export const filterListPayload = {
+  values: [
+    {
+      description: "",
+      favourite: true,
+      id: "33312",
+      jql: "project = TEAM AND status = Open ORDER BY Rank ASC",
+      name: "My Open Bugs",
+      owner: { displayName: "Jane Doe" },
+    },
+  ],
+};
+
+/** `acli jira filter search --json` — bare array; no jql/favourite in this shape. */
+export const filterSearchPayload = [
+  {
+    id: "33312",
+    name: "My Open Bugs",
+    description: "",
+    owner: {
+      accountId: "5b10a2844c20165700ede21g",
+      active: true,
+      displayName: "Jane Doe",
+      self: "https://example.atlassian.net/rest/api/3/user?accountId=5b10a2844c20165700ede21g",
+    },
+  },
+  {
+    id: "29941",
+    name: "Team Backlog",
+    description: "Backlog triage",
+    owner: {
+      accountId: "5c00aa11bb22cc33dd44ee55",
+      active: true,
+      displayName: "John Smith",
+      self: "https://example.atlassian.net/rest/api/3/user?accountId=5c00aa11bb22cc33dd44ee55",
+    },
+  },
+];
+
+/** `acli jira filter view --id 33312 --json` — one flat filter with jql. */
+export const filterViewPayload = {
+  description: "",
+  favourite: false,
+  favouritedCount: 1,
+  id: "33312",
+  jql: "project = TEAM AND status = Open ORDER BY Rank ASC",
+  name: "My Open Bugs",
+  owner: { displayName: "Jane Doe" },
+};
+
+/** The same filter after `update --jql ...`, for post-mutation re-fetch. */
+export const filterViewUpdatedPayload = {
+  ...filterViewPayload,
+  jql: "project = TEAM AND resolution = EMPTY ORDER BY Rank ASC",
+};
+
+/** `acli jira dashboard search --json` — bare array, same shape as filter search. */
+export const dashboardSearchPayload = [
+  {
+    id: "12805",
+    name: "Team Dashboard",
+    description: "",
+    owner: {
+      accountId: "5b10a2844c20165700ede21g",
+      active: true,
+      displayName: "Jane Doe",
+      self: "https://example.atlassian.net/rest/api/3/user?accountId=5b10a2844c20165700ede21g",
+    },
+  },
+  {
+    id: "12745",
+    name: "Release Overview",
+    description: "",
+    owner: {
+      accountId: "5c00aa11bb22cc33dd44ee55",
+      active: false,
+      displayName: "John Smith",
+      self: "https://example.atlassian.net/rest/api/3/user?accountId=5c00aa11bb22cc33dd44ee55",
+    },
+  },
+];
+
+/** `acli jira field create ... --json` — HAND-AUTHORED (REST POST /rest/api/3/field). */
+export const fieldCreatePayload = {
+  id: "customfield_10500",
+  key: "customfield_10500",
+  name: "Customer Name",
+  schema: {
+    custom: "com.atlassian.jira.plugin.system.customfieldtypes:textfield",
+    customId: 10500,
+    type: "string",
+  },
+  searcherKey:
+    "com.atlassian.jira.plugin.system.customfieldtypes:textsearcher",
+  self: "https://example.atlassian.net/rest/api/3/field/customfield_10500",
+};

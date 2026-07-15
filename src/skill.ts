@@ -38,6 +38,16 @@ jira workitem:
   list, view <KEY>, create, edit <KEY>, transition <KEY> --to <status>, assign <KEY> --assignee <user>, comment <KEY> --body <text>, search "<JQL>"
 jira project:
   list, view <KEY>
+jira board:
+  list, view <ID>, list-sprints <ID>, list-projects <ID>
+jira sprint:
+  view <ID>, list-workitems <ID> --board <ID>, create --board <ID> --name <text>, update <ID>
+jira filter:
+  list, search, view <ID>, update <ID>
+jira dashboard:
+  list
+jira field:
+  create --name <text> --type <key>, update <ID>, delete <ID>, restore <ID>
 confluence page:
   get <id>, create --space <KEY> --title <text> --body-file <path>, update <id>, delete <id>
 confluence space:
@@ -55,6 +65,9 @@ Run \`npx -y atlassian-axi setup hooks\` to install SessionStart ambient context
 - Mutations are idempotent and report what changed; re-running a failed mutation is safe (\`transition\` to the current status is a no-op success).
 - \`view <KEY> --full\` shows complete bodies; \`--comments\` includes comments.
 - \`workitem list\` builds JQL from --project/--assignee/--status; pass --jql or use \`search\` for raw JQL.
+- Boards/sprints/filters are ID-addressed: find board IDs via \`jira board list\`, sprint IDs via \`jira board list-sprints <BOARD_ID>\`.
+- \`sprint list-workitems\` needs both the sprint ID and --board (a Jira agile API requirement).
+- \`sprint update <ID> --state closed\` closes a sprint (no-op success when already closed); acli has no field list/view, so \`jira field\` covers custom-field create/update/delete/restore only.
 - \`confluence page update\` handles the version bump automatically; re-running after a conflict is safe.
 - \`confluence search\` uses v1 CQL (the v2 API has no search); page bodies are storage-format XHTML (\`--format adf\` for Atlas Doc Format).
 `;
