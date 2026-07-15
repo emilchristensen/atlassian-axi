@@ -1,15 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AcliRunner, ExecResult } from "../../src/acli.js";
+import {
+  accessibleResourcesMulti,
+  accessibleResourcesSingle,
+} from "../fixtures/oauth.js";
 
 // Mock the config layer so auth tests exercise command logic (bootstrap
-// gating, both-halves status, logout) without touching disk/keychain/stdin.
+// gating, both-halves status, logout, mode dispatch) without touching
+// disk/keychain/stdin.
 const config = vi.hoisted(() => ({
   resolveCredential: vi.fn(),
+  resolveAuthMode: vi.fn(),
   saveCredential: vi.fn(),
   clearCredential: vi.fn(),
   readTokenFromStdin: vi.fn(),
-  // Real implementation is pure string cleanup; mirror it so authLogin's
-  // site normalization keeps working under the mock.
+  readOAuthSession: vi.fn(),
+  saveOAuthSession: vi.fn(),
+  resolveOAuthClientSecret: vi.fn(),
+  isInteractiveTTY: vi.fn(),
+  // Real implementations are pure string cleanup; mirror them so authLogin's
+  // site normalization and secret sanitization keep working under the mock.
+  sanitizeToken: (raw: string) => {
+    const trimmed = raw.trim();
+    const wrapped = trimmed.match(/^(["'])(.*)\1$/s);
+    return wrapped ? (wrapped[2] as string).trim() : trimmed;
+  },
   normalizeSite: (site: string | undefined) =>
     site
       ? site
@@ -19,7 +34,29 @@ const config = vi.hoisted(() => ({
       : undefined,
 }));
 
+// Mock the OAuth mechanics (listener/browser/token endpoints) — their real
+// implementations are covered by test/oauth.test.ts.
+const oauth = vi.hoisted(() => ({
+  OAUTH_CALLBACK_PORT: 8765,
+  OAUTH_REDIRECT_URI: "http://localhost:8765/callback",
+  oauthClientId: vi.fn(() => "client-123"),
+  generateState: vi.fn(() => "state-abc"),
+  buildAuthorizeUrl: vi.fn(() => "https://auth.atlassian.com/authorize?..."),
+  startCallbackServer: vi.fn(),
+  openBrowser: vi.fn(async () => true),
+  exchangeAuthorizationCode: vi.fn(),
+  fetchAccessibleResources: vi.fn(),
+  ensureFreshSession: vi.fn(),
+}));
+
+const prompt = vi.hoisted(() => ({
+  promptHidden: vi.fn(),
+  promptSelect: vi.fn(),
+}));
+
 vi.mock("../../src/config.js", () => config);
+vi.mock("../../src/oauth.js", () => oauth);
+vi.mock("../../src/prompt.js", () => prompt);
 
 const { setAcliRunner } = await import("../../src/acli.js");
 const { authCommand } = await import("../../src/commands/auth.js");
@@ -57,12 +94,55 @@ function makeRunner(statusResult: ExecResult) {
   return { runner, calls, loginCall };
 }
 
+const TOKENS = {
+  accessToken: "access-token-initial",
+  refreshToken: "refresh-token-initial",
+  expiresAt: Date.now() + 3_600_000,
+  scopes: "read:jira-work offline_access",
+};
+
+const OAUTH_SESSION = {
+  clientId: "client-123",
+  accessToken: "access-token-initial",
+  refreshToken: "refresh-token-initial",
+  expiresAt: Date.now() + 3_600_000,
+  cloudId: "11111111-2222-3333-4444-555555555555",
+  site: "acme.atlassian.net",
+  scopes: "read:jira-work offline_access",
+  clientSecret: "stored-secret",
+};
+
 beforeEach(() => {
   config.resolveCredential.mockReset();
+  config.resolveAuthMode.mockReset();
   config.saveCredential.mockReset();
   config.clearCredential.mockReset();
   config.readTokenFromStdin.mockReset();
+  config.readOAuthSession.mockReset().mockReturnValue(null);
+  config.saveOAuthSession.mockReset();
+  config.resolveOAuthClientSecret.mockReset().mockReturnValue(null);
+  config.isInteractiveTTY.mockReset().mockReturnValue(true);
   config.saveCredential.mockResolvedValue({ tokenStore: "keychain" });
+
+  oauth.oauthClientId.mockClear();
+  oauth.generateState.mockClear();
+  oauth.buildAuthorizeUrl.mockClear();
+  oauth.openBrowser.mockClear();
+  oauth.startCallbackServer.mockReset().mockResolvedValue({
+    port: 8765,
+    result: Promise.resolve({ code: "code-123" }),
+    close: vi.fn(),
+  });
+  oauth.exchangeAuthorizationCode.mockReset().mockResolvedValue(TOKENS);
+  oauth.fetchAccessibleResources
+    .mockReset()
+    .mockResolvedValue(accessibleResourcesSingle);
+  oauth.ensureFreshSession
+    .mockReset()
+    .mockImplementation(async (session) => session);
+
+  prompt.promptHidden.mockReset();
+  prompt.promptSelect.mockReset();
 });
 
 afterEach(() => {
@@ -94,7 +174,136 @@ function stubPingNetworkError(message = "getaddrinfo ENOTFOUND acme.atlassian.ne
   return fetchMock;
 }
 
-describe("auth login bootstrap (status-gated / idempotent)", () => {
+// ---------------------------------------------------------------------------
+// OAuth login (the default)
+// ---------------------------------------------------------------------------
+
+describe("auth login (OAuth default)", () => {
+  it("fails fast without a TTY, pointing at --token, before any listener/browser work", async () => {
+    config.isInteractiveTTY.mockReturnValue(false);
+
+    try {
+      await authCommand(["login"]);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      const err = error as { code: string; suggestions: string[] };
+      expect(err.code).toBe("VALIDATION_ERROR");
+      expect(err.suggestions.join(" ")).toContain("--token");
+    }
+    expect(oauth.startCallbackServer).not.toHaveBeenCalled();
+    expect(oauth.openBrowser).not.toHaveBeenCalled();
+    expect(prompt.promptHidden).not.toHaveBeenCalled();
+  });
+
+  it("runs the full browser flow and persists the session (env secret)", async () => {
+    config.resolveOAuthClientSecret.mockReturnValue({
+      secret: "env-secret",
+      source: "env",
+    });
+    setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
+
+    const out = await authCommand(["login"]);
+
+    expect(oauth.startCallbackServer).toHaveBeenCalledWith({
+      port: 8765,
+      expectedState: "state-abc",
+    });
+    expect(oauth.exchangeAuthorizationCode).toHaveBeenCalledWith({
+      clientId: "client-123",
+      clientSecret: "env-secret",
+      code: "code-123",
+    });
+    // Env-supplied secret must NOT be persisted.
+    expect(config.saveOAuthSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "client-123",
+        accessToken: "access-token-initial",
+        refreshToken: "refresh-token-initial",
+        cloudId: "11111111-2222-3333-4444-555555555555",
+        site: "acme.atlassian.net",
+      }),
+    );
+    expect(config.saveOAuthSession.mock.calls[0]?.[0]?.clientSecret).toBeUndefined();
+    expect(out).toContain("mode: oauth");
+    expect(out).toContain("site: acme.atlassian.net");
+    expect(prompt.promptHidden).not.toHaveBeenCalled();
+  });
+
+  it("prompts for the client secret once and stores it (first login)", async () => {
+    prompt.promptHidden.mockResolvedValue("prompted-secret");
+    setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
+
+    await authCommand(["login"]);
+
+    expect(prompt.promptHidden).toHaveBeenCalledOnce();
+    expect(oauth.exchangeAuthorizationCode).toHaveBeenCalledWith(
+      expect.objectContaining({ clientSecret: "prompted-secret" }),
+    );
+    expect(config.saveOAuthSession).toHaveBeenCalledWith(
+      expect.objectContaining({ clientSecret: "prompted-secret" }),
+    );
+  });
+
+  it("prompts to pick a site when multiple are accessible", async () => {
+    config.resolveOAuthClientSecret.mockReturnValue({
+      secret: "env-secret",
+      source: "env",
+    });
+    oauth.fetchAccessibleResources.mockResolvedValue(accessibleResourcesMulti);
+    prompt.promptSelect.mockResolvedValue(1);
+    setAcliRunner(makeRunner(ok()).runner);
+
+    const out = await authCommand(["login"]);
+
+    expect(prompt.promptSelect).toHaveBeenCalledOnce();
+    expect(out).toContain("site: other.atlassian.net");
+    expect(config.saveOAuthSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cloudId: "66666666-7777-8888-9999-000000000000",
+      }),
+    );
+  });
+
+  it("--site pre-selects among multiple sites without prompting, and rejects unknown sites", async () => {
+    config.resolveOAuthClientSecret.mockReturnValue({
+      secret: "env-secret",
+      source: "env",
+    });
+    oauth.fetchAccessibleResources.mockResolvedValue(accessibleResourcesMulti);
+    setAcliRunner(makeRunner(ok()).runner);
+
+    const out = await authCommand(["login", "--site", "other.atlassian.net"]);
+    expect(prompt.promptSelect).not.toHaveBeenCalled();
+    expect(out).toContain("site: other.atlassian.net");
+
+    await expect(
+      authCommand(["login", "--site", "nope.atlassian.net"]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("acme.atlassian.net"),
+    });
+  });
+
+  it("reports honestly that the OAuth flow does not bootstrap acli", async () => {
+    config.resolveOAuthClientSecret.mockReturnValue({
+      secret: "env-secret",
+      source: "env",
+    });
+    const { runner, loginCall } = makeRunner(fail("unauthorized", 1));
+    setAcliRunner(runner);
+
+    const out = await authCommand(["login"]);
+    expect(loginCall()).toBeUndefined();
+    expect(out).toContain("acli: not logged in");
+    expect(out).toContain("--token");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// API-token login (agents/CI; the pre-OAuth flow, now behind --token)
+// ---------------------------------------------------------------------------
+
+describe("auth login --token bootstrap (status-gated / idempotent)", () => {
   it("logs acli in when it is not already authenticated to the site", async () => {
     config.resolveCredential.mockResolvedValue({ sources: {} });
     config.readTokenFromStdin.mockResolvedValue("tok-123");
@@ -104,6 +313,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
 
     const out = await authCommand([
       "login",
+      "--token",
       "--site",
       "acme.atlassian.net",
       "--email",
@@ -121,6 +331,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
     expect(login?.stdin).toBe("tok-123");
     expect(login?.args).not.toContain("tok-123");
     expect(out).toContain("logged in to acme.atlassian.net");
+    expect(out).toContain("mode: api-token");
   });
 
   it("skips acli login when already authenticated to the site (idempotent)", async () => {
@@ -134,6 +345,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
 
     const out = await authCommand([
       "login",
+      "--token",
       "--site",
       "acme.atlassian.net",
       "--email",
@@ -160,6 +372,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
     const rejection = expect(
       authCommand([
         "login",
+        "--token",
         "--site",
         "acme.atlassian.net",
         "--email",
@@ -184,6 +397,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
 
     const out = await authCommand([
       "login",
+      "--token",
       "--site",
       "acme.atlassian.net",
       "--email",
@@ -205,6 +419,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
 
     const out = await authCommand([
       "login",
+      "--token",
       "--site",
       "acme.atlassian.net",
       "--email",
@@ -223,29 +438,55 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
     config.resolveCredential.mockResolvedValue({ sources: {} });
     setAcliRunner(makeRunner(ok()).runner);
 
-    await expect(authCommand(["login", "--site", "acme.atlassian.net"])).rejects.toMatchObject(
-      { code: "VALIDATION_ERROR" },
-    );
+    await expect(
+      authCommand(["login", "--token", "--site", "acme.atlassian.net"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     expect(config.readTokenFromStdin).not.toHaveBeenCalled();
+  });
+
+  it("works without a TTY (the agent/CI path is never browser-gated)", async () => {
+    config.isInteractiveTTY.mockReturnValue(false);
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+    config.readTokenFromStdin.mockResolvedValue("tok-123");
+    stubPing(200);
+    setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
+
+    const out = await authCommand([
+      "login",
+      "--token",
+      "--site",
+      "acme.atlassian.net",
+      "--email",
+      "me@acme.com",
+    ]);
+    expect(out).toContain("mode: api-token");
   });
 });
 
+// ---------------------------------------------------------------------------
+// status
+// ---------------------------------------------------------------------------
+
 describe("auth status (both halves)", () => {
-  const fullCred = {
-    site: "acme.atlassian.net",
-    email: "me@acme.com",
-    apiToken: "tok",
+  const TOKEN_MODE = {
+    mode: "api-token",
+    credential: {
+      site: "acme.atlassian.net",
+      email: "me@acme.com",
+      apiToken: "tok",
+    },
     sources: { site: "config", email: "config", apiToken: "keychain" },
   };
 
-  it("returns ok when acli is logged in and Confluence REST returns 200", async () => {
-    config.resolveCredential.mockResolvedValue(fullCred);
+  it("returns ok in api-token mode when acli is logged in and REST returns 200", async () => {
+    config.resolveAuthMode.mockResolvedValue(TOKEN_MODE);
     setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
     const fetchMock = vi.fn().mockResolvedValue({ status: 200, statusText: "OK" });
     vi.stubGlobal("fetch", fetchMock);
 
     const out = await authCommand(["status"]);
     expect(out).toContain("status: ok");
+    expect(out).toContain("mode: api-token");
     expect(out).toContain("acli: logged in");
     expect(out).toContain("confluence: 200 ok");
     // Hit the documented spaces endpoint with a Basic auth header.
@@ -254,8 +495,66 @@ describe("auth status (both halves)", () => {
     expect(init.headers.Authorization).toMatch(/^Basic /);
   });
 
-  it("throws AUTH_REQUIRED when the REST call is not 200", async () => {
-    config.resolveCredential.mockResolvedValue(fullCred);
+  it("returns ok in oauth mode, pinging the gateway with a Bearer token", async () => {
+    config.resolveAuthMode.mockResolvedValue({
+      mode: "oauth",
+      oauth: OAUTH_SESSION,
+    });
+    setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200, statusText: "OK" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const out = await authCommand(["status"]);
+    expect(out).toContain("status: ok");
+    expect(out).toContain("mode: oauth");
+    expect(out).toContain("site: acme.atlassian.net");
+    expect(out).toContain("token: valid");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      `https://api.atlassian.com/ex/confluence/${OAUTH_SESSION.cloudId}/wiki/api/v2/spaces?limit=1`,
+    );
+    expect(init.headers.Authorization).toBe("Bearer access-token-initial");
+  });
+
+  it("oauth mode stays ok without acli login but reports the Jira half honestly", async () => {
+    config.resolveAuthMode.mockResolvedValue({
+      mode: "oauth",
+      oauth: OAUTH_SESSION,
+    });
+    setAcliRunner(makeRunner(fail("unauthorized", 1)).runner);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ status: 200, statusText: "OK" }),
+    );
+
+    const out = await authCommand(["status"]);
+    expect(out).toContain("status: ok");
+    expect(out).toContain("acli: not logged in");
+  });
+
+  it("throws AUTH_REQUIRED in oauth mode when the refresh fails", async () => {
+    config.resolveAuthMode.mockResolvedValue({
+      mode: "oauth",
+      oauth: OAUTH_SESSION,
+    });
+    oauth.ensureFreshSession.mockRejectedValue(
+      Object.assign(new Error("refresh token revoked"), {
+        code: "AUTH_REQUIRED",
+      }),
+    );
+    setAcliRunner(makeRunner(ok()).runner);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(authCommand(["status"])).rejects.toMatchObject({
+      code: "AUTH_REQUIRED",
+      message: expect.stringContaining("refresh token revoked"),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws AUTH_REQUIRED when the REST call is not 200 (api-token mode)", async () => {
+    config.resolveAuthMode.mockResolvedValue(TOKEN_MODE);
     setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
     vi.stubGlobal(
       "fetch",
@@ -268,7 +567,7 @@ describe("auth status (both halves)", () => {
   });
 
   it("does NOT blame the token when the status ping fails at the network level", async () => {
-    config.resolveCredential.mockResolvedValue(fullCred);
+    config.resolveAuthMode.mockResolvedValue(TOKEN_MODE);
     setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
     stubPingNetworkError();
 
@@ -281,7 +580,7 @@ describe("auth status (both halves)", () => {
   it("points at a likely-invalid token when acli is fine but Confluence says 404", async () => {
     // Live-verified: Confluence v2 answers a rejected Basic credential with
     // 404, indistinguishable from an anonymous request.
-    config.resolveCredential.mockResolvedValue(fullCred);
+    config.resolveAuthMode.mockResolvedValue(TOKEN_MODE);
     setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
     vi.stubGlobal(
       "fetch",
@@ -294,10 +593,10 @@ describe("auth status (both halves)", () => {
     });
   });
 
-  it("throws AUTH_REQUIRED when the credential is incomplete", async () => {
-    config.resolveCredential.mockResolvedValue({
-      site: "acme.atlassian.net",
-      sources: { site: "config" },
+  it("throws AUTH_REQUIRED when nothing is configured", async () => {
+    config.resolveAuthMode.mockResolvedValue({
+      mode: "none",
+      missing: ["email", "apiToken"],
     });
     await expect(authCommand(["status"])).rejects.toMatchObject({
       code: "AUTH_REQUIRED",
@@ -305,8 +604,13 @@ describe("auth status (both halves)", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// logout
+// ---------------------------------------------------------------------------
+
 describe("auth logout", () => {
-  it("clears our credential and logs acli out", async () => {
+  it("clears our credential + OAuth session and logs acli out", async () => {
+    config.readOAuthSession.mockReturnValue(OAUTH_SESSION);
     config.clearCredential.mockResolvedValue(undefined);
     const { runner, calls } = makeRunner(ok());
     setAcliRunner(runner);
@@ -315,7 +619,16 @@ describe("auth logout", () => {
     expect(config.clearCredential).toHaveBeenCalledOnce();
     expect(calls.some((c) => c.args.join(" ") === "jira auth logout")).toBe(true);
     expect(out).toContain("credential: cleared");
+    expect(out).toContain("oauth: cleared");
     expect(out).toContain("acli: logged out");
+  });
+
+  it("reports when no OAuth session was stored", async () => {
+    config.clearCredential.mockResolvedValue(undefined);
+    setAcliRunner(makeRunner(ok()).runner);
+
+    const out = await authCommand(["logout"]);
+    expect(out).toContain("oauth: none stored");
   });
 });
 
