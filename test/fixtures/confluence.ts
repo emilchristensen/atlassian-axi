@@ -401,3 +401,14 @@ export const errorBodyV1 = {
   message: "Could not parse cql: bogus ~~~",
   data: { authorized: true, valid: false },
 };
+
+/**
+ * Confluence v2 anonymous/rejected-credential body — LIVE CAPTURE (the first
+ * in this file), 2026-07-15, `GET /wiki/api/v2/spaces?limit=1` against a real
+ * site with a rejected Basic credential. v2 answers bad credentials with 404
+ * (anti-enumeration), byte-identical to an unauthenticated request; v1 says
+ * 403 and Jira says 401 for the same failure.
+ */
+export const errorBodyV2Anonymous404 = {
+  errors: [{ status: 404, code: "NOT_FOUND", title: "Not Found", detail: null }],
+};
