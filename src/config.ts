@@ -361,17 +361,42 @@ function tokenRequiredError(): AxiError {
 }
 
 /**
+ * Normalize a piped token: trim, then strip ONE pair of matching surrounding
+ * quotes. A quote-wrapped paste (e.g. a JSON value copied without `jq -r`)
+ * otherwise reaches the keychain verbatim and every REST call fails —
+ * Confluence v2 answers the resulting anonymous request with 404, which reads
+ * as a URL bug instead of a credential bug.
+ */
+export function sanitizeToken(raw: string): string {
+  const trimmed = raw.trim();
+  const wrapped = trimmed.match(/^(["'])(.*)\1$/s);
+  return wrapped ? (wrapped[2] as string).trim() : trimmed;
+}
+
+/**
  * Read the API token from stdin. Throws (never blocks) on an interactive TTY,
- * and rejects an empty pipe. The token is only ever read here — never from a
- * CLI flag/argv.
+ * rejects an empty pipe, strips one pair of surrounding quotes, and rejects
+ * tokens carrying internal whitespace or control characters (a real Atlassian
+ * API token has neither — their presence means a mangled paste). The token is
+ * only ever read here — never from a CLI flag/argv.
  */
 export async function readTokenFromStdin(): Promise<string> {
   if (isStdinTTY()) {
     throw tokenRequiredError();
   }
-  const value = (await readStdin()).trim();
+  const value = sanitizeToken(await readStdin());
   if (value.length === 0) {
     throw tokenRequiredError();
+  }
+  // eslint-disable-next-line no-control-regex
+  if (/[\s\u0000-\u001f\u007f]/.test(value)) {
+    throw new AxiError(
+      "API token contains whitespace or control characters — it looks mangled (quoted, wrapped, or multi-line paste)",
+      "VALIDATION_ERROR",
+      [
+        "Copy the raw token value and re-pipe it: echo -n \"<token>\" | atlassian-axi auth login",
+      ],
+    );
   }
   return value;
 }

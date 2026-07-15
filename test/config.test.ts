@@ -9,6 +9,7 @@ import {
   readTokenFromStdin,
   requireCredential,
   resolveCredential,
+  sanitizeToken,
   saveCredential,
   setKeychainBackend,
 } from "../src/config.js";
@@ -189,7 +190,82 @@ describe("config credential resolution", () => {
   });
 });
 
+describe("sanitizeToken", () => {
+  it("strips one pair of surrounding double quotes (the confl404 keychain corruption)", () => {
+    expect(sanitizeToken('"ATATTtok"')).toBe("ATATTtok");
+  });
+
+  it("strips one pair of surrounding single quotes", () => {
+    expect(sanitizeToken("'ATATTtok'")).toBe("ATATTtok");
+  });
+
+  it("strips only ONE pair, not nested quotes", () => {
+    expect(sanitizeToken("\"'ATATTtok'\"")).toBe("'ATATTtok'");
+  });
+
+  it("leaves an unbalanced quote alone", () => {
+    expect(sanitizeToken('"ATATTtok')).toBe('"ATATTtok');
+    expect(sanitizeToken("ATATTtok'")).toBe("ATATTtok'");
+  });
+
+  it("trims whitespace outside and inside the quotes", () => {
+    expect(sanitizeToken('  " ATATTtok "\n')).toBe("ATATTtok");
+  });
+
+  it("passes a clean token through unchanged", () => {
+    expect(sanitizeToken("ATATTtok")).toBe("ATATTtok");
+  });
+});
+
+/** Run `fn` with process.stdin swapped for a non-TTY stream fed `data`. */
+async function withStdin<T>(data: string, fn: () => Promise<T>): Promise<T> {
+  const { PassThrough } = await import("node:stream");
+  const fake = new PassThrough();
+  Object.defineProperty(fake, "isTTY", { value: false });
+  const original = process.stdin;
+  Object.defineProperty(process, "stdin", { value: fake, configurable: true });
+  try {
+    fake.end(data);
+    return await fn();
+  } finally {
+    Object.defineProperty(process, "stdin", {
+      value: original,
+      configurable: true,
+    });
+  }
+}
+
 describe("readTokenFromStdin", () => {
+  it("returns a quote-wrapped piped token stripped of its quotes", async () => {
+    await withStdin('"ATATTtok"\n', async () => {
+      await expect(readTokenFromStdin()).resolves.toBe("ATATTtok");
+    });
+  });
+
+  it("rejects a token with internal whitespace (mangled paste)", async () => {
+    await withStdin('"ATATT tok"', async () => {
+      await expect(readTokenFromStdin()).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+    });
+  });
+
+  it("rejects a token with control characters", async () => {
+    await withStdin("ATATT\u0007tok", async () => {
+      await expect(readTokenFromStdin()).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+    });
+  });
+
+  it("rejects an empty pipe (including quotes-only input)", async () => {
+    await withStdin('""', async () => {
+      await expect(readTokenFromStdin()).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+    });
+  });
+
   it("throws (never blocks) on an interactive TTY", async () => {
     const original = process.stdin.isTTY;
     Object.defineProperty(process.stdin, "isTTY", {

@@ -81,6 +81,25 @@ async function authLogin(args: string[]): Promise<string> {
   const credential: AtlassianCredential = { site, email, apiToken };
 
   const { tokenStore } = await saveCredential(credential);
+
+  // Validate the just-saved token against Confluence REST before touching
+  // acli. Without this, a bad token slips through whenever acli is already
+  // logged in (bootstrap is status-gated and never exercises the new token).
+  const rest = await confluencePing(credential);
+  if (!rest.ok) {
+    throw new AxiError(
+      `Credential saved (${tokenStore}), but Confluence REST rejected it: ${rest.status} ${rest.detail}` +
+        (rest.status === 404 || rest.status === 403
+          ? " — Confluence answers rejected credentials with 404/403, so this usually means the token is invalid, not that the site lacks Confluence"
+          : ""),
+      "AUTH_REQUIRED",
+      [
+        "Check the token: copy the raw value (no quotes) and re-run `atlassian-axi auth login`",
+        "Check the site host with `atlassian-axi auth status`",
+      ],
+    );
+  }
+
   const bootstrap = await bootstrapAcli(credential);
 
   return renderOutput([
@@ -90,6 +109,7 @@ async function authLogin(args: string[]): Promise<string> {
       `  site: ${site}`,
       `  email: ${email}`,
       `  token-store: ${tokenStore}`,
+      `  confluence: 200 ok`,
       `  acli: ${bootstrap}`,
     ].join("\n"),
     renderHelp(["Verify end-to-end with `atlassian-axi auth status`"]),
@@ -195,7 +215,7 @@ async function authStatus(): Promise<string> {
     throw new AxiError(`auth check failed\n${detail}`, "AUTH_REQUIRED", [
       acliState !== "logged in"
         ? "Re-run `atlassian-axi auth login` to bootstrap acli"
-        : "Check the site/token — Confluence REST did not return 200",
+        : "The token is likely invalid — Confluence answers rejected credentials with 404/403; copy the raw token (no quotes) and re-run `atlassian-axi auth login`",
     ]);
   }
 

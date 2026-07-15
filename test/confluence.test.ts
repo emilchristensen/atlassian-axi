@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { confluenceJson, setConfluenceFetch } from "../src/confluence.js";
 import { makeConfluenceFake, onPath } from "./helpers/confluenceFake.js";
-import { errorBodyV1, errorBodyV2 } from "./fixtures/confluence.js";
+import {
+  errorBodyV1,
+  errorBodyV2,
+  errorBodyV2Anonymous404,
+} from "./fixtures/confluence.js";
 
 // The client resolves the unified credential itself; pin it via env so tests
 // never touch the real keychain or config file (env wins over both, and the
@@ -124,6 +128,22 @@ describe("confluenceJson", () => {
     await expect(confluenceJson("/wiki/api/v2/pages/999")).rejects.toThrow(
       /Page not found or viewer does not have permission/,
     );
+  });
+
+  it("suggests checking auth on a 404 (live-captured rejected-credential body)", async () => {
+    // Confluence v2 answers a rejected Basic credential with this exact 404
+    // body (live capture 2026-07-15) — the hint must not only steer users
+    // toward "wrong page id".
+    const { fetchImpl } = makeConfluenceFake([
+      { match: () => true, result: { status: 404, body: errorBodyV2Anonymous404 } },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await expect(confluenceJson("/wiki/api/v2/spaces")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      suggestions: expect.arrayContaining([
+        expect.stringContaining("auth status"),
+      ]),
+    });
   });
 
   it("extracts the v1 error message into the message", async () => {

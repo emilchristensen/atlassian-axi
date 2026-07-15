@@ -70,10 +70,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Stub the global fetch used by the login/status Confluence REST ping. */
+function stubPing(status: number, statusText = status === 200 ? "OK" : "Not Found") {
+  const fetchMock = vi.fn().mockResolvedValue({ status, statusText });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
 describe("auth login bootstrap (status-gated / idempotent)", () => {
   it("logs acli in when it is not already authenticated to the site", async () => {
     config.resolveCredential.mockResolvedValue({ sources: {} });
     config.readTokenFromStdin.mockResolvedValue("tok-123");
+    stubPing(200);
     const { runner, loginCall } = makeRunner(fail("unauthorized", 1));
     setAcliRunner(runner);
 
@@ -101,6 +109,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
   it("skips acli login when already authenticated to the site (idempotent)", async () => {
     config.resolveCredential.mockResolvedValue({ sources: {} });
     config.readTokenFromStdin.mockResolvedValue("tok-123");
+    stubPing(200);
     const { runner, loginCall } = makeRunner(
       ok("Logged in as me@acme.com to acme.atlassian.net"),
     );
@@ -116,6 +125,33 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
 
     expect(loginCall()).toBeUndefined();
     expect(out).toContain("already logged in");
+    expect(out).toContain("confluence: 200 ok");
+  });
+
+  it("fails loudly when Confluence REST rejects the just-saved token (404), without touching acli", async () => {
+    // The confl404 regression: a bad token used to slip through because acli
+    // was already logged in and nothing else exercised the new credential.
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+    config.readTokenFromStdin.mockResolvedValue("bad-token");
+    stubPing(404);
+    const { runner, loginCall } = makeRunner(
+      ok("Logged in as me@acme.com to acme.atlassian.net"),
+    );
+    setAcliRunner(runner);
+
+    const rejection = expect(
+      authCommand([
+        "login",
+        "--site",
+        "acme.atlassian.net",
+        "--email",
+        "me@acme.com",
+      ]),
+    ).rejects;
+    await rejection.toMatchObject({ code: "AUTH_REQUIRED" });
+    await rejection.toThrow(/404/);
+    await rejection.toThrow(/token is invalid/);
+    expect(loginCall()).toBeUndefined();
   });
 
   it("throws before reading the token when site/email are missing", async () => {
@@ -163,6 +199,22 @@ describe("auth status (both halves)", () => {
 
     await expect(authCommand(["status"])).rejects.toMatchObject({
       code: "AUTH_REQUIRED",
+    });
+  });
+
+  it("points at a likely-invalid token when acli is fine but Confluence says 404", async () => {
+    // Live-verified: Confluence v2 answers a rejected Basic credential with
+    // 404, indistinguishable from an anonymous request.
+    config.resolveCredential.mockResolvedValue(fullCred);
+    setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ status: 404, statusText: "Not Found" }),
+    );
+
+    await expect(authCommand(["status"])).rejects.toMatchObject({
+      code: "AUTH_REQUIRED",
+      suggestions: [expect.stringContaining("token is likely invalid")],
     });
   });
 
