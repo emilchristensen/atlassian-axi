@@ -227,6 +227,25 @@ export function dateOnly(value: unknown): string | null {
 }
 
 /**
+ * Split a user-supplied --fields value. A provided-but-degenerate list
+ * (`--fields ,` or empty entries) is a loud error — silently falling back to
+ * the default field set would contradict what the caller asked for (review
+ * finding; mirrors splitLabelNames on the Confluence half).
+ */
+export function splitFields(raw: string | undefined): string[] | undefined {
+  if (raw === undefined) return undefined;
+  const fields = raw.split(",").map((f) => f.trim());
+  if (fields.length === 0 || fields.some((f) => f === "")) {
+    throw new AxiError(
+      `Invalid --fields value: ${JSON.stringify(raw)}`,
+      "VALIDATION_ERROR",
+      ["Pass --fields <a,b,c> (comma-separated, no empty names)"],
+    );
+  }
+  return [...new Set(fields)];
+}
+
+/**
  * Build a dynamic schema from a user-supplied --fields list. `key` is always
  * included; values resolve tolerantly and named objects collapse to names.
  */

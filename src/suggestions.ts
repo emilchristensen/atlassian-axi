@@ -335,6 +335,16 @@ const table: SuggestionEntry[] = [
   },
   {
     match: (c) =>
+      c.domain === "page" &&
+      c.action === "attachments" &&
+      c.isEmpty === true &&
+      c.state === "filtered",
+    lines: (c) => [
+      `Broaden the search: drop --filename/--media-type, or run \`atlassian-axi confluence page attachments ${c.id}\` to list everything`,
+    ],
+  },
+  {
+    match: (c) =>
       c.domain === "page" && c.action === "attachments" && c.isEmpty === true,
     lines: (c) => [
       `Run \`atlassian-axi confluence page get ${c.id}\` to read the page (attachments are added in the Confluence UI)`,

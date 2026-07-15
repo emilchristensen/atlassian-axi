@@ -33,7 +33,7 @@ flags{update}:
 flags{attachments}:
   --limit <n> (default 30), --media-type <type>, --filename <name>
 flags{labels}:
-  (no flags = list) --add <name,name,...> or --remove <name,name,...> (idempotent; exclusive), --prefix <my|team|global|system> (list only), --limit <n> (list only, default 30)
+  (no flags = list) --add <name,name,...> or --remove <name,name,...> (idempotent; exclusive; mutations manage GLOBAL-prefix labels only), --prefix <my|team|global|system> (list only), --limit <n> (list only, default 30)
 flags{children}:
   --limit <n> (default 30)
 examples:

@@ -305,6 +305,21 @@ export const labelsPayload = {
   _links: { base: "https://example.atlassian.net/wiki" },
 };
 
+/** Same label set with a cursor `next` link — the page has MORE labels. */
+export const labelsPayloadTruncated = {
+  ...labelsPayload,
+  _links: {
+    base: "https://example.atlassian.net/wiki",
+    next: "/wiki/api/v2/pages/12345/labels?cursor=eyJpZCI6NTAwMDJ9&limit=250",
+  },
+};
+
+/** A page whose only label is TEAM-prefixed (no global labels at all). */
+export const labelsTeamOnlyPayload = {
+  results: [{ id: "50009", name: "release", prefix: "team" }],
+  _links: { base: "https://example.atlassian.net/wiki" },
+};
+
 /** The label set after `labels --add july` (v2 re-fetch post-mutation). */
 export const labelsAfterAddPayload = {
   results: [

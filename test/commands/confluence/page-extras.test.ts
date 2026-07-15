@@ -19,7 +19,10 @@ import {
   labelsAfterAddPayload,
   labelsAfterRemovePayload,
   labelsPayload,
+  labelsPayloadTruncated,
+  labelsTeamOnlyPayload,
 } from "../../fixtures/confluence.js";
+import { formatBytes } from "../../../src/commands/confluence/shared.js";
 
 const ENV_KEYS = [
   "ATLASSIAN_SITE",
@@ -116,6 +119,24 @@ describe("page attachments", () => {
     const out = await pageCommand(["attachments", "12345"]);
     expect(out).toContain("count: 0");
     expect(out).toContain("attachments are added in the Confluence UI");
+  });
+
+  it("suggests broadening (not 'no attachments exist') when a FILTERED result is empty", async () => {
+    // Review finding: emptiness under --filename/--media-type means
+    // "nothing matched", not "the page has no attachments".
+    const { fetchImpl } = makeConfluenceFake([
+      { match: getAttachments, result: { results: [] } },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    const out = await pageCommand([
+      "attachments",
+      "12345",
+      "--filename",
+      "nope.png",
+    ]);
+    expect(out).toContain("count: 0");
+    expect(out).toContain("Broaden the search");
+    expect(out).not.toContain("attachments are added in the Confluence UI");
   });
 
   it("requires the page id and rejects a second positional", async () => {
@@ -234,6 +255,35 @@ describe("page labels add", () => {
     expect(calls.every((c: FetchCall) => c.method === "GET")).toBe(true);
   });
 
+  it("rejects --add with a missing value instead of degrading to a list", async () => {
+    // Review finding: `labels 12345 --add` used to silently render the
+    // label list; `--add --remove b` used to POST a label named "--remove".
+    const { fetchImpl, calls } = makeConfluenceFake([]);
+    setConfluenceFetch(fetchImpl);
+    await expect(pageCommand(["labels", "12345", "--add"])).rejects.toThrow(
+      /--add requires a value/,
+    );
+    await expect(
+      pageCommand(["labels", "12345", "--add", "--remove", "b"]),
+    ).rejects.toThrow(/--add requires a value \(got the flag --remove/);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("is prefix-aware: a team-prefixed name does not count as already present", async () => {
+    // Review finding: a `team:release` label must not make `--add release`
+    // skip creating the GLOBAL `release` label.
+    const { fetchImpl, calls } = makeConfluenceFake([
+      { match: getLabels, result: labelsTeamOnlyPayload },
+      { match: v1Label("POST"), result: labelAddedV1Payload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await pageCommand(["labels", "12345", "--add", "release"]);
+    const post = calls.find((c: FetchCall) => c.method === "POST");
+    expect(post?.body).toEqual([{ prefix: "global", name: "release" }]);
+    expect(out).toContain("message: Added: release");
+  });
+
   it("rejects empty names, and --add combined with --remove or list-only flags", async () => {
     setConfluenceFetch(makeConfluenceFake([]).fetchImpl);
     await expect(
@@ -301,6 +351,28 @@ describe("page labels remove", () => {
     expect(calls.every((c: FetchCall) => c.method === "GET")).toBe(true);
   });
 
+  it("DELETEs unconditionally when the pre-read is truncated (never skips a real label)", async () => {
+    // Review finding: on a page with more labels than one v2 page returns,
+    // absence from the pre-read proves nothing — the label may live beyond
+    // the cursor. It must be DELETEd anyway (a 404 folds to already absent).
+    const { fetchImpl, calls } = makeConfluenceFake([
+      { match: getLabels, result: labelsPayloadTruncated },
+      { match: v1Label("DELETE"), result: { status: 204 } },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await pageCommand([
+      "labels",
+      "12345",
+      "--remove",
+      "beyond-the-cursor",
+    ]);
+    const del = calls.find((c: FetchCall) => c.method === "DELETE");
+    expect(del?.url.searchParams.get("name")).toBe("beyond-the-cursor");
+    expect(out).toContain("message: Removed: beyond-the-cursor");
+    expect(out).not.toContain("Already absent");
+  });
+
   it("treats a 404 on the DELETE itself (pre-read race) as already absent", async () => {
     const { fetchImpl } = makeConfluenceFake([
       { match: getLabels, result: labelsPayload },
@@ -314,6 +386,30 @@ describe("page labels remove", () => {
       "engineering",
     ]);
     expect(out).toContain("Already absent: engineering");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatBytes
+// ---------------------------------------------------------------------------
+
+describe("formatBytes", () => {
+  it.each([
+    [0, "0 B"],
+    [812, "812 B"],
+    [482133, "471 KB"],
+    // Review finding: 1023.5 KB must bump to "1 MB", never "1024 KB".
+    [1048064, "1 MB"],
+    [5 * 1024 * 1024 * 1024, "5 GB"],
+  ])("formats %d bytes as %s", (raw, expected) => {
+    expect(formatBytes(raw)).toBe(expected);
+  });
+
+  it("returns null for non-numeric / negative input instead of coercing", () => {
+    expect(formatBytes("812")).toBeNull();
+    expect(formatBytes(-1)).toBeNull();
+    expect(formatBytes(NaN)).toBeNull();
+    expect(formatBytes(undefined)).toBeNull();
   });
 });
 

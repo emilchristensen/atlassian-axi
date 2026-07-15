@@ -71,6 +71,13 @@ const RENDERED_CONTEXTS: SuggestionContext[] = [
   { domain: "page", action: "delete", id: "12345" },
   { domain: "page", action: "attachments", id: "12345", isEmpty: false },
   { domain: "page", action: "attachments", id: "12345", isEmpty: true },
+  {
+    domain: "page",
+    action: "attachments",
+    id: "12345",
+    isEmpty: true,
+    state: "filtered",
+  },
   { domain: "page", action: "labels", id: "12345", isEmpty: false },
   { domain: "page", action: "labels", id: "12345", isEmpty: true },
   { domain: "page", action: "labels-add", id: "12345", isEmpty: false },

@@ -20,6 +20,7 @@ import {
   nameOf,
   parseFlags,
   parseLimit,
+  splitFields,
   workitemListSchema,
   workitemViewSchema,
   type JsonRecord,
@@ -98,15 +99,6 @@ function requireKey(positional: string | undefined, sub: string): string {
     ]);
   }
   return positional.toUpperCase();
-}
-
-function splitFields(raw: string | undefined): string[] | undefined {
-  if (!raw) return undefined;
-  const fields = raw
-    .split(",")
-    .map((f) => f.trim())
-    .filter(Boolean);
-  return fields.length > 0 ? fields : undefined;
 }
 
 // acli view's default field set omits created/updated/priority; request the
@@ -318,6 +310,23 @@ async function viewWorkitem(
       fields ? fieldsSchema(fields) : workitemViewSchema(full),
     ),
   ];
+
+  // Mirror sprint list-workitems: surface --fields values acli did not
+  // return, so a `bogus: null` row is never mistaken for an empty field.
+  if (fields) {
+    const nested = item.fields;
+    const dropped = fields.filter(
+      (name) =>
+        name !== "key" &&
+        !(nested && typeof nested === "object" && name in nested) &&
+        !(name in item),
+    );
+    if (dropped.length > 0) {
+      blocks.push(
+        `note: acli did not return field(s) ${dropped.join(", ")} (unknown field name, or unsupported by workitem view)`,
+      );
+    }
+  }
 
   if (withComments) {
     const payload = await acliJson<unknown>([

@@ -66,6 +66,11 @@ export async function attachmentsPage(
   if (items.length > 0) {
     blocks.push(renderList("attachments", items, attachmentListSchema));
   }
+  // An empty FILTERED result means "nothing matched", not "the page has no
+  // attachments" — the suggestions differ (broaden vs. explain).
+  const filtered =
+    parsed.values["--media-type"] !== undefined ||
+    parsed.values["--filename"] !== undefined;
   blocks.push(
     renderHelp(
       getSuggestions({
@@ -73,6 +78,7 @@ export async function attachmentsPage(
         action: "attachments",
         id,
         isEmpty: items.length === 0,
+        ...(filtered ? { state: "filtered" } : {}),
         site: ctx,
       }),
     ),
@@ -245,14 +251,26 @@ function renderLabels(
   return renderOutput(blocks);
 }
 
-/** Current label names (idempotency pre-read; best-effort beyond 250). */
-async function currentLabelNames(id: string): Promise<Set<string>> {
-  const { items } = await fetchLabels(id, { limit: LABEL_PREREAD_LIMIT });
-  return new Set(
+/**
+ * Current GLOBAL label names for the idempotency pre-read, plus whether the
+ * read was truncated (page with more labels than one v2 page returns).
+ * Prefix-aware on purpose: the CLI mutates global labels only, so a `team:x`
+ * label must not make `--add x` claim "Already present" and skip creating
+ * the global `x` (review finding).
+ */
+async function currentGlobalLabelNames(
+  id: string,
+): Promise<{ names: Set<string>; truncated: boolean }> {
+  const { items, truncated } = await fetchLabels(id, {
+    limit: LABEL_PREREAD_LIMIT,
+  });
+  const names = new Set(
     items
+      .filter((item) => item.prefix === "global")
       .map((item) => item.name)
       .filter((name): name is string => typeof name === "string"),
   );
+  return { names, truncated };
 }
 
 async function addLabels(
@@ -262,7 +280,10 @@ async function addLabels(
 ): Promise<string> {
   // Idempotent: read first, add only what is missing, report what was
   // already there, then re-fetch and render the authoritative label set.
-  const existing = await currentLabelNames(id);
+  // A truncated pre-read only means an "Added" name may already have
+  // existed beyond the read window — the v1 add of an existing label is a
+  // server-side no-op, so the mutation itself stays correct.
+  const { names: existing } = await currentGlobalLabelNames(id);
   const missing = names.filter((name) => !existing.has(name));
   const present = names.filter((name) => existing.has(name));
 
@@ -296,12 +317,20 @@ async function removeLabels(
 ): Promise<string> {
   // Idempotent: remove only what is present; a 404 on the DELETE itself
   // (label vanished between the pre-read and the delete) is also a no-op.
-  const existing = await currentLabelNames(id);
-  const present = names.filter((name) => existing.has(name));
-  const absent = names.filter((name) => !existing.has(name));
+  // When the pre-read is TRUNCATED the absence of a name proves nothing, so
+  // every requested name is DELETEd unconditionally — a label beyond the
+  // read window must not be reported "Already absent" while staying on the
+  // page (review finding); the 404-folding below absorbs the truly absent.
+  const { names: existing, truncated } = await currentGlobalLabelNames(id);
+  const toDelete = truncated
+    ? names
+    : names.filter((name) => existing.has(name));
+  const absent = truncated
+    ? []
+    : names.filter((name) => !existing.has(name));
 
   const removed: string[] = [];
-  for (const name of present) {
+  for (const name of toDelete) {
     try {
       // v1 query-param variant (the path variant breaks on names with "/").
       await confluenceJson<undefined>(`/wiki/rest/api/content/${id}/label`, {
@@ -322,10 +351,8 @@ async function removeLabels(
     removed.length > 0 ? `Removed: ${removed.join(", ")}` : null,
     absent.length > 0 ? `Already absent: ${absent.join(", ")}` : null,
   ].filter(Boolean);
-  const { items, truncated } = await fetchLabels(id, {
-    limit: LABEL_PREREAD_LIMIT,
-  });
-  return renderLabels(id, items, truncated, {
+  const refetch = await fetchLabels(id, { limit: LABEL_PREREAD_LIMIT });
+  return renderLabels(id, refetch.items, refetch.truncated, {
     action: "labels-remove",
     message: messages.join("; "),
     ctx,

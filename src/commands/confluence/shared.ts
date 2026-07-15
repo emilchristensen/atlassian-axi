@@ -185,15 +185,19 @@ export function requirePageId(
 export function formatBytes(raw: unknown): string | null {
   if (typeof raw !== "number" || !isFinite(raw) || raw < 0) return null;
   if (raw < 1024) return `${raw} B`;
+  const display = (value: number): number =>
+    value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
   const units = ["KB", "MB", "GB", "TB"];
   let value = raw;
   let unit = "B";
   for (const next of units) {
-    if (value < 1024) break;
     value = value / 1024;
     unit = next;
+    // Compare what would be DISPLAYED, not the raw value: 1048064 bytes is
+    // 1023.5 KB, which rounds to the nonsense "1024 KB" — bump it to "1 MB".
+    if (display(value) < 1024 || next === units[units.length - 1]) break;
   }
-  return `${value >= 100 ? Math.round(value) : Math.round(value * 10) / 10} ${unit}`;
+  return `${display(value)} ${unit}`;
 }
 
 /** List schema for `page attachments` (v2 AttachmentBulk shape). */
