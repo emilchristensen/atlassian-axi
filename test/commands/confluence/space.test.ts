@@ -91,11 +91,13 @@ describe("space list", () => {
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 
-  it("returns help for no subcommand, --help, and an unknown subcommand errors", async () => {
+  it("returns help for no subcommand and --help, throws on unknown subcommands", async () => {
     expect(await spaceCommand([])).toBe(SPACE_HELP);
     expect(await spaceCommand(["--help"])).toBe(SPACE_HELP);
     expect(await spaceCommand(["list", "--help"])).toBe(SPACE_HELP);
-    const out = await spaceCommand(["bogus"]);
-    expect(out).toContain("Unknown space subcommand: bogus");
+    await expect(spaceCommand(["bogus"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown space subcommand: bogus"),
+    });
   });
 });

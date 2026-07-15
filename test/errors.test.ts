@@ -12,7 +12,7 @@ describe("errors", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.code).toBe("VALIDATION_ERROR");
     expect(err.suggestions).toEqual(["fix it"]);
-    expect(typeof exitCodeForError(err)).toBe("number");
+    expect(exitCodeForError(err)).toBe(2);
   });
 
   it("maps acli unauthorized stderr to AUTH_REQUIRED with a login suggestion", () => {

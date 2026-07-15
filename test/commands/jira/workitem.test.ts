@@ -742,11 +742,21 @@ describe("jira router", () => {
     expect(out).toContain("--site acme.atlassian.net");
   });
 
-  it("returns help for bare `jira` and errors on unknown resources", async () => {
+  it("returns help for bare `jira` and throws on unknown resources", async () => {
     expect(await jiraCommand([])).toContain("usage: atlassian-axi jira");
     expect(await jiraCommand(["--help", "workitem"])).toContain(
       "usage: atlassian-axi jira",
     );
-    expect(await jiraCommand(["bogus"])).toContain("Unknown jira resource");
+    await expect(jiraCommand(["bogus"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown jira resource: bogus"),
+    });
+  });
+
+  it("throws VALIDATION_ERROR on an unknown workitem subcommand", async () => {
+    await expect(workitemCommand(["vieww"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown workitem subcommand: vieww"),
+    });
   });
 });

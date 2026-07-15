@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  closestCommand,
   getSuggestions,
   type SuggestionContext,
 } from "../src/suggestions.js";
@@ -140,5 +141,40 @@ describe("suggestions parity", () => {
     for (const line of fromEnv) {
       expect(line).not.toContain("--site");
     }
+  });
+});
+
+describe("closestCommand", () => {
+  const KNOWN = ["auth", "jira", "confluence", "setup", "update"] as const;
+
+  it("accepts a typo at distance exactly 2 when the input is long enough", () => {
+    // "setpu" -> "setup" is a transposition (Levenshtein distance 2);
+    // length 5 scales the threshold up to 2.
+    expect(closestCommand("setpu", KNOWN)).toBe("setup");
+  });
+
+  it("rejects a candidate at distance 3", () => {
+    // Three substitutions; long enough input that the threshold is at its
+    // maximum of 2, so this probes the boundary itself.
+    expect(closestCommand("abcdef", ["abcxyz"])).toBeUndefined();
+  });
+
+  it("gives no hint for short unrelated input (length-scaled threshold)", () => {
+    // Flat distance <= 2 would match these; the scaled threshold must not.
+    expect(closestCommand("at", KNOWN)).toBeUndefined();
+    expect(closestCommand("jr", KNOWN)).toBeUndefined();
+  });
+
+  it("still hints on a close short typo", () => {
+    expect(closestCommand("jra", KNOWN)).toBe("jira");
+  });
+
+  it("breaks ties by first candidate in the known list", () => {
+    expect(closestCommand("bath", ["math", "path"])).toBe("math");
+  });
+
+  it("matches case-insensitively on both sides", () => {
+    expect(closestCommand("JIRA", KNOWN)).toBe("jira");
+    expect(closestCommand("jira", ["JIRA"])).toBe("JIRA");
   });
 });

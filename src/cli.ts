@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAxiCli } from "axi-sdk-js";
 import { resolveSite, type SiteContext } from "./context.js";
+import { closestCommand } from "./suggestions.js";
+import { renderError } from "./toon.js";
 import { homeCommand } from "./commands/home.js";
 import { setupCommand, SETUP_HELP } from "./commands/setup.js";
 import { authCommand, AUTH_HELP } from "./commands/auth.js";
@@ -63,7 +65,21 @@ export async function main(options: MainOptions = {}): Promise<void> {
     commands: COMMANDS,
     getCommandHelp: (command) => COMMAND_HELP[command],
     resolveContext: ({ args }) => resolveSite(parseSiteFlag(args)),
+    renderUnknownCommand,
   });
+}
+
+/**
+ * SDK hook for unknown top-level commands: same VALIDATION_ERROR/exit-2 shape
+ * as the SDK default, plus a did-you-mean when the typo is close.
+ */
+export function renderUnknownCommand(command: string): string {
+  const known = [...Object.keys(COMMANDS), "update"];
+  const suggestion = closestCommand(command, known);
+  return `${renderError(`Unknown command: ${command}`, "VALIDATION_ERROR", [
+    ...(suggestion ? [`Did you mean \`atlassian-axi ${suggestion}\`?`] : []),
+    "Run `atlassian-axi --help` to see available commands",
+  ])}\n`;
 }
 
 function readPackageVersion(): string {

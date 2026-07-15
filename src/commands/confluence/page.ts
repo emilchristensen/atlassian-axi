@@ -6,7 +6,6 @@ import { getSuggestions } from "../../suggestions.js";
 import {
   field,
   renderDetail,
-  renderError,
   renderHelp,
   renderOutput,
 } from "../../toon.js";
@@ -69,7 +68,7 @@ export async function pageCommand(
     case "children":
       return childrenPage(args, PAGE_HELP, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown page subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi confluence page --help` for usage"],

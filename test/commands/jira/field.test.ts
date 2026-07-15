@@ -164,10 +164,14 @@ describe("field delete / restore", () => {
     expect(out).toContain("message: Restored from trash");
   });
 
-  it("returns help for --help and errors on unknown subcommands", async () => {
+  it("returns help for --help and throws on unknown subcommands", async () => {
     expect(await fieldCommand(["--help"])).toContain("restore <ID>");
-    const out = await fieldCommand(["list"]);
-    expect(out).toContain("Unknown field subcommand: list");
-    expect(out).toContain("field --help");
+    await expect(fieldCommand(["list"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown field subcommand: list"),
+      suggestions: expect.arrayContaining([
+        expect.stringContaining("field --help"),
+      ]),
+    });
   });
 });

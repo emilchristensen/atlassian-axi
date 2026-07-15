@@ -7,7 +7,6 @@ import {
   custom,
   field,
   renderDetail,
-  renderError,
   renderHelp,
   renderList,
   renderOutput,
@@ -87,7 +86,7 @@ export async function sprintCommand(
     case "update":
       return updateSprint(args, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown sprint subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi jira sprint --help` for usage"],
