@@ -6,7 +6,7 @@ const acli = vi.hoisted(() => ({
   acliInstalled: vi.fn(),
   acliJson: vi.fn(),
 }));
-const config = vi.hoisted(() => ({ resolveCredential: vi.fn() }));
+const config = vi.hoisted(() => ({ resolveAuthMode: vi.fn() }));
 const confluence = vi.hoisted(() => ({
   confluenceJson: vi.fn(),
   setConfluenceFetch: vi.fn(),
@@ -20,14 +20,19 @@ const { homeCommand } = await import("../../src/commands/home.js");
 beforeEach(() => {
   acli.acliInstalled.mockReset().mockResolvedValue(true);
   acli.acliJson.mockReset().mockResolvedValue([]);
-  config.resolveCredential.mockReset().mockResolvedValue({ sources: {} });
+  config.resolveAuthMode
+    .mockReset()
+    .mockResolvedValue({ mode: "none", missing: ["site", "email", "apiToken"] });
   confluence.confluenceJson.mockReset().mockResolvedValue({ results: [] });
 });
 
 const FULL_CREDENTIAL = {
-  site: "acme.atlassian.net",
-  email: "me@acme.com",
-  apiToken: "tok",
+  mode: "api-token",
+  credential: {
+    site: "acme.atlassian.net",
+    email: "me@acme.com",
+    apiToken: "tok",
+  },
   sources: {},
 };
 
@@ -45,13 +50,13 @@ describe("homeCommand", () => {
   });
 
   it("reports auth ok when a full credential resolves", async () => {
-    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     const out = await homeCommand([]);
     expect(out).toContain("auth: ok");
   });
 
   it("renders my open work items when authenticated (best-effort)", async () => {
-    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     acli.acliJson.mockResolvedValue([
       {
         key: "TEAM-1",
@@ -70,7 +75,7 @@ describe("homeCommand", () => {
     expect(acli.acliJson).not.toHaveBeenCalled();
 
     // Authenticated but the search blows up: block degrades away silently.
-    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     acli.acliJson.mockRejectedValue(new Error("network down"));
     const degraded = await homeCommand([]);
     expect(degraded).toContain("auth: ok");
@@ -80,7 +85,7 @@ describe("homeCommand", () => {
   it("caps the workitems and spaces fetches at their budgets so a hung backend cannot stall the hook", async () => {
     vi.useFakeTimers();
     try {
-      config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+      config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
       acli.acliJson.mockReturnValue(new Promise(() => {})); // never settles
       confluence.confluenceJson.mockReturnValue(new Promise(() => {}));
       const pending = homeCommand([]);
@@ -95,7 +100,7 @@ describe("homeCommand", () => {
   });
 
   it("renders the spaces count when authenticated", async () => {
-    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     confluence.confluenceJson.mockResolvedValue({
       results: [{ id: "111" }, { id: "222" }],
       _links: {},
@@ -105,7 +110,7 @@ describe("homeCommand", () => {
   });
 
   it("marks the spaces count as truncated when a next cursor exists", async () => {
-    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     confluence.confluenceJson.mockResolvedValue({
       results: [{ id: "111" }, { id: "222" }],
       _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
@@ -121,7 +126,7 @@ describe("homeCommand", () => {
     expect(confluence.confluenceJson).not.toHaveBeenCalled();
 
     // Authenticated but the REST call blows up: line degrades away silently.
-    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     confluence.confluenceJson.mockRejectedValue(new Error("network down"));
     const degraded = await homeCommand([]);
     expect(degraded).toContain("auth: ok");
@@ -141,13 +146,13 @@ describe("homeCommand", () => {
 
   it("serves the Confluence half without acli (credential ok, no acli)", async () => {
     acli.acliInstalled.mockResolvedValue(false);
-    config.resolveCredential.mockResolvedValue(FULL_CREDENTIAL);
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     confluence.confluenceJson.mockResolvedValue({
       results: [{ id: "111" }],
       _links: {},
     });
     const out = await homeCommand([]);
-    expect(out).toContain("auth: ok (Confluence only");
+    expect(out).toContain("auth: ok (api-token, Confluence only");
     expect(out).toContain("spaces: 1");
     expect(out).not.toContain("my_open_workitems");
     expect(acli.acliJson).not.toHaveBeenCalled();

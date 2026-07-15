@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -37,11 +38,34 @@ export interface ResolvedCredential {
   };
 }
 
+/**
+ * OAuth 2.0 (3LO) session for the Confluence REST half. Persisted in the 0600
+ * config file (the "existing 0600 config store" by design — OAuth tokens are
+ * short-lived and rotate, unlike the long-lived API token that prefers the
+ * keychain). Atlassian rotates refresh tokens: always persist the newest.
+ */
+export interface OAuthSession {
+  clientId: string;
+  accessToken: string;
+  refreshToken: string;
+  /** Epoch ms when the access token expires. */
+  expiresAt: number;
+  /** Atlassian cloud id — addresses `https://api.atlassian.com/ex/confluence/{cloudId}`. */
+  cloudId: string;
+  /** Bare host of the chosen site, e.g. acme.atlassian.net. */
+  site: string;
+  /** Space-separated granted scopes, as returned by the token endpoint. */
+  scopes: string;
+  /** Stored on first login when not supplied via ATLASSIAN_AXI_OAUTH_CLIENT_SECRET. */
+  clientSecret?: string;
+}
+
 interface StoredConfig {
   site?: string;
   email?: string;
   /** Present only in the file-fallback path (no OS keychain available). */
   token?: string;
+  oauth?: OAuthSession;
 }
 
 const CONFIG_DIR_NAME = "atlassian-axi";
@@ -180,12 +204,22 @@ function readStoredConfig(): StoredConfig {
   }
 }
 
+/**
+ * Atomic write (temp file + rename): read-merge-write callers race across
+ * processes (the CLI's normal agent usage), and an in-place write torn by a
+ * concurrent read would parse-fail into `{}` and silently drop the other
+ * credential half on the next merge.
+ */
 function writeStoredConfig(config: StoredConfig): void {
   const path = configPath();
   mkdirSync(dirname(path), { recursive: true, mode: DIR_MODE });
-  writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, { mode: FILE_MODE });
+  const tmpPath = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmpPath, `${JSON.stringify(config, null, 2)}\n`, {
+    mode: FILE_MODE,
+  });
   // writeFileSync only applies mode when creating; enforce 0600 on rewrite too.
-  chmodSync(path, FILE_MODE);
+  chmodSync(tmpPath, FILE_MODE);
+  renameSync(tmpPath, path);
 }
 
 // ---------------------------------------------------------------------------
@@ -275,7 +309,8 @@ export function authRequiredError(missing: string[]): AxiError {
     `Not authenticated (missing: ${missing.join(", ")})`,
     "AUTH_REQUIRED",
     [
-      "Run `atlassian-axi auth login --site <site> --email <email>` and pipe your API token via stdin",
+      "Run `atlassian-axi auth login` for the OAuth browser flow (interactive terminals)",
+      "Or run `atlassian-axi auth login --token --site <site> --email <email>` and pipe your API token via stdin",
       "Or set ATLASSIAN_SITE / ATLASSIAN_EMAIL / ATLASSIAN_API_TOKEN",
     ],
   );
@@ -305,22 +340,198 @@ export async function requireCredential(): Promise<AtlassianCredential> {
 export async function saveCredential(
   credential: AtlassianCredential,
 ): Promise<{ tokenStore: "keychain" | "file" }> {
+  // Merge with the stored config so an API-token login never clobbers an
+  // existing OAuth session (and vice versa — see saveOAuthSession).
+  const stored = readStoredConfig();
   const keychain = getKeychain();
   if (keychain) {
     try {
       await keychain.set(credential.apiToken);
-      writeStoredConfig({ site: credential.site, email: credential.email });
+      const next: StoredConfig = {
+        ...stored,
+        site: credential.site,
+        email: credential.email,
+      };
+      // The token lives in the keychain now; a stale file token would shadow
+      // rotations, so drop it explicitly.
+      delete next.token;
+      writeStoredConfig(next);
       return { tokenStore: "keychain" };
     } catch {
       // Keychain unavailable/locked at runtime; fall back to the 0600 file path.
     }
   }
   writeStoredConfig({
+    ...stored,
     site: credential.site,
     email: credential.email,
     token: credential.apiToken,
   });
   return { tokenStore: "file" };
+}
+
+// ---------------------------------------------------------------------------
+// OAuth session persistence + auth-mode resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Read the persisted OAuth session, or null when absent/malformed. A session
+ * missing any required field is treated as "not logged in" rather than
+ * crashing every command — `auth login` rewrites it whole.
+ */
+export function readOAuthSession(): OAuthSession | null {
+  const oauth = readStoredConfig().oauth;
+  if (!oauth || typeof oauth !== "object") {
+    return null;
+  }
+  const required: (keyof OAuthSession)[] = [
+    "clientId",
+    "accessToken",
+    "refreshToken",
+    "cloudId",
+    "site",
+  ];
+  for (const key of required) {
+    if (typeof oauth[key] !== "string" || oauth[key] === "") {
+      return null;
+    }
+  }
+  if (typeof oauth.expiresAt !== "number") {
+    return null;
+  }
+  // Optional fields are sanitised rather than trusted: a corrupted non-string
+  // clientSecret must never flow into a token request body.
+  return {
+    clientId: oauth.clientId,
+    accessToken: oauth.accessToken,
+    refreshToken: oauth.refreshToken,
+    expiresAt: oauth.expiresAt,
+    cloudId: oauth.cloudId,
+    site: oauth.site,
+    scopes: typeof oauth.scopes === "string" ? oauth.scopes : "",
+    ...(typeof oauth.clientSecret === "string" && oauth.clientSecret !== ""
+      ? { clientSecret: oauth.clientSecret }
+      : {}),
+  };
+}
+
+/** Persist the OAuth session (whole-object write; preserves site/email/token). */
+export function saveOAuthSession(session: OAuthSession): void {
+  const stored = readStoredConfig();
+  writeStoredConfig({ ...stored, oauth: session });
+}
+
+/** Drop only the OAuth session, keeping any API-token credential intact. */
+export function clearOAuthSession(): void {
+  const stored = readStoredConfig();
+  if (!stored.oauth) {
+    return;
+  }
+  const rest = { ...stored };
+  delete rest.oauth;
+  writeStoredConfig(rest);
+}
+
+/**
+ * Resolve the OAuth client secret: env `ATLASSIAN_AXI_OAUTH_CLIENT_SECRET`
+ * wins over the secret stored with the session (written on first login).
+ * Both read paths run through `sanitizeToken` — the secret is human-pasted
+ * exactly like the API token, so the same quote-wrapping corruption applies.
+ */
+export function resolveOAuthClientSecret(
+  session?: OAuthSession | null,
+): { secret: string; source: "env" | "config" } | null {
+  const env = sanitizeToken(envValue("ATLASSIAN_AXI_OAUTH_CLIENT_SECRET") ?? "");
+  if (env) {
+    return { secret: env, source: "env" };
+  }
+  const stored = session ?? readOAuthSession();
+  const fromStore = sanitizeToken(stored?.clientSecret ?? "");
+  if (fromStore) {
+    return { secret: fromStore, source: "config" };
+  }
+  return null;
+}
+
+/**
+ * Which auth mode drives the Confluence REST half. Resolution order
+ * (documented in `auth --help`):
+ *   1. `ATLASSIAN_API_TOKEN` env (an explicit agent/CI override) — API-token
+ *      mode; if site/email are missing this is a loud config error, never a
+ *      silent fallback to OAuth.
+ *   2. A persisted OAuth session — OAuth (Bearer via api.atlassian.com) mode.
+ *   3. A complete stored API-token credential — API-token mode.
+ */
+export type AuthMode =
+  | { mode: "oauth"; oauth: OAuthSession }
+  | {
+      mode: "api-token";
+      credential: AtlassianCredential;
+      sources: ResolvedCredential["sources"];
+    }
+  | { mode: "none"; missing: string[] };
+
+export async function resolveAuthMode(): Promise<AuthMode> {
+  const resolved = await resolveCredential();
+  const complete = Boolean(resolved.site && resolved.email && resolved.apiToken);
+  const tokenMode = (): AuthMode => ({
+    mode: "api-token",
+    credential: {
+      site: resolved.site as string,
+      email: resolved.email as string,
+      apiToken: resolved.apiToken as string,
+    },
+    sources: resolved.sources,
+  });
+
+  if (resolved.sources.apiToken === "env") {
+    if (complete) {
+      return tokenMode();
+    }
+    const missing = [
+      !resolved.site ? "site" : null,
+      !resolved.email ? "email" : null,
+    ].filter((v): v is string => v !== null);
+    return { mode: "none", missing };
+  }
+
+  const oauth = readOAuthSession();
+  if (oauth) {
+    return { mode: "oauth", oauth };
+  }
+  if (complete) {
+    return tokenMode();
+  }
+  const missing: string[] = [];
+  if (!resolved.site) missing.push("site");
+  if (!resolved.email) missing.push("email");
+  if (!resolved.apiToken) missing.push("apiToken");
+  return { mode: "none", missing };
+}
+
+/** Resolve an active auth mode or throw AUTH_REQUIRED naming both login paths. */
+export async function requireAuth(): Promise<Exclude<AuthMode, { mode: "none" }>> {
+  const mode = await resolveAuthMode();
+  if (mode.mode === "none") {
+    throw new AxiError(
+      `Not authenticated (missing: ${mode.missing.join(", ")})`,
+      "AUTH_REQUIRED",
+      [
+        "Run `atlassian-axi auth login` for the OAuth browser flow (interactive terminals)",
+        "Or `echo -n \"<token>\" | atlassian-axi auth login --token --site <site> --email <email>` (agents/CI)",
+      ],
+    );
+  }
+  return mode;
+}
+
+/**
+ * Whether this invocation can drive a browser login: both stdin and stdout
+ * must be interactive terminals. Agents/CI pipe at least one of them — the
+ * OAuth flow must fail fast there instead of hanging on a browser.
+ */
+export function isInteractiveTTY(): boolean {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
 }
 
 /** Remove all persisted state: delete the config file and keychain token. */
@@ -364,7 +575,9 @@ function tokenRequiredError(): AxiError {
   return new AxiError(
     "API token is required: pipe it via stdin (never passed as an argument)",
     "VALIDATION_ERROR",
-    [`echo -n "<token>" | atlassian-axi auth login --site <site> --email <email>`],
+    [
+      `echo -n "<token>" | atlassian-axi auth login --token --site <site> --email <email>`,
+    ],
   );
 }
 

@@ -25,8 +25,10 @@ You do not need atlassian-axi installed globally — invoke it with \`npx -y atl
 ## Status
 
 The dashboard, \`auth\`, the acli-backed \`jira\` family, the direct-REST \`confluence\` family, \`setup hooks\`, and the inherited \`update\` command work today.
-The Jira half shells out to \`acli\` — install it first (\`brew install acli\`) and run \`auth login\` once.
-The Confluence half calls the Cloud REST API directly with the same credential — no extra setup.
+Auth has two modes: \`auth login\` runs an OAuth browser flow (humans, interactive terminals; tokens auto-refresh), and \`auth login --token\` takes site + email + API token via stdin (agents/CI — use this one; the OAuth flow fails fast without a TTY).
+Resolution order: \`ATLASSIAN_API_TOKEN\` env > OAuth session > stored API token.
+The Jira half shells out to \`acli\` — install it first (\`brew install acli\`); \`auth login --token\` bootstraps it (the OAuth flow cannot — acli needs an API token).
+The Confluence half calls the Cloud REST API directly (via \`api.atlassian.com\` in OAuth mode) — no extra setup.
 
 ## Commands
 

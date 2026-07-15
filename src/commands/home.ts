@@ -1,6 +1,6 @@
 import type { SiteContext } from "../context.js";
 import { acliInstalled, acliJson } from "../acli.js";
-import { resolveCredential } from "../config.js";
+import { resolveAuthMode } from "../config.js";
 import { confluenceJson } from "../confluence.js";
 import { renderHelp, renderList, renderOutput } from "../toon.js";
 import { hasNextPage, resultsOf } from "./confluence/shared.js";
@@ -140,13 +140,11 @@ interface AuthState {
  */
 async function resolveAuthState(): Promise<AuthState> {
   try {
-    const [installed, resolved] = await Promise.all([
+    const [installed, mode] = await Promise.all([
       acliInstalled().catch(() => false),
-      resolveCredential(),
+      resolveAuthMode(),
     ]);
-    const configured = Boolean(
-      resolved.site && resolved.email && resolved.apiToken,
-    );
+    const configured = mode.mode !== "none";
     if (!configured) {
       return {
         line: installed ? "not configured" : "not configured (acli not installed)",
@@ -154,10 +152,11 @@ async function resolveAuthState(): Promise<AuthState> {
         acliInstalled: installed,
       };
     }
+    const modeLabel = mode.mode === "oauth" ? "oauth" : "api-token";
     return {
       line: installed
-        ? "ok (run `atlassian-axi auth status` to verify)"
-        : "ok (Confluence only — acli not installed, Jira half unavailable)",
+        ? `ok (${modeLabel} — run \`atlassian-axi auth status\` to verify)`
+        : `ok (${modeLabel}, Confluence only — acli not installed, Jira half unavailable)`,
       configured,
       acliInstalled: installed,
     };
