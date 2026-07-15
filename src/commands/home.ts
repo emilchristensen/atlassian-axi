@@ -1,7 +1,9 @@
 import type { SiteContext } from "../context.js";
 import { acliInstalled, acliJson } from "../acli.js";
 import { resolveCredential } from "../config.js";
+import { confluenceJson } from "../confluence.js";
 import { renderHelp, renderList, renderOutput } from "../toon.js";
+import { hasNextPage, resultsOf } from "./confluence/shared.js";
 import {
   itemsOf,
   workitemDashboardSchema,
@@ -15,8 +17,8 @@ const MY_OPEN_JQL =
 
 /**
  * No-arg dashboard — also the session-hook target (see `setup hooks`). Reports
- * the resolved site (if any), auth state, and a best-effort "my open work
- * items" block (acli). Phase 3 adds a Confluence spaces count.
+ * the resolved site (if any), auth state, and best-effort "my open work
+ * items" (acli) and "spaces" (Confluence REST) blocks.
  *
  * Best-effort by contract: this must never throw, because a thrown error would
  * poison the SessionStart ambient block for every agent session.
@@ -28,29 +30,42 @@ export async function homeCommand(
   const blocks: string[] = [];
 
   blocks.push(ctx?.site ? `site: ${ctx.site}` : "site: not configured");
-  const authLine = await resolveAuthLine();
-  blocks.push(`auth: ${authLine}`);
+  const auth = await resolveAuthState();
+  blocks.push(`auth: ${auth.line}`);
 
-  if (authLine.startsWith("ok")) {
-    const items = await myOpenWorkitems().catch(() => []);
+  if (auth.configured) {
+    // The two halves are gated independently: the Confluence spaces probe
+    // needs only the credential, the workitems probe additionally needs acli.
+    // Both fetches are budget-capped; run them in parallel.
+    const [items, spacesLine] = await Promise.all([
+      auth.acliInstalled
+        ? myOpenWorkitems().catch(() => [] as JsonRecord[])
+        : Promise.resolve([] as JsonRecord[]),
+      spacesCount().catch(() => null),
+    ]);
     if (items.length > 0) {
       blocks.push(renderList("my_open_workitems", items, workitemDashboardSchema));
+    }
+    if (spacesLine !== null) {
+      blocks.push(`spaces: ${spacesLine}`);
     }
   }
 
   blocks.push(
     renderHelp([
-      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, setup",
+      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, confluence, setup",
     ]),
   );
 
   return renderOutput(blocks);
 }
 
-// The dashboard runs inside the SessionStart hook's 10 s budget, so the
-// best-effort acli search gets a short leash: a hung acli must not stall
-// every agent session start (the runner's own timeout is 15 s).
+// The dashboard runs inside the SessionStart hook's 10 s budget, so each
+// best-effort fetch gets a short leash: a hung acli or a slow Confluence API
+// must not stall every agent session start (their own timeouts are 15 s).
 const WORKITEMS_BUDGET_MS = 2_000;
+const SPACES_BUDGET_MS = 2_000;
+const SPACES_PROBE_LIMIT = 25;
 
 /** Best-effort my-open-workitems fetch (report §4.5); errors degrade to []. */
 async function myOpenWorkitems(): Promise<JsonRecord[]> {
@@ -71,6 +86,26 @@ async function myOpenWorkitems(): Promise<JsonRecord[]> {
   return itemsOf(payload, "issues", "workItems", "results", "values").slice(0, 3);
 }
 
+/**
+ * Best-effort spaces count for the dashboard (report §4.5). v2 spaces has no
+ * total count, so probe one page and render "N" or "N+" when more exist;
+ * null (rendered as no line at all) on any failure.
+ */
+async function spacesCount(): Promise<string | null> {
+  const payload = await withBudget(
+    confluenceJson<unknown>("/wiki/api/v2/spaces", {
+      query: { limit: SPACES_PROBE_LIMIT },
+    }),
+    SPACES_BUDGET_MS,
+    null as unknown,
+  );
+  if (payload === null) {
+    return null;
+  }
+  const count = resultsOf(payload).length;
+  return hasNextPage(payload) ? `${count}+` : String(count);
+}
+
 /** Resolve to `fallback` when `promise` misses the deadline or rejects. */
 function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
@@ -89,24 +124,44 @@ function withBudget<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T>
   });
 }
 
+interface AuthState {
+  line: string;
+  /** Full credential resolves — gates the Confluence spaces probe. */
+  configured: boolean;
+  /** acli on PATH — additionally gates the Jira workitems probe. */
+  acliInstalled: boolean;
+}
+
 /**
  * Best-effort auth summary for the ambient dashboard. Never throws (a thrown
  * error would poison every session's SessionStart block) and does no network:
- * it reports acli presence and whether a full credential resolves.
+ * it reports acli presence and whether a full credential resolves — as
+ * independent facts, because the Confluence half works without acli.
  */
-async function resolveAuthLine(): Promise<string> {
+async function resolveAuthState(): Promise<AuthState> {
   try {
-    if (!(await acliInstalled())) {
-      return "acli not installed";
-    }
-    const resolved = await resolveCredential();
+    const [installed, resolved] = await Promise.all([
+      acliInstalled().catch(() => false),
+      resolveCredential(),
+    ]);
     const configured = Boolean(
       resolved.site && resolved.email && resolved.apiToken,
     );
-    return configured
-      ? "ok (run `atlassian-axi auth status` to verify)"
-      : "not configured";
+    if (!configured) {
+      return {
+        line: installed ? "not configured" : "not configured (acli not installed)",
+        configured,
+        acliInstalled: installed,
+      };
+    }
+    return {
+      line: installed
+        ? "ok (run `atlassian-axi auth status` to verify)"
+        : "ok (Confluence only — acli not installed, Jira half unavailable)",
+      configured,
+      acliInstalled: installed,
+    };
   } catch {
-    return "not configured";
+    return { line: "not configured", configured: false, acliInstalled: false };
   }
 }

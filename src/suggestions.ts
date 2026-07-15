@@ -42,7 +42,7 @@ const table: SuggestionEntry[] = [
   {
     match: (c) => c.domain === "home",
     lines: () => [
-      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, setup",
+      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, confluence, setup",
     ],
   },
 
@@ -137,6 +137,64 @@ const table: SuggestionEntry[] = [
     lines: (c) => [
       `Run \`atlassian-axi jira workitem list --project ${c.id}\` to list its work items`,
       `Run \`atlassian-axi jira workitem create --project ${c.id} --type Task --summary "..."\` to create one`,
+    ],
+  },
+
+  // Confluence page get
+  {
+    match: (c) => c.domain === "page" && c.action === "get",
+    lines: (c) => [
+      `Run \`atlassian-axi confluence page update ${c.id} --body-file <path>\` to edit it`,
+      'Run `atlassian-axi confluence search "<CQL>"` to find related pages',
+    ],
+  },
+
+  // Confluence page create / update
+  {
+    match: (c) =>
+      c.domain === "page" && (c.action === "create" || c.action === "update"),
+    lines: (c) => [
+      `Run \`atlassian-axi confluence page get ${c.id} --full\` to see the full page`,
+    ],
+  },
+
+  // Confluence page delete
+  {
+    match: (c) => c.domain === "page" && c.action === "delete",
+    lines: () => [
+      'Run `atlassian-axi confluence search "<CQL>"` to find other pages',
+      "Run `atlassian-axi confluence space list` to browse spaces",
+    ],
+  },
+
+  // Confluence space list
+  {
+    match: (c) => c.domain === "space" && c.action === "list" && !c.isEmpty,
+    lines: () => [
+      'Run `atlassian-axi confluence search "space = <KEY> AND type = page"` to list a space\'s pages',
+      'Run `atlassian-axi confluence page create --space <KEY> --title "..." --body-file <path>` to create a page',
+    ],
+  },
+  {
+    match: (c) =>
+      c.domain === "space" && c.action === "list" && c.isEmpty === true,
+    lines: () => [
+      "Run `atlassian-axi auth status` to verify the credential has Confluence access",
+    ],
+  },
+
+  // Confluence search
+  {
+    match: (c) => c.domain === "confluence-search" && !c.isEmpty,
+    lines: () => [
+      "Run `atlassian-axi confluence page get <id>` to read a result",
+    ],
+  },
+  {
+    match: (c) => c.domain === "confluence-search" && c.isEmpty === true,
+    lines: () => [
+      'Broaden the CQL, e.g. `atlassian-axi confluence search "text ~ \'<term>\'"`',
+      "Run `atlassian-axi confluence space list` to check space keys",
     ],
   },
 ];
