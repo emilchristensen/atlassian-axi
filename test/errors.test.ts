@@ -46,6 +46,22 @@ describe("errors", () => {
     ).toBe("VALIDATION_ERROR");
   });
 
+  it("maps acli's agile/filter not-found phrasings to NOT_FOUND (bare ✗ stripped)", () => {
+    // Captured live from acli v1.3.22: these arrive on STDOUT with a bare
+    // "✗ " prefix and no "Error:" decoration.
+    const board = mapError(
+      "✗ The requested board cannot be viewed because it either does not exist or you do not have permission to view it.",
+    );
+    expect(board.code).toBe("NOT_FOUND");
+    expect(board.message.startsWith("The requested board")).toBe(true);
+    expect(mapError("✗ We could not find the sprint").code).toBe("NOT_FOUND");
+    expect(
+      mapError(
+        "✗ The selected filter is not available to you, perhaps it has been deleted or had its permissions changed.",
+      ).code,
+    ).toBe("NOT_FOUND");
+  });
+
   it("mapError falls back to the first line as UNKNOWN when nothing matches", () => {
     const err = mapError("something broke\nmore detail", 3);
     expect(err).toBeInstanceOf(AxiError);

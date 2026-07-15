@@ -49,6 +49,20 @@ describe("acli shell-out (injected runner)", () => {
     );
   });
 
+  it("prefers stdout for error mapping when stderr is acli's generic failure line", async () => {
+    // acli often prints the real reason on stdout and only "✗ Error: command
+    // execution failed" on stderr (verified live against v1.3.22).
+    setAcliRunner(async () => ({
+      stdout:
+        "✗ The requested board cannot be viewed because it either does not exist or you do not have permission to view it.\n",
+      stderr: "✗ Error: command execution failed\n",
+      exitCode: 1,
+    }));
+    await expect(acliExec(["jira", "board", "view"])).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+
   it("acliRaw returns the raw result without throwing on non-zero exit", async () => {
     setAcliRunner(async () => fail("boom", 3));
     const result = await acliRaw(["jira", "auth", "status"]);

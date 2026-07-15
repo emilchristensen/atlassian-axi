@@ -55,11 +55,14 @@ const patterns: ErrorPattern[] = [
     ],
   },
   {
-    pattern: /not found|does not exist|no work item|no such/i,
+    // acli's agile/filter not-found phrasings, e.g. "We could not find the
+    // sprint" and "The selected filter is not available to you, perhaps it
+    // has been deleted or had its permissions changed."
+    pattern: /not found|does not exist|no work item|no such|could not find|not available to you/i,
     code: "NOT_FOUND",
     message: (_m, raw) => cleanAcliError(raw),
     suggestions: () => [
-      'Run `atlassian-axi jira workitem search "<JQL>"` to find the right key',
+      "Find the right key/ID with the matching list or search command (e.g. `jira workitem search \"<JQL>\"`, `jira board list`)",
     ],
   },
   {
@@ -82,9 +85,11 @@ function firstLine(raw: string): string {
   return raw.trim().split("\n")[0] ?? "";
 }
 
-/** Strip acli's "✗ Error: " decoration so messages stay clean and token-lean. */
+/** Strip acli's "✗ Error: "/"✗ " decoration so messages stay clean and token-lean. */
 function cleanAcliError(raw: string): string {
-  return firstLine(raw).replace(/^[✗x]?\s*Error:\s*/i, "");
+  return firstLine(raw)
+    .replace(/^[✗x]?\s*Error:\s*/i, "")
+    .replace(/^✗\s*/, "");
 }
 
 /** Map a raw error string (acli stderr or REST body) to a typed AxiError. */
