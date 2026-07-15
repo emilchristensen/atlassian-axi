@@ -302,6 +302,24 @@ describe("workitem create", () => {
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 
+  it("refuses --body swallowing a sibling flag as the description", async () => {
+    // Mirror of the confluence HIGH finding: `--body --summary "x"` must not
+    // write the literal string "--summary" as the description.
+    setAcliRunner(makeAcliFake([]).runner);
+    await expect(
+      workitemCommand([
+        "create",
+        "--project",
+        "TEAM",
+        "--type",
+        "Task",
+        "--body",
+        "--summary",
+        "x",
+      ]),
+    ).rejects.toThrow(/--body requires text/);
+  });
+
   it("creates, then re-fetches and renders the authoritative post-state", async () => {
     const { runner, calls } = makeAcliFake([
       { match: (args) => args[2] === "create", result: createPayload },
@@ -340,6 +358,13 @@ describe("workitem edit", () => {
     await expect(workitemCommand(["edit", "TEAM-1"])).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
     });
+  });
+
+  it("refuses --body swallowing a sibling flag as the description", async () => {
+    setAcliRunner(makeAcliFake([]).runner);
+    await expect(
+      workitemCommand(["edit", "TEAM-1", "--body", "--summary", "x"]),
+    ).rejects.toThrow(/--body requires text/);
   });
 
   it("edits non-interactively (--yes) and re-fetches", async () => {
@@ -652,6 +677,9 @@ describe("jira router", () => {
 
   it("returns help for bare `jira` and errors on unknown resources", async () => {
     expect(await jiraCommand([])).toContain("usage: atlassian-axi jira");
+    expect(await jiraCommand(["--help", "workitem"])).toContain(
+      "usage: atlassian-axi jira",
+    );
     expect(await jiraCommand(["bogus"])).toContain("Unknown jira resource");
   });
 });

@@ -2,7 +2,7 @@
 
 Agent-ergonomic Atlassian CLI: **Jira** via Atlassian's official [`acli`](https://developer.atlassian.com/cloud/acli/) and **Confluence** via the Confluence Cloud REST API directly. A member of the AXI tool family (alongside `gh-axi`) — token-efficient [TOON](https://toonformat.dev) output, contextual next-step suggestions, idempotent mutations, and agent SessionStart hooks.
 
-> **Status: Phase 0 (scaffold).** The dashboard, `setup hooks`, and the inherited `update` command work today. The `jira` (acli-backed) and `confluence` (direct REST) command families land in later phases.
+> **Status: Phase 3 (MVP complete).** The dashboard, `auth`, the acli-backed `jira` family, the direct-REST `confluence` family, `setup hooks`, and the inherited `update` command all work today.
 
 ## Install
 
@@ -15,6 +15,9 @@ npx -y atlassian-axi        # dashboard
 ```
 atlassian-axi                 # no-arg dashboard (also the session-hook target)
 atlassian-axi --help          # global flags + commands
+atlassian-axi auth login      # one credential for both halves (token via stdin)
+atlassian-axi jira workitem list --project TEAM
+atlassian-axi confluence search "space = ENG AND type = page"
 atlassian-axi setup hooks     # install SessionStart ambient context
 atlassian-axi update          # self-update (inherited from axi-sdk-js)
 ```

@@ -325,7 +325,17 @@ async function createWorkitem(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const body = takeBody(args);
+  // valueBoundaryFlags keeps `--body --summary "..."` from swallowing the
+  // sibling flag as the description text.
+  const body = takeBody(args, {
+    valueBoundaryFlags: [
+      "--project",
+      "--type",
+      "--summary",
+      "--assignee",
+      "--label",
+    ],
+  });
   const parsed = parseFlags(args, {
     values: ["--project", "--type", "--summary", "--assignee", "--label"],
   });
@@ -427,7 +437,17 @@ async function editWorkitem(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const body = takeBody(args);
+  // valueBoundaryFlags keeps `--body --summary "..."` from swallowing the
+  // sibling flag as the description text.
+  const body = takeBody(args, {
+    valueBoundaryFlags: [
+      "--summary",
+      "--assignee",
+      "--type",
+      "--labels",
+      "--remove-labels",
+    ],
+  });
   const parsed = parseFlags(args, {
     values: [
       "--summary",

@@ -3,6 +3,7 @@ import { takeFlag } from "../args.js";
 import {
   type AtlassianCredential,
   clearCredential,
+  normalizeSite,
   readTokenFromStdin,
   resolveCredential,
   saveCredential,
@@ -257,15 +258,4 @@ async function authLogout(): Promise<string> {
       "\n",
     ),
   ]);
-}
-
-/** Strip any scheme/trailing slash so we always hold a bare host. */
-function normalizeSite(site: string | undefined): string | undefined {
-  if (!site) {
-    return undefined;
-  }
-  return site
-    .trim()
-    .replace(/^https?:\/\//i, "")
-    .replace(/\/+$/, "");
 }
