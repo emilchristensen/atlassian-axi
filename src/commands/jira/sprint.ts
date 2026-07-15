@@ -20,6 +20,7 @@ import {
   parseFlags,
   parseLimit,
   requireNumericId,
+  splitFields,
   totalOf,
   workitemListSchema,
   type JsonRecord,
@@ -148,10 +149,7 @@ async function listWorkitems(
   );
   const jql = parsed.values["--jql"];
   const limit = parseLimit(parsed.values["--limit"]);
-  const fields = parsed.values["--fields"]
-    ?.split(",")
-    .map((f) => f.trim())
-    .filter(Boolean);
+  const fields = splitFields(parsed.values["--fields"]);
 
   const acliArgs = [
     "jira",

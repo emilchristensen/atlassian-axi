@@ -111,8 +111,9 @@ describe("page get", () => {
         version: 4
         updated: 1d ago
         body: <p>Release notes for the July drop.</p>
-      help[2]:
+      help[3]:
         Run \`atlassian-axi confluence page update 12345 --body-file <path>\` to edit it
+        Run \`atlassian-axi confluence page children 12345\` to list its child pages
         Run \`atlassian-axi confluence search "<CQL>"\` to find related pages"
     `);
   });

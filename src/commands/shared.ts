@@ -34,7 +34,26 @@ export function parseFlags(
 ): ParsedFlags {
   const values: Record<string, string | undefined> = {};
   for (const flag of spec.values ?? []) {
-    values[flag] = takeFlag(args, flag);
+    // A value flag with a missing value must not silently vanish (turning a
+    // mutation into a read), and one that swallowed a sibling flag as its
+    // value must not produce a garbage write (`--add --remove` used to POST
+    // a label literally named "--remove") — both are loud errors instead.
+    const present =
+      args.includes(flag) || args.some((a) => a.startsWith(`${flag}=`));
+    const value = takeFlag(args, flag);
+    if (present && value === undefined) {
+      throw new AxiError(`${flag} requires a value`, "VALIDATION_ERROR", [
+        "Run the command with --help to see the supported flags",
+      ]);
+    }
+    if (value !== undefined && value.startsWith("--")) {
+      throw new AxiError(
+        `${flag} requires a value (got the flag ${value} instead)`,
+        "VALIDATION_ERROR",
+        [`Pass an explicit value: ${flag} <value>`],
+      );
+    }
+    values[flag] = value;
   }
   const bools: Record<string, boolean> = {};
   for (const flag of spec.bools ?? []) {
