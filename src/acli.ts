@@ -55,9 +55,19 @@ export function setAcliRunner(next: AcliRunner | null): void {
   runner = next ?? defaultRunner;
 }
 
-/** Combine acli's stderr/stdout for error mapping (acli prints errors to both). */
+/**
+ * Combine acli's stderr/stdout for error mapping. acli often prints the real
+ * failure reason on STDOUT and only a generic "✗ Error: command execution
+ * failed" on stderr (verified against v1.3.22, e.g. board view of a missing
+ * ID) — prefer stdout whenever stderr carries just that generic line.
+ */
 function errorText(result: ExecResult): string {
-  return result.stderr.trim() || result.stdout.trim();
+  const stderr = result.stderr.trim();
+  const stdout = result.stdout.trim();
+  if (stderr && /command execution failed/i.test(stderr) && stdout) {
+    return stdout;
+  }
+  return stderr || stdout;
 }
 
 /** Run acli and return raw result, throwing only when the binary is missing. */
