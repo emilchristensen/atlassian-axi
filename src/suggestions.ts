@@ -223,14 +223,19 @@ const table: SuggestionEntry[] = [
     ],
   },
 
-  // Sprint create / update
+  // Sprint create / update (id can be missing when acli's create shape drifts)
   {
     match: (c) =>
       c.domain === "sprint" && (c.action === "create" || c.action === "update"),
-    lines: (c) => [
-      `Run \`atlassian-axi jira sprint view ${c.id}\` to see the sprint`,
-      `Run \`atlassian-axi jira sprint list-workitems ${c.id} --board <BOARD_ID>\` to list its work items`,
-    ],
+    lines: (c) =>
+      c.id === undefined
+        ? [
+            "Run `atlassian-axi jira board list-sprints <BOARD_ID>` to find the sprint's ID",
+          ]
+        : [
+            `Run \`atlassian-axi jira sprint view ${c.id}\` to see the sprint`,
+            `Run \`atlassian-axi jira sprint list-workitems ${c.id} --board <BOARD_ID>\` to list its work items`,
+          ],
   },
 
   // Filter list / search

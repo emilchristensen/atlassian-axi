@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setAcliRunner } from "../../../src/acli.js";
 import { sprintCommand } from "../../../src/commands/jira/sprint.js";
+import { dateOnly } from "../../../src/commands/jira/shared.js";
 import { makeAcliFake, type AcliCall } from "../../helpers/acliFake.js";
 import {
   FROZEN_NOW,
@@ -88,9 +89,32 @@ describe("sprint list-workitems", () => {
       "30",
       "--json",
     ]);
-    expect(out).toContain("count: 2");
+    expect(out).toContain("count: 2 of 12 total");
     expect(out).toContain("TEAM-1,Fix login redirect loop,wip,Jane Doe");
     expect(out).toContain("TEAM-2,Add audit log export,todo,unassigned");
+  });
+
+  it("surfaces --fields values that acli silently dropped", async () => {
+    const { runner } = makeAcliFake([
+      {
+        match: (args) => args[2] === "list-workitems",
+        result: sprintWorkitemsPayload,
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await sprintCommand([
+      "list-workitems",
+      "5205",
+      "--board",
+      "1013",
+      "--fields",
+      "summary,updated",
+    ]);
+    expect(out).toContain(
+      "note: acli did not return field(s) updated (unsupported by sprint list-workitems)",
+    );
+    expect(out).not.toContain("field(s) summary");
   });
 
   it("requires --board (agile API constraint) with a helpful message", async () => {
@@ -203,6 +227,8 @@ describe("sprint create", () => {
     ]);
     expect(out).toContain("Created (id not detected in acli output)");
     expect(out).toContain("Sprint 13");
+    // Suggestions block present even on the fallback path (review finding).
+    expect(out).toContain("board list-sprints <BOARD_ID>");
   });
 });
 
@@ -247,6 +273,33 @@ describe("sprint update", () => {
     expect(out).toContain("completed: 2026-07-14");
   });
 
+  it("drops a --state that already matches so other changes still apply", async () => {
+    let views = 0;
+    const { runner, calls } = makeAcliFake([
+      {
+        match: (args) => args[2] === "view" && ++views === 1,
+        result: sprintViewClosedPayload,
+      },
+      { match: (args) => args[2] === "view", result: sprintViewClosedPayload },
+      { match: (args) => args[2] === "update", result: {} },
+    ]);
+    setAcliRunner(runner);
+
+    await sprintCommand([
+      "update",
+      "5205",
+      "--name",
+      "Sprint 12 - Final",
+      "--state",
+      "closed",
+    ]);
+    const update = updateCalls(calls)[0];
+    expect(update.args).toContain("--name");
+    // The agile API rejects same-state transitions; the matching --state must
+    // not reach acli while the rename still goes through.
+    expect(update.args).not.toContain("--state");
+  });
+
   it("rejects an invalid --state and an empty update", async () => {
     setAcliRunner(makeAcliFake([]).runner);
     await expect(
@@ -261,5 +314,19 @@ describe("sprint update", () => {
     expect(await sprintCommand(["--help"])).toContain("list-workitems");
     const out = await sprintCommand(["close"]);
     expect(out).toContain("Unknown sprint subcommand: close");
+  });
+});
+
+describe("dateOnly", () => {
+  it("takes the date from the timestamp's own offset, never the machine TZ", () => {
+    // 23:30+0200 is 21:30Z — UTC conversion would keep 07-13, but a
+    // negative-offset machine TZ could render 07-12/07-13 inconsistently.
+    expect(dateOnly("2026-07-13T23:30:00.000+0200")).toBe("2026-07-13");
+    expect(dateOnly("2026-07-13T01:30:00.000-0700")).toBe("2026-07-13");
+    expect(dateOnly("2026-07-07T16:34:59.388Z")).toBe("2026-07-07");
+    expect(dateOnly("2026-07-07")).toBe("2026-07-07");
+    expect(dateOnly("")).toBeNull();
+    expect(dateOnly("not a date")).toBeNull();
+    expect(dateOnly(null)).toBeNull();
   });
 });

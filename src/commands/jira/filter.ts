@@ -26,7 +26,7 @@ export const FILTER_HELP = `usage: atlassian-axi jira filter <subcommand> [flags
 subcommands[4]:
   list, search, view <ID>, update <ID>
 flags{list}:
-  --favourite (my favourite filters; default is filters I own)
+  --favourite (my favourite filters; default is filters I own), --limit <n> (default 30, applied client-side)
 flags{search}:
   --name <substring>, --owner <email>, --limit <n> (default 30)
 flags{update}:
@@ -85,11 +85,18 @@ export async function filterCommand(
 }
 
 async function listFilters(args: string[], ctx?: SiteContext): Promise<string> {
-  const parsed = parseFlags(args, { bools: ["--favourite"] });
+  const parsed = parseFlags(args, {
+    values: ["--limit"],
+    bools: ["--favourite"],
+  });
   if (parsed.help) return FILTER_HELP;
   const favourite = parsed.bools["--favourite"];
+  const limit = parseLimit(parsed.values["--limit"]);
 
   // acli requires exactly one of --my/--favourite; ours defaults to --my.
+  // acli filter list has NO --limit (unlike every other collection), so the
+  // fetch is unbounded and we slice client-side to keep the flag surface
+  // uniform across list commands.
   const payload = await acliJson<unknown>([
     "jira",
     "filter",
@@ -98,10 +105,16 @@ async function listFilters(args: string[], ctx?: SiteContext): Promise<string> {
     "--json",
   ]);
   const items = itemsOf(payload, "values", "filters");
+  const shown = items.slice(0, limit);
 
-  const blocks: string[] = [formatCountLine({ count: items.length })];
-  if (items.length > 0) {
-    blocks.push(renderList("filters", items, filterListSchema));
+  const blocks: string[] = [
+    formatCountLine({
+      count: items.length,
+      ...(items.length > shown.length ? { displayLimit: limit } : {}),
+    }),
+  ];
+  if (shown.length > 0) {
+    blocks.push(renderList("filters", shown, filterListSchema));
   }
   blocks.push(
     renderHelp(

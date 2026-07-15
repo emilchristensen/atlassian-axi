@@ -405,8 +405,16 @@ export const sprintViewClosedPayload = {
   state: "closed",
 };
 
-/** `acli jira sprint list-workitems --sprint 5205 --board 1013 --json`. */
+/**
+ * `acli jira sprint list-workitems --sprint 5205 --board 1013 --json` — the
+ * envelope carries maxResults/startAt/total alongside `issues`. Unsupported
+ * --fields values are silently DROPPED by acli (verified live: `--fields
+ * key,updated` returns `"fields": {}`).
+ */
 export const sprintWorkitemsPayload = {
+  maxResults: 30,
+  startAt: 0,
+  total: 12,
   issues: [
     {
       fields: {

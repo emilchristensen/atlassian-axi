@@ -48,6 +48,31 @@ describe("filter list", () => {
     expect(calls[0].args).not.toContain("--my");
   });
 
+  it("applies --limit client-side (acli filter list has no --limit)", async () => {
+    const many = {
+      values: Array.from({ length: 3 }, (_, i) => ({
+        id: String(1000 + i),
+        name: `Filter ${i}`,
+        owner: { displayName: "Jane Doe" },
+      })),
+    };
+    const { runner, calls } = makeAcliFake([
+      { match: (args) => args[2] === "list", result: many },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await filterCommand(["list", "--limit", "2"]);
+    // No --limit forwarded to acli — the fetch is unbounded by design.
+    expect(calls[0].args).toEqual(["jira", "filter", "list", "--my", "--json"]);
+    expect(out).toContain("count: 3 (showing first 2)");
+    expect(out).toContain("Filter 1");
+    expect(out).not.toContain("Filter 2");
+
+    await expect(
+      filterCommand(["list", "--limit", "0"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
   it("suggests search when no owned filters exist", async () => {
     const { runner } = makeAcliFake([
       { match: (args) => args[2] === "list", result: { values: [] } },

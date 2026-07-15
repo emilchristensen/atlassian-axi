@@ -16,9 +16,10 @@ import { parseFlags, type JsonRecord } from "./shared.js";
 export const FIELD_HELP = `usage: atlassian-axi jira field <subcommand> [flags]
 subcommands[4]:
   create, update <ID>, delete <ID>, restore <ID>
-notes[2]:
+notes[3]:
   acli has no field list/view; use \`jira workitem view <KEY> --fields <a,b,c>\` to inspect field values
   delete moves the custom field to trash (restorable via restore); IDs look like customfield_12345
+  a bare numeric ID <n> is accepted and expanded to customfield_<n> (the expanded ID is echoed in the output)
 flags{create}:
   --name <text> (required), --type <full type key, e.g. com.atlassian.jira.plugin.system.customfieldtypes:textfield> (required), --description <text>, --searcher-key <key>
 flags{update}:

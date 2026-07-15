@@ -212,10 +212,15 @@ export function requireNumericId(
 
 /**
  * Render an ISO timestamp as YYYY-MM-DD. Sprint dates are often in the
- * future, where relativeTime's "just now"/"ago" phrasing misleads.
+ * future, where relativeTime's "just now"/"ago" phrasing misleads. The date
+ * is taken verbatim from the timestamp's OWN offset (Jira sends timestamps
+ * in the site/user zone) - converting through the local machine's timezone
+ * or UTC could shift it a day relative to what the Jira UI shows.
  */
 export function dateOnly(value: unknown): string | null {
   if (typeof value !== "string" || !value) return null;
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})([T ]|$)/);
+  if (match) return match[1];
   const parsed = new Date(value);
   if (isNaN(parsed.getTime())) return null;
   return parsed.toISOString().slice(0, 10);

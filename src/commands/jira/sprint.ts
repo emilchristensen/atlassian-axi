@@ -20,6 +20,7 @@ import {
   parseFlags,
   parseLimit,
   requireNumericId,
+  totalOf,
   workitemListSchema,
   type JsonRecord,
 } from "./shared.js";
@@ -169,12 +170,33 @@ async function listWorkitems(
 
   const payload = await acliJson<unknown>(acliArgs);
   const items = itemsOf(payload, "issues", "workItems", "values");
+  const totalCount = totalOf(payload);
   const schema =
     fields && fields.length > 0 ? fieldsSchema(fields) : workitemListSchema;
 
-  const blocks: string[] = [formatCountLine({ count: items.length, limit })];
+  const blocks: string[] = [
+    formatCountLine({ count: items.length, limit, totalCount }),
+  ];
   if (items.length > 0) {
     blocks.push(renderList("workitems", items, schema));
+    // acli silently DROPS unsupported --fields values here (verified live:
+    // `--fields key,updated` returns `"fields": {}`), unlike workitem search
+    // which errors loudly. Surface the drop so nulls aren't mistaken for data.
+    const dropped = (fields ?? []).filter(
+      (name) =>
+        name !== "key" &&
+        items.every((item) => {
+          const nested = item.fields;
+          const inNested =
+            nested && typeof nested === "object" && name in nested;
+          return !inNested && !(name in item);
+        }),
+    );
+    if (dropped.length > 0) {
+      blocks.push(
+        `note: acli did not return field(s) ${dropped.join(", ")} (unsupported by sprint list-workitems)`,
+      );
+    }
   }
   blocks.push(
     renderHelp(
@@ -239,6 +261,9 @@ async function createSprint(
         { _message: "Created (id not detected in acli output)", name },
         [field("_message", "message"), field("name")],
       ),
+      renderHelp(
+        getSuggestions({ domain: "sprint", action: "create", site: ctx }),
+      ),
     ]);
   }
 
@@ -294,10 +319,14 @@ async function updateSprint(
     ]);
   }
 
-  // Idempotent: a pure state change to the current state is a no-op success
-  // (mirrors workitem transition; the agile API rejects e.g. closed→closed).
+  // Idempotent: --state matching the current state is DROPPED from the acli
+  // call (the agile API rejects e.g. closed→closed), so `--name X --state
+  // <current>` still applies the rename. When nothing else was requested,
+  // that drop makes the whole update a no-op success (mirrors workitem
+  // transition).
   const current = await fetchSprint(id);
-  if (state && !name && !goal && !start && !end && current.state === state) {
+  const stateChange = state && current.state !== state ? state : undefined;
+  if (state && !stateChange && !name && !goal && !start && !end) {
     return renderOutput([
       renderDetail("sprint", { ...current, _message: `Already ${state}` }, [
         ...sprintViewSchema,
@@ -312,7 +341,7 @@ async function updateSprint(
   const acliArgs = ["jira", "sprint", "update", "--id", id, "--json"];
   if (name) acliArgs.push("--name", name);
   if (goal) acliArgs.push("--goal", goal);
-  if (state) acliArgs.push("--state", state);
+  if (stateChange) acliArgs.push("--state", stateChange);
   if (start) acliArgs.push("--start", start);
   if (end) acliArgs.push("--end", end);
 
