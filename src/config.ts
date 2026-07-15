@@ -242,19 +242,27 @@ export async function resolveCredential(): Promise<ResolvedCredential> {
     resolved.sources.email = "config";
   }
 
-  const envToken = envValue("ATLASSIAN_API_TOKEN");
+  // Every read path goes through sanitizeToken so a quote-wrapped value in
+  // the env, keychain, or config file (the original confl404 corruption) is
+  // repaired at resolution time, not just at `auth login`. Deliberately
+  // non-throwing: resolveCredential runs before login can replace a truly
+  // mangled token, and the REST error hints now cover that case.
+  const envToken = sanitizeToken(envValue("ATLASSIAN_API_TOKEN") ?? "");
   if (envToken) {
     resolved.apiToken = envToken;
     resolved.sources.apiToken = "env";
   } else {
     const keychain = getKeychain();
-    const fromKeychain = keychain ? await keychain.get() : null;
+    const fromKeychain = sanitizeToken((keychain ? await keychain.get() : null) ?? "");
     if (fromKeychain) {
       resolved.apiToken = fromKeychain;
       resolved.sources.apiToken = "keychain";
-    } else if (stored.token) {
-      resolved.apiToken = stored.token;
-      resolved.sources.apiToken = "config";
+    } else {
+      const fromFile = sanitizeToken(stored.token ?? "");
+      if (fromFile) {
+        resolved.apiToken = fromFile;
+        resolved.sources.apiToken = "config";
+      }
     }
   }
 

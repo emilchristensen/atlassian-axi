@@ -29,6 +29,8 @@ examples:
 `;
 
 const REST_SPACES_PATH = "/wiki/api/v2/spaces?limit=1";
+const JIRA_MYSELF_PATH = "/rest/api/3/myself";
+const PING_TIMEOUT_MS = 15_000;
 
 export async function authCommand(args: string[]): Promise<string> {
   const action = args[0];
@@ -80,26 +82,13 @@ async function authLogin(args: string[]): Promise<string> {
   const apiToken = await readTokenFromStdin();
   const credential: AtlassianCredential = { site, email, apiToken };
 
+  // Validate BEFORE persisting so a mangled paste never overwrites a
+  // previously good stored credential. Without this ping, a bad token slips
+  // through whenever acli is already logged in (bootstrap is status-gated and
+  // never exercises the new token).
+  const confluenceLine = await validateTokenForLogin(credential);
+
   const { tokenStore } = await saveCredential(credential);
-
-  // Validate the just-saved token against Confluence REST before touching
-  // acli. Without this, a bad token slips through whenever acli is already
-  // logged in (bootstrap is status-gated and never exercises the new token).
-  const rest = await confluencePing(credential);
-  if (!rest.ok) {
-    throw new AxiError(
-      `Credential saved (${tokenStore}), but Confluence REST rejected it: ${rest.status} ${rest.detail}` +
-        (rest.status === 404 || rest.status === 403
-          ? " — Confluence answers rejected credentials with 404/403, so this usually means the token is invalid, not that the site lacks Confluence"
-          : ""),
-      "AUTH_REQUIRED",
-      [
-        "Check the token: copy the raw value (no quotes) and re-run `atlassian-axi auth login`",
-        "Check the site host with `atlassian-axi auth status`",
-      ],
-    );
-  }
-
   const bootstrap = await bootstrapAcli(credential);
 
   return renderOutput([
@@ -109,11 +98,53 @@ async function authLogin(args: string[]): Promise<string> {
       `  site: ${site}`,
       `  email: ${email}`,
       `  token-store: ${tokenStore}`,
-      `  confluence: 200 ok`,
+      `  confluence: ${confluenceLine}`,
       `  acli: ${bootstrap}`,
     ].join("\n"),
     renderHelp(["Verify end-to-end with `atlassian-axi auth status`"]),
   ]);
+}
+
+/**
+ * Login-time credential check with an explicit failure taxonomy. Returns the
+ * `confluence:` line for the login output, or throws AUTH_REQUIRED (before
+ * anything is persisted) when the token is demonstrably rejected.
+ *
+ * - Network failure (status 0): the token may be fine — degrade gracefully
+ *   like the acli-not-installed path and let login proceed with a warning.
+ * - Non-200 from Confluence: ambiguous. Confluence v2 answers a rejected
+ *   credential with 404 (live-verified), which is also what a Jira-only site
+ *   without the Confluence product returns. Disambiguate with a Jira ping —
+ *   Jira answers a rejected Basic credential with 401 (live-verified): Jira
+ *   200 means the token is good and only Confluence is unavailable (warn);
+ *   Jira non-200 means the token itself is rejected (hard fail).
+ */
+async function validateTokenForLogin(
+  credential: AtlassianCredential,
+): Promise<string> {
+  const rest = await confluencePing(credential);
+  if (rest.ok) {
+    return "200 ok";
+  }
+  if (rest.status === 0) {
+    return `unreachable (${rest.detail}) — token not verified; check with \`atlassian-axi auth status\` once online`;
+  }
+
+  const jira = await restPing(credential, JIRA_MYSELF_PATH);
+  if (jira.ok) {
+    return `${rest.status} ${rest.detail} — token verified against Jira; the site may not have Confluence (or this account lacks Confluence access)`;
+  }
+  if (jira.status === 0) {
+    return `${rest.status} ${rest.detail} — network dropped before the token could be verified; check with \`atlassian-axi auth status\` once online`;
+  }
+  throw new AxiError(
+    `The token was rejected (Confluence ${rest.status}, Jira ${jira.status}) — nothing was saved. Confluence answers rejected credentials with 404/403, so the 404 does not mean the site lacks Confluence.`,
+    "AUTH_REQUIRED",
+    [
+      "Check the token: copy the raw value (no quotes) and re-run `atlassian-axi auth login`",
+      "Check the site host with `atlassian-axi auth status`",
+    ],
+  );
 }
 
 /**
@@ -212,10 +243,16 @@ async function authStatus(): Promise<string> {
         ["Install with `brew install acli`, then `acli --version` to verify"],
       );
     }
+    // "Likely invalid" is only fair when Confluence actually rejected the
+    // credential; status 0 (network) and 5xx are not the token's fault.
+    const restHint =
+      rest.status === 401 || rest.status === 403 || rest.status === 404
+        ? "The token is likely invalid — Confluence answers rejected credentials with 404/403; copy the raw token (no quotes) and re-run `atlassian-axi auth login`"
+        : "Confluence REST did not return 200 — check the network and the site host, then re-run `atlassian-axi auth status`";
     throw new AxiError(`auth check failed\n${detail}`, "AUTH_REQUIRED", [
       acliState !== "logged in"
         ? "Re-run `atlassian-axi auth login` to bootstrap acli"
-        : "The token is likely invalid — Confluence answers rejected credentials with 404/403; copy the raw token (no quotes) and re-run `atlassian-axi auth login`",
+        : restHint,
     ]);
   }
 
@@ -228,11 +265,15 @@ interface PingResult {
   detail: string;
 }
 
-/** GET /wiki/api/v2/spaces?limit=1 with Basic auth; 200 means the token works. */
-async function confluencePing(
+/**
+ * GET a REST path with Basic auth; `status: 0` means the request never got an
+ * HTTP response (network failure or timeout). Never throws.
+ */
+async function restPing(
   credential: AtlassianCredential,
+  path: string,
 ): Promise<PingResult> {
-  const url = `https://${credential.site}${REST_SPACES_PATH}`;
+  const url = `https://${credential.site}${path}`;
   const basic = Buffer.from(
     `${credential.email}:${credential.apiToken}`,
   ).toString("base64");
@@ -242,6 +283,7 @@ async function confluencePing(
         Authorization: `Basic ${basic}`,
         Accept: "application/json",
       },
+      signal: AbortSignal.timeout(PING_TIMEOUT_MS),
     });
     return {
       ok: response.status === 200,
@@ -255,6 +297,11 @@ async function confluencePing(
       detail: error instanceof Error ? error.message : "request failed",
     };
   }
+}
+
+/** GET /wiki/api/v2/spaces?limit=1 with Basic auth; 200 means the token works. */
+function confluencePing(credential: AtlassianCredential): Promise<PingResult> {
+  return restPing(credential, REST_SPACES_PATH);
 }
 
 // ---------------------------------------------------------------------------

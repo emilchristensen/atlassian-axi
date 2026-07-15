@@ -1,4 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  existsSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -158,6 +165,38 @@ describe("config credential resolution", () => {
     const resolved = await resolveCredential();
     expect(resolved.apiToken).toBe("new-keychain-token");
     expect(resolved.sources.apiToken).toBe("keychain");
+  });
+
+  it("strips surrounding quotes from a token read from the env", async () => {
+    process.env["ATLASSIAN_API_TOKEN"] = '"envtoken"';
+    const resolved = await resolveCredential();
+    expect(resolved.apiToken).toBe("envtoken");
+    expect(resolved.sources.apiToken).toBe("env");
+  });
+
+  it("strips surrounding quotes from a token read from the keychain (the confl404 corruption)", async () => {
+    const keychain = fakeKeychain();
+    keychain.set('"keychaintoken"');
+    setKeychainBackend(keychain);
+    const resolved = await resolveCredential();
+    expect(resolved.apiToken).toBe("keychaintoken");
+    expect(resolved.sources.apiToken).toBe("keychain");
+  });
+
+  it("strips surrounding quotes from a token read from the config file", async () => {
+    setKeychainBackend(null);
+    await saveCredential({
+      site: "acme.atlassian.net",
+      email: "me@acme.com",
+      apiToken: "clean",
+    });
+    // Simulate a hand-edited/corrupted file token.
+    const path = configPath();
+    const onDisk = JSON.parse(readFileSync(path, "utf-8"));
+    writeFileSync(path, JSON.stringify({ ...onDisk, token: "'filetoken'" }));
+    const resolved = await resolveCredential();
+    expect(resolved.apiToken).toBe("filetoken");
+    expect(resolved.sources.apiToken).toBe("config");
   });
 
   it("requireCredential throws AUTH_REQUIRED listing missing fields", async () => {
