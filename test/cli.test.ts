@@ -72,7 +72,7 @@ describe("cli help/version contract", () => {
     for (const flag of ["--version", "-v", "-V"]) {
       const cap = capture();
       await main({ argv: [flag], stdout: cap.stdout });
-      expect(cap.output().trim()).toBe("0.0.0");
+      expect(cap.output().trim()).toBe("0.1.0");
     }
   });
 
@@ -104,6 +104,45 @@ describe("cli help/version contract", () => {
     const cap = capture();
     await main({ argv: ["bogus"], stdout: cap.stdout });
     expect(cap.output().toLowerCase()).toContain("unknown command");
+    expect(process.exitCode).toBe(2);
+  });
+
+  it("suggests the closest command for a top-level typo", async () => {
+    const cap = capture();
+    await main({ argv: ["jra"], stdout: cap.stdout });
+    const out = cap.output();
+    expect(out).toContain("Unknown command: jra");
+    expect(out).toContain("Did you mean `atlassian-axi jira`?");
+    expect(process.exitCode).toBe(2);
+  });
+
+  it("skips the did-you-mean when nothing is close", async () => {
+    const cap = capture();
+    await main({ argv: ["zzzzzzzz"], stdout: cap.stdout });
+    const out = cap.output();
+    expect(out).not.toContain("Did you mean");
+    expect(out).toContain("--help");
+    expect(process.exitCode).toBe(2);
+  });
+
+  it("exits 2 on an unknown jira resource", async () => {
+    const cap = capture();
+    await main({ argv: ["jira", "workitm"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Unknown jira resource: workitm");
+    expect(process.exitCode).toBe(2);
+  });
+
+  it("exits 2 on an unknown jira subcommand", async () => {
+    const cap = capture();
+    await main({ argv: ["jira", "workitem", "vieww"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Unknown workitem subcommand: vieww");
+    expect(process.exitCode).toBe(2);
+  });
+
+  it("exits 2 on an unknown confluence resource", async () => {
+    const cap = capture();
+    await main({ argv: ["confluence", "pge"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Unknown confluence resource: pge");
     expect(process.exitCode).toBe(2);
   });
 

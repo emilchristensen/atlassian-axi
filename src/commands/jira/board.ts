@@ -6,7 +6,6 @@ import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
   renderDetail,
-  renderError,
   renderHelp,
   renderList,
   renderOutput,
@@ -80,7 +79,7 @@ export async function boardCommand(
     case "list-projects":
       return listProjects(args, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown board subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi jira board --help` for usage"],

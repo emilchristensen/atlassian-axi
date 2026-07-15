@@ -6,7 +6,6 @@ import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
   renderDetail,
-  renderError,
   renderHelp,
   renderList,
   renderOutput,
@@ -65,7 +64,7 @@ export async function projectCommand(
     case "view":
       return viewProject(args, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown project subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi jira project --help` for usage"],

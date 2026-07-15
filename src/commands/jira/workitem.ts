@@ -7,7 +7,6 @@ import { getSuggestions } from "../../suggestions.js";
 import {
   field,
   renderDetail,
-  renderError,
   renderHelp,
   renderList,
   renderOutput,
@@ -80,7 +79,7 @@ export async function workitemCommand(
     case "search":
       return searchWorkitems(args, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown workitem subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi jira workitem --help` for usage"],

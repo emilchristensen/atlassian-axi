@@ -450,3 +450,34 @@ export function getSuggestions(ctx: SuggestionContext): string[] {
   }
   return [];
 }
+
+/**
+ * Closest known command for did-you-mean on typos. Only fires when the typo
+ * is close (edit distance <= 2) so unrelated input never gets a bogus hint.
+ */
+export function closestCommand(
+  input: string,
+  known: readonly string[],
+): string | undefined {
+  let best: { name: string; distance: number } | undefined;
+  for (const name of known) {
+    const distance = editDistance(input.toLowerCase(), name);
+    if (distance <= 2 && (!best || distance < best.distance)) {
+      best = { name, distance };
+    }
+  }
+  return best?.name;
+}
+
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const substitution = previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, substitution);
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}

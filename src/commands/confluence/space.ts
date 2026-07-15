@@ -1,8 +1,9 @@
 import { confluenceJson } from "../../confluence.js";
 import type { SiteContext } from "../../context.js";
+import { AxiError } from "../../errors.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
-import { renderError, renderHelp, renderList, renderOutput } from "../../toon.js";
+import { renderHelp, renderList, renderOutput } from "../../toon.js";
 import { parseFlags, parseLimit } from "../shared.js";
 import { hasNextPage, resultsOf, spaceListSchema } from "./shared.js";
 
@@ -29,7 +30,7 @@ export async function spaceCommand(
     case "list":
       return listSpaces(args, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown space subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi confluence space --help` for usage"],

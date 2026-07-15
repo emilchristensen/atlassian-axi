@@ -69,10 +69,18 @@ describe("confluence router", () => {
     expect(await confluenceCommand(["--help"])).toBe(CONFLUENCE_HELP);
   });
 
-  it("rejects an unknown resource with a help pointer", async () => {
-    const out = await confluenceCommand(["bogus"]);
-    expect(out).toContain("Unknown confluence resource: bogus");
-    expect(out).toContain("VALIDATION_ERROR");
+  it("throws VALIDATION_ERROR on an unknown resource", async () => {
+    await expect(confluenceCommand(["bogus"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown confluence resource: bogus"),
+    });
+  });
+
+  it("throws VALIDATION_ERROR on an unknown page subcommand", async () => {
+    await expect(pageCommand(["gett"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown page subcommand: gett"),
+    });
   });
 
   it("treats a leading --help as help even with trailing args", async () => {

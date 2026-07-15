@@ -6,7 +6,6 @@ import {
   custom,
   field,
   renderDetail,
-  renderError,
   renderHelp,
   renderOutput,
   type FieldDef,
@@ -67,7 +66,7 @@ export async function fieldCommand(
     case "restore":
       return restoreField(args, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown field subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi jira field --help` for usage"],
