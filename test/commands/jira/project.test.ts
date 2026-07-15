@@ -92,4 +92,12 @@ describe("project view", () => {
       code: "VALIDATION_ERROR",
     });
   });
+
+  it("throws VALIDATION_ERROR on an unknown subcommand", async () => {
+    setAcliRunner(makeAcliFake([]).runner);
+    await expect(projectCommand(["archive"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown project subcommand: archive"),
+    });
+  });
 });

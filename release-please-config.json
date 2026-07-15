@@ -5,8 +5,7 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "atlassian-axi",
-      "release-as": "0.1.0"
+      "package-name": "atlassian-axi"
     }
   }
 }

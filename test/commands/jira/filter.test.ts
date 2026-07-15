@@ -204,9 +204,11 @@ describe("filter update", () => {
     });
   });
 
-  it("returns help for --help and errors on unknown subcommands", async () => {
+  it("returns help for --help and throws on unknown subcommands", async () => {
     expect(await filterCommand(["--help"])).toContain("view <ID>");
-    const out = await filterCommand(["delete"]);
-    expect(out).toContain("Unknown filter subcommand: delete");
+    await expect(filterCommand(["delete"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown filter subcommand: delete"),
+    });
   });
 });

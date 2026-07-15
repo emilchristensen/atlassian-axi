@@ -1,6 +1,6 @@
 import { takeFlag } from "../../args.js";
 import type { SiteContext } from "../../context.js";
-import { renderError } from "../../toon.js";
+import { AxiError } from "../../errors.js";
 import { pageCommand, PAGE_HELP } from "./page.js";
 import { spaceCommand, SPACE_HELP } from "./space.js";
 import { searchCommand, SEARCH_HELP } from "./search.js";
@@ -48,7 +48,7 @@ export async function confluenceCommand(
       // search has no sub-resources; it consumes its own positional CQL.
       return searchCommand(rest, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown confluence resource: ${resource}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi confluence --help` for usage"],

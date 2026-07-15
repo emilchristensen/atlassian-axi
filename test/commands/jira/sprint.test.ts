@@ -310,10 +310,12 @@ describe("sprint update", () => {
     });
   });
 
-  it("returns help for --help and errors on unknown subcommands", async () => {
+  it("returns help for --help and throws on unknown subcommands", async () => {
     expect(await sprintCommand(["--help"])).toContain("list-workitems");
-    const out = await sprintCommand(["close"]);
-    expect(out).toContain("Unknown sprint subcommand: close");
+    await expect(sprintCommand(["close"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown sprint subcommand: close"),
+    });
   });
 });
 

@@ -214,10 +214,12 @@ describe("board routing and help", () => {
     expect(out).toContain("boards[2]");
   });
 
-  it("returns help for --help and errors on unknown subcommands", async () => {
+  it("returns help for --help and throws on unknown subcommands", async () => {
     expect(await boardCommand(["--help"])).toContain("list-sprints <ID>");
     expect(await boardCommand([])).toContain("usage: atlassian-axi jira board");
-    const out = await boardCommand(["destroy"]);
-    expect(out).toContain("Unknown board subcommand: destroy");
+    await expect(boardCommand(["destroy"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown board subcommand: destroy"),
+    });
   });
 });

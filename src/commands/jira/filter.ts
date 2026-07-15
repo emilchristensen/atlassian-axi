@@ -7,7 +7,6 @@ import {
   custom,
   field,
   renderDetail,
-  renderError,
   renderHelp,
   renderList,
   renderOutput,
@@ -76,7 +75,7 @@ export async function filterCommand(
     case "update":
       return updateFilter(args, ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown filter subcommand: ${sub}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi jira filter --help` for usage"],

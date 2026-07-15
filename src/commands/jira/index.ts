@@ -1,6 +1,6 @@
 import { takeFlag } from "../../args.js";
 import type { SiteContext } from "../../context.js";
-import { renderError } from "../../toon.js";
+import { AxiError } from "../../errors.js";
 import { workitemCommand, WORKITEM_HELP } from "./workitem.js";
 import { projectCommand, PROJECT_HELP } from "./project.js";
 import { boardCommand, BOARD_HELP } from "./board.js";
@@ -67,7 +67,7 @@ export async function jiraCommand(
     case "field":
       return fieldCommand(rest.slice(1), ctx);
     default:
-      return renderError(
+      throw new AxiError(
         `Unknown jira resource: ${resource}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi jira --help` for usage"],

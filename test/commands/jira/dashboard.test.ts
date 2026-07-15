@@ -74,12 +74,14 @@ describe("dashboard list", () => {
     expect(out).toContain("Broaden the search");
   });
 
-  it("returns help for --help and errors on unknown subcommands", async () => {
+  it("returns help for --help and throws on unknown subcommands", async () => {
     expect(await dashboardCommand(["--help"])).toContain("dashboard list");
     expect(await dashboardCommand([])).toContain(
       "usage: atlassian-axi jira dashboard",
     );
-    const out = await dashboardCommand(["view"]);
-    expect(out).toContain("Unknown dashboard subcommand: view");
+    await expect(dashboardCommand(["view"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unknown dashboard subcommand: view"),
+    });
   });
 });
