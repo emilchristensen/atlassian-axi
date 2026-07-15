@@ -70,10 +70,35 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Stub the global fetch used by the login/status Confluence REST ping. */
+function stubPing(status: number, statusText = status === 200 ? "OK" : "Not Found") {
+  const fetchMock = vi.fn().mockResolvedValue({ status, statusText });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+/** Per-path fetch stub: Confluence spaces ping vs Jira myself ping. */
+function stubPings(confluenceStatus: number, jiraStatus: number) {
+  const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+    const status = url.includes("/rest/api/3/myself") ? jiraStatus : confluenceStatus;
+    return { status, statusText: status === 200 ? "OK" : "Not Found" };
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+/** Fetch stub that fails at the network level (no HTTP response at all). */
+function stubPingNetworkError(message = "getaddrinfo ENOTFOUND acme.atlassian.net") {
+  const fetchMock = vi.fn().mockRejectedValue(new Error(message));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
 describe("auth login bootstrap (status-gated / idempotent)", () => {
   it("logs acli in when it is not already authenticated to the site", async () => {
     config.resolveCredential.mockResolvedValue({ sources: {} });
     config.readTokenFromStdin.mockResolvedValue("tok-123");
+    stubPing(200);
     const { runner, loginCall } = makeRunner(fail("unauthorized", 1));
     setAcliRunner(runner);
 
@@ -101,6 +126,7 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
   it("skips acli login when already authenticated to the site (idempotent)", async () => {
     config.resolveCredential.mockResolvedValue({ sources: {} });
     config.readTokenFromStdin.mockResolvedValue("tok-123");
+    stubPing(200);
     const { runner, loginCall } = makeRunner(
       ok("Logged in as me@acme.com to acme.atlassian.net"),
     );
@@ -116,6 +142,81 @@ describe("auth login bootstrap (status-gated / idempotent)", () => {
 
     expect(loginCall()).toBeUndefined();
     expect(out).toContain("already logged in");
+    expect(out).toContain("confluence: 200 ok");
+  });
+
+  it("fails loudly when BOTH Confluence and Jira reject the token, saving and touching nothing", async () => {
+    // The confl404 regression: a bad token used to slip through because acli
+    // was already logged in and nothing else exercised the new credential.
+    // Confluence answers a rejected credential with 404, Jira with 401.
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+    config.readTokenFromStdin.mockResolvedValue("bad-token");
+    stubPings(404, 401);
+    const { runner, loginCall } = makeRunner(
+      ok("Logged in as me@acme.com to acme.atlassian.net"),
+    );
+    setAcliRunner(runner);
+
+    const rejection = expect(
+      authCommand([
+        "login",
+        "--site",
+        "acme.atlassian.net",
+        "--email",
+        "me@acme.com",
+      ]),
+    ).rejects;
+    await rejection.toMatchObject({ code: "AUTH_REQUIRED" });
+    await rejection.toThrow(/Confluence 404, Jira 401/);
+    await rejection.toThrow(/token was rejected/);
+    // The ping runs BEFORE persistence: a bad paste must never overwrite a
+    // previously good stored credential, and acli must stay untouched.
+    expect(config.saveCredential).not.toHaveBeenCalled();
+    expect(loginCall()).toBeUndefined();
+  });
+
+  it("succeeds with a note on a Jira-only site (Confluence 404 but Jira accepts the token)", async () => {
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+    config.readTokenFromStdin.mockResolvedValue("tok-123");
+    stubPings(404, 200);
+    const { runner } = makeRunner(fail("unauthorized", 1));
+    setAcliRunner(runner);
+
+    const out = await authCommand([
+      "login",
+      "--site",
+      "acme.atlassian.net",
+      "--email",
+      "me@acme.com",
+    ]);
+
+    expect(config.saveCredential).toHaveBeenCalled();
+    expect(out).toContain("token verified against Jira");
+    expect(out).toContain("may not have Confluence");
+    expect(out).toContain("logged in to acme.atlassian.net");
+  });
+
+  it("succeeds with a warning when the ping fails at the network level (token may be fine)", async () => {
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+    config.readTokenFromStdin.mockResolvedValue("tok-123");
+    stubPingNetworkError();
+    const { runner, loginCall } = makeRunner(fail("unauthorized", 1));
+    setAcliRunner(runner);
+
+    const out = await authCommand([
+      "login",
+      "--site",
+      "acme.atlassian.net",
+      "--email",
+      "me@acme.com",
+    ]);
+
+    // Offline login degrades gracefully like the acli-not-installed path:
+    // credential saved, acli bootstrapped, warning rendered.
+    expect(config.saveCredential).toHaveBeenCalled();
+    expect(loginCall()).toBeDefined();
+    expect(out).toContain("confluence: unreachable");
+    expect(out).toContain("auth status");
   });
 
   it("throws before reading the token when site/email are missing", async () => {
@@ -163,6 +264,33 @@ describe("auth status (both halves)", () => {
 
     await expect(authCommand(["status"])).rejects.toMatchObject({
       code: "AUTH_REQUIRED",
+    });
+  });
+
+  it("does NOT blame the token when the status ping fails at the network level", async () => {
+    config.resolveCredential.mockResolvedValue(fullCred);
+    setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
+    stubPingNetworkError();
+
+    await expect(authCommand(["status"])).rejects.toMatchObject({
+      code: "AUTH_REQUIRED",
+      suggestions: [expect.stringContaining("check the network")],
+    });
+  });
+
+  it("points at a likely-invalid token when acli is fine but Confluence says 404", async () => {
+    // Live-verified: Confluence v2 answers a rejected Basic credential with
+    // 404, indistinguishable from an anonymous request.
+    config.resolveCredential.mockResolvedValue(fullCred);
+    setAcliRunner(makeRunner(ok("logged in to acme.atlassian.net")).runner);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ status: 404, statusText: "Not Found" }),
+    );
+
+    await expect(authCommand(["status"])).rejects.toMatchObject({
+      code: "AUTH_REQUIRED",
+      suggestions: [expect.stringContaining("token is likely invalid")],
     });
   });
 

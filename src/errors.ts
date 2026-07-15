@@ -139,8 +139,12 @@ export function confluenceHttpError(
         ["Run `atlassian-axi auth status` to verify the credential and site"],
       );
     case 404:
+      // Confluence v2 also answers rejected credentials with 404 (anonymous
+      // anti-enumeration), so a 404 is ambiguous between "wrong id" and
+      // "bad token" — verified live 2026-07-15.
       return new AxiError(detail || "Not found (404)", "NOT_FOUND", [
         'Run `atlassian-axi confluence search "<CQL>"` to find the right page id',
+        "A 404 can also mean the credential was rejected — run `atlassian-axi auth status` to check it",
       ]);
     case 409:
       return new AxiError(
