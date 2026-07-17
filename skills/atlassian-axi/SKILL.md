@@ -58,6 +58,7 @@ Run `npx -y atlassian-axi setup hooks` to install SessionStart ambient context.
 - Mutations are idempotent and report what changed; re-running a failed mutation is safe (`transition` to the current status is a no-op success).
 - `view <KEY> --full` shows complete bodies; `--comments` includes comments; `--fields <a,b,c>` renders only those fields (works on list/search/view).
 - `workitem list` builds JQL from --project/--assignee/--status; pass --jql or use `search` for raw JQL.
+- `workitem create/edit --body` and `comment --body` accept markdown (headings, lists, inline/block code, bold/italic, links) and store it as real Jira ADF; raw ADF JSON is passed through unchanged.
 - Boards/sprints/filters are ID-addressed: find board IDs via `jira board list`, sprint IDs via `jira board list-sprints <BOARD_ID>`.
 - `sprint list-workitems` needs both the sprint ID and --board (a Jira agile API requirement).
 - `sprint update <ID> --state closed` closes a sprint (no-op success when already closed); acli has no field list/view, so `jira field` covers custom-field create/update/delete/restore only.
