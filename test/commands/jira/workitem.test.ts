@@ -407,11 +407,82 @@ describe("workitem create", () => {
     ]);
 
     const create = calls.find((c) => c.args[2] === "create");
-    expect(create?.args).toContain("--description");
-    expect(create?.args).toContain("Created from atlassian-axi");
+    // The body goes through acli's ADF path, not a flat --description string.
+    expect(create?.args).toContain("--description-file");
+    expect(create?.args).not.toContain("--description");
+    expect(create?.bodyFile).toEqual({
+      type: "doc",
+      version: 1,
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Created from atlassian-axi" }],
+        },
+      ],
+    });
     expect(out).toContain("key: TEAM-3");
     expect(out).toContain("status: to do");
     expect(out).toContain("view TEAM-3");
+  });
+
+  it("converts a markdown body to structured ADF (heading/list/code/link)", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: (args) => args[2] === "create", result: createPayload },
+      { match: isView("TEAM-3"), result: viewCreatedPayload },
+    ]);
+    setAcliRunner(runner);
+
+    await workitemCommand([
+      "create",
+      "--project",
+      "TEAM",
+      "--type",
+      "Task",
+      "--summary",
+      "Rich body",
+      "--body",
+      "## Background\n\n- one\n- two\n\n1. step\n\nUse `acli` and see [docs](https://x.com).",
+    ]);
+
+    const create = calls.find((c) => c.args[2] === "create");
+    const doc = create?.bodyFile as { content: { type: string }[] };
+    const types = doc.content.map((n) => n.type);
+    expect(types).toEqual([
+      "heading",
+      "bulletList",
+      "orderedList",
+      "paragraph",
+    ]);
+  });
+
+  it("passes an existing ADF body through without double-encoding", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: (args) => args[2] === "create", result: createPayload },
+      { match: isView("TEAM-3"), result: viewCreatedPayload },
+    ]);
+    setAcliRunner(runner);
+
+    const adf = {
+      type: "doc",
+      version: 1,
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "raw adf" }] },
+      ],
+    };
+    await workitemCommand([
+      "create",
+      "--project",
+      "TEAM",
+      "--type",
+      "Task",
+      "--summary",
+      "Raw ADF body",
+      "--body",
+      JSON.stringify(adf),
+    ]);
+
+    const create = calls.find((c) => c.args[2] === "create");
+    expect(create?.bodyFile).toEqual(adf);
   });
 });
 
@@ -453,6 +524,27 @@ describe("workitem edit", () => {
     expect(edit?.args).toContain("--summary");
     expect(out).toContain("key: TEAM-1");
     expect(out).toContain("help[");
+  });
+
+  it("converts a markdown --body to ADF via --description-file", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: (args) => args[2] === "edit", result: {} },
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+
+    await workitemCommand([
+      "edit",
+      "TEAM-1",
+      "--body",
+      "# New description\n\n- a\n- b",
+    ]);
+
+    const edit = calls.find((c) => c.args[2] === "edit");
+    expect(edit?.args).toContain("--description-file");
+    expect(edit?.args).not.toContain("--description");
+    const doc = edit?.bodyFile as { content: { type: string }[] };
+    expect(doc.content.map((n) => n.type)).toEqual(["heading", "bulletList"]);
   });
 });
 
@@ -633,7 +725,19 @@ describe("workitem comment", () => {
     const create = calls.find(
       (c) => c.args[2] === "comment" && c.args[3] === "create",
     );
-    expect(create?.args).toContain("Deployed a fix to staging");
+    // Comment bodies are ADF too: routed through --body-file, not a flat --body.
+    expect(create?.args).toContain("--body-file");
+    expect(create?.args).not.toContain("--body");
+    expect(create?.bodyFile).toEqual({
+      type: "doc",
+      version: 1,
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Deployed a fix to staging" }],
+        },
+      ],
+    });
     expect(out).toContain("message: Comment added");
     expect(out).toContain("--comments");
   });
