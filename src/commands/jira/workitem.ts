@@ -1,4 +1,5 @@
 import { acliJson } from "../../acli.js";
+import { writeAdfTempFile } from "../../adf.js";
 import { takeBody } from "../../body.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
@@ -33,15 +34,15 @@ flags{list}:
 flags{view}:
   --comments, --full (complete bodies without truncation), --fields <a,b,c> (render only these fields; key is always included)
 flags{create}:
-  --project <KEY> (required), --type <name> (required), --summary <text> (required), --body <text> or --body-file <path> (description), --assignee <email|@me>, --label <a,b>
+  --project <KEY> (required), --type <name> (required), --summary <text> (required), --body <text> or --body-file <path> (markdown description, stored as ADF), --assignee <email|@me>, --label <a,b>
 flags{edit}:
-  --summary <text>, --body <text> or --body-file <path> (description), --assignee <email|@me>, --type <name>, --labels <a,b>, --remove-labels <a,b>
+  --summary <text>, --body <text> or --body-file <path> (markdown description, stored as ADF), --assignee <email|@me>, --type <name>, --labels <a,b>, --remove-labels <a,b>
 flags{transition}:
   --to <status> (required; no-op success when already there)
 flags{assign}:
   --assignee <email|@me> (required)
 flags{comment}:
-  --body <text> or --body-file <path> (required)
+  --body <text> or --body-file <path> (required; markdown, stored as ADF)
 flags{search}:
   --limit <n> (default 30), --fields <a,b,c>
 examples:
@@ -410,11 +411,20 @@ async function createWorkitem(
     summary as string,
     "--json",
   ];
-  if (body) acliArgs.push("--description", body);
+  // Descriptions are ADF: convert the markdown body to a proper ADF document and
+  // feed it through acli's --description-file ADF path (a bare --description
+  // string is stored as one flat text node, so markdown renders literally).
+  const description = body ? writeAdfTempFile(body) : undefined;
+  if (description) acliArgs.push("--description-file", description.path);
   if (assignee) acliArgs.push("--assignee", assignee);
   if (label) acliArgs.push("--label", label);
 
-  const created = await acliJson<unknown>(acliArgs);
+  let created: unknown;
+  try {
+    created = await acliJson<unknown>(acliArgs);
+  } finally {
+    description?.cleanup();
+  }
   const key = firstKeyOf(created);
 
   if (!key) {
@@ -511,19 +521,30 @@ async function editWorkitem(
     }
   };
   pushChange("--summary", summary);
-  pushChange("--description", body);
   pushChange("--assignee", assignee);
   pushChange("--type", type);
   pushChange("--labels", labels);
   pushChange("--remove-labels", removeLabels);
+  // Descriptions are ADF: convert the markdown body and pass it via the ADF
+  // --description-file path rather than a flat --description string.
+  const description = body ? writeAdfTempFile(body) : undefined;
+  if (description) {
+    acliArgs.push("--description-file", description.path);
+    hasChanges = true;
+  }
 
   if (!hasChanges) {
+    description?.cleanup();
     throw new AxiError("No changes specified", "VALIDATION_ERROR", [
       'Pass at least one of --summary, --body/--body-file, --assignee, --type, --labels, --remove-labels',
     ]);
   }
 
-  await acliJson<unknown>(acliArgs);
+  try {
+    await acliJson<unknown>(acliArgs);
+  } finally {
+    description?.cleanup();
+  }
 
   const item = await fetchWorkitem(key);
   return renderOutput([
@@ -707,17 +728,24 @@ async function commentWorkitem(
   }
   const key = requireKey(parsed.positional, "comment");
 
-  await acliJson<unknown>([
-    "jira",
-    "workitem",
-    "comment",
-    "create",
-    "--key",
-    key,
-    "--body",
-    body,
-    "--json",
-  ]);
+  // Comment bodies are ADF too: convert the markdown and pass it through acli's
+  // ADF --body-file path (a bare --body string stores one flat text node).
+  const comment = writeAdfTempFile(body);
+  try {
+    await acliJson<unknown>([
+      "jira",
+      "workitem",
+      "comment",
+      "create",
+      "--key",
+      key,
+      "--body-file",
+      comment.path,
+      "--json",
+    ]);
+  } finally {
+    comment.cleanup();
+  }
 
   const item = await fetchWorkitem(key);
   return renderOutput([
