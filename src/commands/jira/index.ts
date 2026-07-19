@@ -1,5 +1,7 @@
 import { takeFlag } from "../../args.js";
+import { normalizeSite, storedSite } from "../../config.js";
 import type { SiteContext } from "../../context.js";
+import { AxiError } from "../../errors.js";
 import { unknownSubcommandError } from "../shared.js";
 import { workitemCommand, WORKITEM_HELP } from "./workitem.js";
 import { projectCommand, PROJECT_HELP } from "./project.js";
@@ -43,6 +45,23 @@ export async function jiraCommand(
 ): Promise<string> {
   const rest = [...args];
   takeFlag(rest, "--site");
+
+  // The Jira half rides acli's own login, which our stored credential
+  // bootstrapped — a --site/env override naming a different site cannot be
+  // honoured, so refuse loudly instead of silently querying the wrong
+  // instance (found live 2026-07-19; the Confluence half re-targets fine).
+  const bound = storedSite();
+  const requested = ctx?.site ? normalizeSite(ctx.site) : undefined;
+  if (requested && bound && requested !== bound) {
+    throw new AxiError(
+      `Jira commands run through acli, which is logged in to ${bound} — cannot target ${requested}`,
+      "VALIDATION_ERROR",
+      [
+        `Run \`echo -n "<token>" | atlassian-axi auth login --token --site ${requested} --email <email>\` to switch sites`,
+        "Confluence commands support --site directly",
+      ],
+    );
+  }
 
   // A leading --help is help regardless of what follows (same trap as the
   // confluence router: `jira --help workitem` must not be an unknown resource).

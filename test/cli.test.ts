@@ -250,3 +250,50 @@ describe("router help table covers every resource (2026-07-19)", () => {
     },
   );
 });
+
+describe("--site flag reaches the Confluence transport (2026-07-19)", () => {
+  const savedExitCode = process.exitCode;
+  let savedEnv: Record<string, string | undefined>;
+  let tmp: string;
+
+  beforeEach(() => {
+    process.exitCode = undefined;
+    savedEnv = Object.fromEntries(AUTH_ENV_KEYS.map((k) => [k, process.env[k]]));
+    tmp = mkdtempSync(join(tmpdir(), "axi-site-"));
+    process.env["XDG_CONFIG_HOME"] = tmp;
+    process.env["ATLASSIAN_AXI_NO_KEYCHAIN"] = "1";
+    process.env["ATLASSIAN_SITE"] = "stored.atlassian.net";
+    process.env["ATLASSIAN_EMAIL"] = "me@acme.com";
+    process.env["ATLASSIAN_API_TOKEN"] = "tok";
+  });
+  afterEach(() => {
+    process.exitCode = savedExitCode;
+    for (const k of AUTH_ENV_KEYS) {
+      if (savedEnv[k] === undefined) delete process.env[k];
+      else process.env[k] = savedEnv[k];
+    }
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it("routes the request to the --site host, not the env/stored site", async () => {
+    const { setConfluenceFetch } = await import("../src/confluence.js");
+    const hosts: string[] = [];
+    setConfluenceFetch(async (url) => {
+      hosts.push(new URL(String(url)).host);
+      return new Response(JSON.stringify({ results: [] }), { status: 200 });
+    });
+    try {
+      const cap = capture();
+      await main({
+        argv: ["confluence", "space", "list", "--site", "other.atlassian.net"],
+        stdout: cap.stdout,
+      });
+      expect(hosts[0]).toBe("other.atlassian.net");
+      expect(process.exitCode ?? 0).toBe(0);
+    } finally {
+      setConfluenceFetch(null);
+      const { setSiteOverride } = await import("../src/config.js");
+      setSiteOverride(undefined);
+    }
+  });
+});

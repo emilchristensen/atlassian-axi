@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setAcliRunner } from "../../../src/acli.js";
 import { workitemCommand } from "../../../src/commands/jira/workitem.js";
@@ -13,14 +16,26 @@ import {
   viewPayloadDone,
 } from "../../fixtures/acli.js";
 
+let savedXdg: string | undefined;
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(FROZEN_NOW));
+  // Isolate from the dev machine's real config: the jira router's site-mismatch
+  // guard reads the stored site, and the real config would trip it.
+  savedXdg = process.env["XDG_CONFIG_HOME"];
+  process.env["XDG_CONFIG_HOME"] = mkdtempSync(join(tmpdir(), "axi-wi-"));
 });
 
 afterEach(() => {
   setAcliRunner(null);
   vi.useRealTimers();
+  rmSync(process.env["XDG_CONFIG_HOME"] as string, {
+    recursive: true,
+    force: true,
+  });
+  if (savedXdg === undefined) delete process.env["XDG_CONFIG_HOME"];
+  else process.env["XDG_CONFIG_HOME"] = savedXdg;
 });
 
 function searchCall(calls: AcliCall[]): AcliCall | undefined {
@@ -862,5 +877,46 @@ describe("jira router", () => {
       code: "VALIDATION_ERROR",
       message: expect.stringContaining("Unknown workitem subcommand: vieww"),
     });
+  });
+});
+
+describe("jira --site guard (2026-07-19)", () => {
+  it("refuses a --site override that differs from the stored (acli-bound) site", async () => {
+    const { writeFileSync, mkdirSync } = await import("node:fs");
+    const dir = join(process.env["XDG_CONFIG_HOME"] as string, "atlassian-axi");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "config.json"),
+      JSON.stringify({ site: "stored.atlassian.net", email: "me@acme.com" }),
+    );
+    setAcliRunner(makeAcliFake([]).runner);
+
+    await expect(
+      jiraCommand(["workitem", "list"], {
+        site: "other.atlassian.net",
+        source: "flag",
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("logged in to stored.atlassian.net"),
+    });
+  });
+
+  it("allows --site when it matches the stored site", async () => {
+    const { writeFileSync, mkdirSync } = await import("node:fs");
+    const dir = join(process.env["XDG_CONFIG_HOME"] as string, "atlassian-axi");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "config.json"),
+      JSON.stringify({ site: "acme.atlassian.net", email: "me@acme.com" }),
+    );
+    const { runner } = makeAcliFake([{ match: isSearch, result: searchPayload }]);
+    setAcliRunner(runner);
+
+    const out = await jiraCommand(["workitem", "list"], {
+      site: "acme.atlassian.net",
+      source: "flag",
+    });
+    expect(out).toContain("--site acme.atlassian.net");
   });
 });

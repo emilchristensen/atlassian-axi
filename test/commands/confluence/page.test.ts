@@ -715,3 +715,36 @@ describe("page delete", () => {
     expect(calls.some((c: FetchCall) => c.method === "DELETE")).toBe(false);
   });
 });
+
+describe("page delete trash semantics (2026-07-19)", () => {
+  it("treats an already-trashed page as Already deleted, not FORBIDDEN", async () => {
+    // v2 GET answers a trashed page with 200 + status "trashed" (live example-site).
+    const trashed = { ...pagePayload, status: "trashed" };
+    const { fetchImpl, calls } = makeConfluenceFake([
+      { match: getPage, result: trashed },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await pageCommand(["delete", "12345"]);
+    expect(out).toContain("message: Already deleted (in trash)");
+    expect(calls.some((c: FetchCall) => c.method === "DELETE")).toBe(false);
+  });
+
+  it("verify probe counts a trashed page as gone (race → Already deleted)", async () => {
+    // Pre-read sees a live page; DELETE 404s; probe re-read finds it trashed
+    // (deleted by someone else mid-flight) — still a no-op success.
+    let gets = 0;
+    const trashed = { ...pagePayload, status: "trashed" };
+    const { fetchImpl } = makeConfluenceFake([
+      { match: (c: FetchCall) => getPage(c) && ++gets === 1, result: pagePayload },
+      { match: getPage, result: trashed },
+      {
+        match: (c: FetchCall) => c.method === "DELETE",
+        result: { status: 404, body: {} },
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    const out = await pageCommand(["delete", "12345"]);
+    expect(out).toContain("message: Already deleted");
+  });
+});
