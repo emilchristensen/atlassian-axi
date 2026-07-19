@@ -252,8 +252,12 @@ export function truncateBody(
     }
     return cleaned;
   }
+  // Back the cut off one code unit when it would split a surrogate pair —
+  // slicing mid-pair leaves a lone high surrogate (renders U+FFFD), exactly
+  // the garbage upstream cleaning removes.
+  const cut = cleaned.slice(0, maxLen).replace(/[\uD800-\uDBFF]$/, "");
   return (
-    cleaned.slice(0, maxLen) +
+    cut +
     "\n... (truncated, " +
     cleaned.length +
     " chars total - " +

@@ -49,6 +49,20 @@ describe("homeCommand", () => {
     expect(out).toContain("site: acme.atlassian.net");
   });
 
+  it("falls back to the stored credential's site when no flag/env context exists", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    const out = await homeCommand([]);
+    // Regression: the dashboard said "site: not configured" while auth was ok.
+    expect(out).toContain("site: acme.atlassian.net");
+    expect(out).not.toContain("site: not configured");
+  });
+
+  it("an explicit context site wins over the stored credential's site", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    const out = await homeCommand([], { site: "other.atlassian.net", source: "flag" });
+    expect(out).toContain("site: other.atlassian.net");
+  });
+
   it("reports auth ok when a full credential resolves", async () => {
     config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     const out = await homeCommand([]);
@@ -163,5 +177,30 @@ describe("homeCommand", () => {
     const out = await homeCommand([]);
     expect(out).toContain("auth: not configured");
     await expect(homeCommand([])).resolves.toBeTypeOf("string");
+  });
+
+  it("falls back to the OAuth session's site in oauth mode", async () => {
+    config.resolveAuthMode.mockResolvedValue({
+      mode: "oauth",
+      oauth: {
+        clientId: "cid",
+        accessToken: "at",
+        refreshToken: "rt",
+        expiresAt: Date.now() + 3_600_000,
+        cloudId: "cloud-1",
+        site: "acme.atlassian.net",
+        scopes: "",
+      },
+    });
+    const out = await homeCommand([]);
+    expect(out).toContain("site: acme.atlassian.net");
+    expect(out).toContain("auth: ok (oauth");
+  });
+
+  it("keeps the never-throw contract when resolveAuthMode itself rejects", async () => {
+    config.resolveAuthMode.mockRejectedValue(new Error("config unreadable"));
+    const out = await homeCommand([]);
+    expect(out).toContain("site: not configured");
+    expect(out).toContain("auth: not configured");
   });
 });

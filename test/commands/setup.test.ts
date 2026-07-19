@@ -29,7 +29,22 @@ describe("setupCommand", () => {
     expect(installSessionStartHooks).not.toHaveBeenCalled();
   });
 
-  it("rejects a missing setup action", async () => {
-    await expect(setupCommand([])).rejects.toBeInstanceOf(AxiError);
+  it("returns help for a bare setup (matching the jira/confluence routers)", async () => {
+    const out = await setupCommand([]);
+    expect(out).toContain("usage: atlassian-axi setup hooks");
+    expect(installSessionStartHooks).not.toHaveBeenCalled();
+  });
+
+  it("returns help for setup --help", async () => {
+    const out = await setupCommand(["--help"]);
+    expect(out).toContain("usage: atlassian-axi setup hooks");
+    expect(installSessionStartHooks).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown setup action with its name in the message", async () => {
+    await expect(setupCommand(["hoks"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "Unknown setup action: hoks",
+    });
   });
 });

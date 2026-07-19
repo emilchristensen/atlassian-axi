@@ -1,5 +1,6 @@
 import { takeBoolFlag, takeFlag } from "../args.js";
 import { AxiError } from "../errors.js";
+import { closestCommand } from "../suggestions.js";
 
 /**
  * Domain-agnostic subcommand plumbing shared by the Jira and Confluence
@@ -77,7 +78,29 @@ export function parseLimit(raw: string | undefined): number {
   if (raw === undefined) return DEFAULT_LIMIT;
   // parseInt would silently coerce "5abc"/"5.9" to 5; require pure digits.
   if (!/^\d+$/.test(raw) || parseInt(raw, 10) <= 0) {
-    throw new AxiError(`Invalid --limit: ${raw}`, "VALIDATION_ERROR");
+    throw new AxiError(
+      `Invalid --limit: ${raw} (expected a positive integer)`,
+      "VALIDATION_ERROR",
+      ["Example: `--limit 50`"],
+    );
   }
   return parseInt(raw, 10);
+}
+
+/**
+ * VALIDATION_ERROR for an unknown resource/subcommand, with a did-you-mean
+ * line when the typo is close to a known name (mirrors the SDK's top-level
+ * unknown-command ergonomics — sweep finding 2026-07-19).
+ */
+export function unknownSubcommandError(
+  kind: string,
+  name: string,
+  candidates: readonly string[],
+  helpCommand: string,
+): AxiError {
+  const nearest = closestCommand(name, candidates);
+  return new AxiError(`Unknown ${kind}: ${name}`, "VALIDATION_ERROR", [
+    ...(nearest ? [`Did you mean \`${nearest}\`?`] : []),
+    `Run \`${helpCommand}\` for usage`,
+  ]);
 }

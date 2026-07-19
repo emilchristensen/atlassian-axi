@@ -157,11 +157,17 @@ const table: SuggestionEntry[] = [
     ],
   },
 
-  // Board view
+  // Board view — the sprint hint is gated on board type (state carries it):
+  // only scrum boards support sprints, so hinting list-sprints on a kanban/
+  // simple board would point at a command that fails.
   {
     match: (c) => c.domain === "board" && c.action === "view",
     lines: (c) => [
-      `Run \`atlassian-axi jira board list-sprints ${c.id}\` to list its sprints`,
+      ...(c.state === undefined || c.state === "scrum"
+        ? [
+            `Run \`atlassian-axi jira board list-sprints ${c.id}\` to list its sprints`,
+          ]
+        : []),
       `Run \`atlassian-axi jira board list-projects ${c.id}\` to list its projects`,
     ],
   },
@@ -249,10 +255,14 @@ const table: SuggestionEntry[] = [
     ],
   },
   {
+    // state carries which variant ran ("my" | "favourite") so the empty-state
+    // hint never suggests the exact flag combination that just came up empty.
     match: (c) =>
       c.domain === "filter" && c.action === "list" && c.isEmpty === true,
-    lines: () => [
-      "Run `atlassian-axi jira filter list --favourite` to list favourites instead",
+    lines: (c) => [
+      c.state === "favourite"
+        ? "Run `atlassian-axi jira filter list` to list filters you own instead"
+        : "Run `atlassian-axi jira filter list --favourite` to list favourites instead",
       "Run `atlassian-axi jira filter search --name <substring>` to search all filters",
     ],
   },

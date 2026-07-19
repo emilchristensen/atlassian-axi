@@ -64,8 +64,22 @@ function walkAdf(node: JsonRecord, parts: string[]): void {
         walkAdf(child as JsonRecord, parts);
       }
     }
-    if (node.type === "paragraph" || node.type === "heading") {
-      parts.push("\n");
+    // Every block-level node ends its own line; without codeBlock/listItem
+    // here a fenced block ran straight into the next paragraph
+    // ("const x = 42;Link to Atlassian" — sweep finding 2026-07-19).
+    // Dedupe at push time (listItem wraps paragraph, both terminate) — a
+    // global \n{2,} collapse would also destroy literal blank lines inside
+    // codeBlock text (review finding 2026-07-19).
+    if (
+      node.type === "paragraph" ||
+      node.type === "heading" ||
+      node.type === "codeBlock" ||
+      node.type === "listItem"
+    ) {
+      const last = parts[parts.length - 1];
+      if (last === undefined || !last.endsWith("\n")) {
+        parts.push("\n");
+      }
     }
   }
 }
@@ -258,6 +272,14 @@ export function fieldsSchema(fields: string[]): FieldDef[] {
           const value = fieldOf(item, name);
           if (name === "updated" || name === "created") {
             return relativeOf(item, name);
+          }
+          // Match the detail view's status render (lowercased real name, not
+          // the shortStatus enum): a --fields render is an explicit per-field
+          // request, so give the JQL-usable value — "in progress", not "wip"
+          // (review finding 2026-07-19; the original sweep bug was the raw
+          // "Done" casing, which lowercasing already fixes).
+          if (name === "status") {
+            return nameOf(fieldOf(item, "status"))?.toLowerCase() ?? "unknown";
           }
           if (value && typeof value === "object" && !Array.isArray(value)) {
             return nameOf(value);

@@ -1,10 +1,9 @@
 import { confluenceJson } from "../../confluence.js";
 import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
 import { renderHelp, renderList, renderOutput } from "../../toon.js";
-import { parseFlags, parseLimit } from "../shared.js";
+import { parseFlags, parseLimit, unknownSubcommandError } from "../shared.js";
 import { hasNextPage, resultsOf, spaceListSchema } from "./shared.js";
 
 export const SPACE_HELP = `usage: atlassian-axi confluence space <subcommand> [flags]
@@ -30,10 +29,11 @@ export async function spaceCommand(
     case "list":
       return listSpaces(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown space subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi confluence space --help` for usage"],
+      throw unknownSubcommandError(
+        "space subcommand",
+        sub,
+        ["list"],
+        "atlassian-axi confluence space --help",
       );
   }
 }

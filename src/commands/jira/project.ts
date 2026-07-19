@@ -1,6 +1,7 @@
 import { acliJson } from "../../acli.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
@@ -64,10 +65,11 @@ export async function projectCommand(
     case "view":
       return viewProject(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown project subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira project --help` for usage"],
+      throw unknownSubcommandError(
+        "project subcommand",
+        sub,
+        ["list", "view"],
+        "atlassian-axi jira project --help",
       );
   }
 }

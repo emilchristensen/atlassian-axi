@@ -29,8 +29,13 @@ export async function homeCommand(
 ): Promise<string> {
   const blocks: string[] = [];
 
-  blocks.push(ctx?.site ? `site: ${ctx.site}` : "site: not configured");
   const auth = await resolveAuthState();
+  // Site precedence mirrors the credential resolution: an explicit --site
+  // flag or ATLASSIAN_SITE env (ctx) wins, then the stored credential's site.
+  // Without the fallback the dashboard said "site: not configured" while
+  // auth was ok — a contradiction in every agent's ambient block.
+  const site = ctx?.site ?? auth.site;
+  blocks.push(site ? `site: ${site}` : "site: not configured");
   blocks.push(`auth: ${auth.line}`);
 
   if (auth.configured) {
@@ -130,6 +135,8 @@ interface AuthState {
   configured: boolean;
   /** acli on PATH — additionally gates the Jira workitems probe. */
   acliInstalled: boolean;
+  /** Site of the resolved credential (either auth mode); undefined when none. */
+  site?: string;
 }
 
 /**
@@ -153,12 +160,15 @@ async function resolveAuthState(): Promise<AuthState> {
       };
     }
     const modeLabel = mode.mode === "oauth" ? "oauth" : "api-token";
+    const site =
+      mode.mode === "oauth" ? mode.oauth.site : mode.credential.site;
     return {
       line: installed
         ? `ok (${modeLabel} — run \`atlassian-axi auth status\` to verify)`
         : `ok (${modeLabel}, Confluence only — acli not installed, Jira half unavailable)`,
       configured,
       acliInstalled: installed,
+      ...(site ? { site } : {}),
     };
   } catch {
     return { line: "not configured", configured: false, acliInstalled: false };

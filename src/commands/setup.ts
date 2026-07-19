@@ -9,8 +9,12 @@ examples:
 `;
 
 export async function setupCommand(args: string[]): Promise<string> {
+  // Bare `setup` is a help request, matching the jira/confluence routers.
+  if (args.length === 0 || args[0] === "--help") {
+    return SETUP_HELP;
+  }
   if (args.length !== 1 || args[0] !== "hooks") {
-    throw new AxiError("Unknown setup action", "VALIDATION_ERROR", [
+    throw new AxiError(`Unknown setup action: ${args[0]}`, "VALIDATION_ERROR", [
       "Run `atlassian-axi setup hooks`",
     ]);
   }

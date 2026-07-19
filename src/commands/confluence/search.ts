@@ -41,9 +41,12 @@ export async function searchCommand(
   const totalSize = totalSizeOf(payload);
 
   const blocks: string[] = [
+    // Pass the requested limit even when the total is known: the --limit hint
+    // only fires when the request limit was the binding constraint.
     formatCountLine({
       count: items.length,
-      ...(totalSize !== null ? { totalCount: totalSize } : { limit }),
+      limit,
+      ...(totalSize !== null ? { totalCount: totalSize } : {}),
     }),
   ];
   if (items.length > 0) {

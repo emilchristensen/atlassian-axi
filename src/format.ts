@@ -29,9 +29,15 @@ export function formatCountLine(opts: CountLineOptions): string {
     return `count: ${count}+ (GitHub search API limit reached)`;
   }
 
-  // Total count known from GraphQL or API
+  // Total count known from GraphQL or API — when the REQUESTED limit was the
+  // binding constraint, say how to get the rest (--limit is otherwise
+  // undiscoverable at the moment it matters). When count < limit the server
+  // capped the page instead, so promising "--limit N for all" would be false
+  // (Confluence v1 search caps a request at 250 — review finding 2026-07-19).
   if (totalCount !== undefined && totalCount !== null) {
-    return `count: ${count} of ${totalCount} total`;
+    return count < totalCount && limit !== undefined && count === limit
+      ? `count: ${count} of ${totalCount} total (use --limit ${totalCount} for all)`
+      : `count: ${count} of ${totalCount} total`;
   }
 
   // Display limit truncation (e.g. search showing first N of results)
@@ -41,7 +47,7 @@ export function formatCountLine(opts: CountLineOptions): string {
 
   // Hit the request limit — results may be truncated
   if (limit !== undefined && count === limit && count > 0) {
-    return `count: ${count} (showing first ${count})`;
+    return `count: ${count} (showing first ${count} — raise with --limit)`;
   }
 
   // Simple count
