@@ -88,8 +88,10 @@ export function stripHighlights(text: unknown): string {
     // &amp; last, or "&amp;lt;" would double-decode into "<".
     .replace(/&amp;/g, "&")
     // Lone high/low surrogates (broken pairs from mid-codepoint truncation).
+    // Both sides use zero-width assertions — a consuming group would skip
+    // every second half in a run of consecutive lone surrogates.
     .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "")
-    .replace(/(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "$1");
+    .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
 }
 
 /** Render a timestamp field via the shared relativeTime formatter. */

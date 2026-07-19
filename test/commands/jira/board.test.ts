@@ -30,7 +30,7 @@ describe("board list", () => {
 
     const out = await boardCommand(["list"]);
     expect(out).toMatchInlineSnapshot(`
-      "count: 2 of 35 total (use --limit 35 for all)
+      "count: 2 of 35 total
       boards[2]{id,name,type,location}:
         1013,Team Scrum,scrum,Team Project (TEAM)
         1333,Ops Kanban,kanban,Operations (OPS)
@@ -114,6 +114,20 @@ describe("board view", () => {
     expect(out).toContain("board list-sprints 1013");
   });
 
+  it("suppresses the list-sprints hint for a kanban board (it would fail)", async () => {
+    const { runner } = makeAcliFake([
+      {
+        match: (args) => args[2] === "view",
+        result: { ...boardViewPayload, id: 1333, name: "Ops Kanban", type: "kanban" },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await boardCommand(["view", "1333"]);
+    expect(out).not.toContain("board list-sprints");
+    expect(out).toContain("board list-projects 1333");
+  });
+
   it("requires a numeric board ID", async () => {
     setAcliRunner(makeAcliFake([]).runner);
     await expect(boardCommand(["view"])).rejects.toMatchObject({
@@ -137,7 +151,7 @@ describe("board list-sprints", () => {
 
     const out = await boardCommand(["list-sprints", "1013"]);
     expect(out).toMatchInlineSnapshot(`
-      "count: 2 of 10 total (use --limit 10 for all)
+      "count: 2 of 10 total
       sprints[2]{id,name,state,start,end}:
         5205,Sprint 12,active,2026-07-07,2026-07-18
         5206,Sprint 11,closed,2026-06-22,2026-07-04

@@ -46,3 +46,59 @@ describe("textOf ADF flattening", () => {
     expect(textOf(adf)).toBe("one\ntwo\n");
   });
 });
+
+describe("textOf structural dedupe vs literal content (2026-07-19)", () => {
+  it("preserves blank lines inside a codeBlock text node", () => {
+    const adf = {
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          content: [{ type: "text", text: "function a() {}\n\nfunction b() {}" }],
+        },
+        { type: "paragraph", content: [{ type: "text", text: "after" }] },
+      ],
+    };
+    expect(textOf(adf)).toBe("function a() {}\n\nfunction b() {}\nafter\n");
+  });
+
+  it("collapses the 3-stack of terminators from a nested list", () => {
+    const adf = {
+      type: "doc",
+      content: [
+        {
+          type: "bulletList",
+          content: [
+            {
+              type: "listItem",
+              content: [
+                { type: "paragraph", content: [{ type: "text", text: "one" }] },
+                {
+                  type: "bulletList",
+                  content: [
+                    {
+                      type: "listItem",
+                      content: [
+                        {
+                          type: "paragraph",
+                          content: [{ type: "text", text: "nested" }],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              type: "listItem",
+              content: [
+                { type: "paragraph", content: [{ type: "text", text: "two" }] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(textOf(adf)).toBe("one\nnested\ntwo\n");
+  });
+});

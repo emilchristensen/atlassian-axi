@@ -221,3 +221,32 @@ describe("resource/subcommand did-you-mean (2026-07-19)", () => {
     expect(process.exitCode).toBe(2);
   });
 });
+
+describe("router help table covers every resource (2026-07-19)", () => {
+  const jiraResources = [
+    "workitem",
+    "project",
+    "board",
+    "sprint",
+    "filter",
+    "dashboard",
+    "field",
+  ] as const;
+
+  it.each(jiraResources)("jira %s --help serves that resource's help", async (resource) => {
+    const cap = capture();
+    await main({ argv: ["jira", resource, "--help"], stdout: cap.stdout });
+    expect(cap.output()).toContain(`usage: atlassian-axi jira ${resource}`);
+  });
+
+  const confluenceResources = ["page", "space", "search"] as const;
+
+  it.each(confluenceResources)(
+    "confluence %s --help serves that resource's help",
+    async (resource) => {
+      const cap = capture();
+      await main({ argv: ["confluence", resource, "--help"], stdout: cap.stdout });
+      expect(cap.output()).toContain(`usage: atlassian-axi confluence ${resource}`);
+    },
+  );
+});

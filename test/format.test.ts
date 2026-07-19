@@ -7,7 +7,7 @@ describe('formatCountLine', () => {
   });
 
   it('returns count with total when totalCount is provided', () => {
-    expect(formatCountLine({ count: 30, totalCount: 150 })).toBe('count: 30 of 150 total (use --limit 150 for all)');
+    expect(formatCountLine({ count: 30, totalCount: 150 })).toBe('count: 30 of 150 total');
   });
 
   it('returns showing first N when truncated (count equals limit)', () => {
@@ -41,5 +41,26 @@ describe('formatCountLine', () => {
 
   it('handles zero count with limit', () => {
     expect(formatCountLine({ count: 0, limit: 30 })).toBe('count: 0');
+  });
+});
+
+describe('formatCountLine --limit hint gating (2026-07-19)', () => {
+  it('hints --limit only when the requested limit was the binding constraint', () => {
+    expect(formatCountLine({ count: 30, limit: 30, totalCount: 200 })).toBe(
+      'count: 30 of 200 total (use --limit 200 for all)',
+    );
+  });
+
+  it('does not overpromise when the server capped the page below the limit', () => {
+    // Confluence v1 search caps a request at 250 regardless of limit.
+    expect(formatCountLine({ count: 250, limit: 500, totalCount: 900 })).toBe(
+      'count: 250 of 900 total',
+    );
+  });
+
+  it('no hint when the page is complete', () => {
+    expect(formatCountLine({ count: 2, limit: 30, totalCount: 2 })).toBe(
+      'count: 2 of 2 total',
+    );
   });
 });

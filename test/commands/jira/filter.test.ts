@@ -82,6 +82,19 @@ describe("filter list", () => {
     const out = await filterCommand(["list"]);
     expect(out).toContain("count: 0");
     expect(out).toContain("filter search");
+    expect(out).toContain("--favourite` to list favourites");
+  });
+
+  it("empty favourite list never suggests the --favourite flag just used", async () => {
+    const { runner } = makeAcliFake([
+      { match: (args) => args[2] === "list", result: { values: [] } },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await filterCommand(["list", "--favourite"]);
+    expect(out).toContain("count: 0");
+    expect(out).not.toContain("--favourite` to list favourites");
+    expect(out).toContain("to list filters you own instead");
   });
 });
 

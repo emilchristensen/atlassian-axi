@@ -146,6 +146,18 @@ async function searchFilters(
       ['Run `atlassian-axi jira filter search --name "<text>"`'],
     );
   }
+  // An unquoted multi-word query would silently search only its first word —
+  // the same silent-discard bug class the shorthand itself fixed.
+  const extraPositional = args
+    .slice(1)
+    .filter((a) => !a.startsWith("--"))[1];
+  if (extraPositional !== undefined) {
+    throw new AxiError(
+      `Unexpected extra argument: ${extraPositional}`,
+      "VALIDATION_ERROR",
+      ['Quote a multi-word query: `atlassian-axi jira filter search "my filters"`'],
+    );
+  }
   const name = parsed.values["--name"] ?? parsed.positional;
   const owner = parsed.values["--owner"];
   const limit = parseLimit(parsed.values["--limit"]);

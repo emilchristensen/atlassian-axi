@@ -219,3 +219,14 @@ describe("stripHighlights excerpt cleaning", () => {
     expect(stripHighlights("a @@@hl@@@match@@@endhl@@@ b")).toBe("a match b");
   });
 });
+
+describe("stripHighlights consecutive lone surrogates", () => {
+  it("removes runs of consecutive lone low surrogates entirely", async () => {
+    const { stripHighlights } = await import(
+      "../../../src/commands/confluence/shared.js"
+    );
+    expect(stripHighlights("X\uDC00\uDC00Y")).toBe("XY");
+    expect(stripHighlights("X\uDC00\uDC00\uDC00Y")).toBe("XY");
+    expect(stripHighlights("X\uD800\uD800Y")).toBe("XY");
+  });
+});
