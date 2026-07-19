@@ -748,3 +748,94 @@ describe("page delete trash semantics (2026-07-19)", () => {
     expect(out).toContain("message: Already deleted");
   });
 });
+
+describe("page update macro-loss guard (2026-07-19)", () => {
+  // A page whose current body embeds a whiteboard macro.
+  const embedBody =
+    '<p>Intro.</p><ac:structured-macro ac:name="native-embed:whiteboard" ac:macro-id="m1"><ac:parameter ac:name="url">https://x/wb/1</ac:parameter></ac:structured-macro><p>Outro.</p>';
+  const embedPage = {
+    ...pagePayload,
+    body: { storage: { representation: "storage", value: embedBody } },
+  };
+
+  function routes(putResult: unknown = embedPage) {
+    let put = false;
+    const fake = makeConfluenceFake([
+      { match: (c: FetchCall) => c.method === "PUT", result: putResult },
+      { match: getPage, get result() { return put ? putResult : embedPage; } },
+    ]);
+    const wrapped = (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") put = true;
+      return fake.fetchImpl(url, init);
+    };
+    return { fetchImpl: wrapped, calls: fake.calls };
+  }
+
+  it("refuses a new body that drops the embedded macro (no PUT)", async () => {
+    const { fetchImpl, calls } = routes();
+    setConfluenceFetch(fetchImpl);
+    await expect(
+      pageCommand(["update", "12345", "--body", "<p>Just text.</p>"]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("native-embed:whiteboard"),
+    });
+    expect(calls.some((c: FetchCall) => c.method === "PUT")).toBe(false);
+  });
+
+  it("allows a new body that keeps the macro (text around it changed)", async () => {
+    const kept =
+      '<p>Intro CHANGED.</p><ac:structured-macro ac:name="native-embed:whiteboard" ac:macro-id="m1"><ac:parameter ac:name="url">https://x/wb/1</ac:parameter></ac:structured-macro><p>Outro CHANGED.</p>';
+    const { fetchImpl, calls } = routes({
+      ...embedPage,
+      body: { storage: { representation: "storage", value: kept } },
+    });
+    setConfluenceFetch(fetchImpl);
+    await pageCommand(["update", "12345", "--body", kept]);
+    expect(calls.some((c: FetchCall) => c.method === "PUT")).toBe(true);
+  });
+
+  it("drops the macro when --allow-macro-loss is passed", async () => {
+    const { fetchImpl, calls } = routes({
+      ...embedPage,
+      body: { storage: { representation: "storage", value: "<p>Plain.</p>" } },
+    });
+    setConfluenceFetch(fetchImpl);
+    await pageCommand([
+      "update",
+      "12345",
+      "--body",
+      "<p>Plain.</p>",
+      "--allow-macro-loss",
+    ]);
+    expect(calls.some((c: FetchCall) => c.method === "PUT")).toBe(true);
+  });
+
+  it("does not trigger on a title-only edit (body untouched)", async () => {
+    const { fetchImpl, calls } = routes({ ...embedPage, title: "Renamed" });
+    setConfluenceFetch(fetchImpl);
+    await pageCommand(["update", "12345", "--title", "Renamed"]);
+    expect(calls.some((c: FetchCall) => c.method === "PUT")).toBe(true);
+  });
+
+  it("catches dropping one of two identical embeds (count-based identity)", async () => {
+    const two =
+      '<ac:structured-macro ac:name="native-embed:whiteboard" ac:macro-id="a"></ac:structured-macro><ac:structured-macro ac:name="native-embed:whiteboard" ac:macro-id="b"></ac:structured-macro>';
+    const one =
+      '<ac:structured-macro ac:name="native-embed:whiteboard" ac:macro-id="a"></ac:structured-macro>';
+    const fake = makeConfluenceFake([
+      { match: (c: FetchCall) => c.method === "PUT", result: pagePayload },
+      {
+        match: getPage,
+        result: {
+          ...pagePayload,
+          body: { storage: { representation: "storage", value: two } },
+        },
+      },
+    ]);
+    setConfluenceFetch(fake.fetchImpl);
+    await expect(
+      pageCommand(["update", "12345", "--body", one]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+});

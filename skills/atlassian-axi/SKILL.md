@@ -62,7 +62,7 @@ Run `npx -y atlassian-axi setup hooks` to install SessionStart ambient context.
 - Boards/sprints/filters are ID-addressed: find board IDs via `jira board list`, sprint IDs via `jira board list-sprints <BOARD_ID>`.
 - `sprint list-workitems` needs both the sprint ID and --board (a Jira agile API requirement).
 - `sprint update <ID> --state closed` closes a sprint (no-op success when already closed); acli has no field list/view, so `jira field` covers custom-field create/update/delete/restore only.
-- `confluence page update` handles the version bump automatically; re-running after a conflict is safe.
+- `confluence page update` is a FULL-body replace (version bump is automatic; re-running after a conflict is safe). It refuses by default when the new body drops a macro/embed the current page has (e.g. an embedded whiteboard/diagram) — to keep it, `page get <id> --full` first and carry the `<ac:structured-macro …>` block into your new body; pass --allow-macro-loss only to drop it intentionally.
 - `confluence search` uses v1 CQL (the v2 API has no search); page bodies are storage-format XHTML (`--format adf` for Atlas Doc Format).
 - `confluence page labels <id> --add/--remove` is idempotent and manages global-prefix labels only: already-present/absent names are reported, and the full post-mutation label set is rendered.
 - `confluence page attachments <id>` is read-only (filter with --filename/--media-type); upload attachments in the Confluence UI.
