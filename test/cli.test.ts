@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -69,10 +69,16 @@ describe("cli help/version contract", () => {
   });
 
   it("prints the version for --version and -v", async () => {
+    // Read the expected version from package.json so release-please version
+    // bumps don't break this test (was hardcoded to 0.1.0).
+    const pkg = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
+    expect(pkg.version).toMatch(/^\d+\.\d+\.\d+/);
     for (const flag of ["--version", "-v", "-V"]) {
       const cap = capture();
       await main({ argv: [flag], stdout: cap.stdout });
-      expect(cap.output().trim()).toBe("0.1.0");
+      expect(cap.output().trim()).toBe(pkg.version);
     }
   });
 
