@@ -70,10 +70,26 @@ export function strictBodyValueOf(
   return typeof value === "string" ? value : null;
 }
 
-/** Strip v1 search highlight markers (`@@@hl@@@...@@@endhl@@@`). */
+/**
+ * Strip v1 search highlight markers (`@@@hl@@@...@@@endhl@@@`) and clean the
+ * excerpt artifacts v1 ships: undecoded HTML entities and lone surrogate
+ * halves (excerpts are truncated mid-codepoint, leaving U+FFFD-rendering
+ * garbage — verified live 2026-07-19).
+ */
 export function stripHighlights(text: unknown): string {
   if (typeof text !== "string") return "";
-  return text.replace(/@@@(?:end)?hl@@@/g, "");
+  return text
+    .replace(/@@@(?:end)?hl@@@/g, "")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    // &amp; last, or "&amp;lt;" would double-decode into "<".
+    .replace(/&amp;/g, "&")
+    // Lone high/low surrogates (broken pairs from mid-codepoint truncation).
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "")
+    .replace(/(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "$1");
 }
 
 /** Render a timestamp field via the shared relativeTime formatter. */
@@ -119,8 +135,20 @@ export const spaceListSchema: FieldDef[] = [
  * to the stripped decorated one.
  */
 export const searchResultSchema: FieldDef[] = [
-  custom("id", (item: JsonRecord) => contentOf(item).id ?? null),
-  custom("type", (item: JsonRecord) => contentOf(item).type ?? "unknown"),
+  // Space hits carry no `content` block (verified live: `{space: {key},
+  // entityType: "space"}`), so fall back to the space KEY — the id a user
+  // can actually address — and the result's entityType instead of leaking
+  // literal `null`/`unknown` rows.
+  custom(
+    "id",
+    (item: JsonRecord) => contentOf(item).id ?? spaceOf(item).key ?? null,
+  ),
+  custom(
+    "type",
+    (item: JsonRecord) =>
+      contentOf(item).type ??
+      (typeof item.entityType === "string" ? item.entityType : "unknown"),
+  ),
   custom(
     "title",
     (item: JsonRecord) =>
@@ -152,6 +180,11 @@ export const searchResultSchema: FieldDef[] = [
 function contentOf(item: JsonRecord): JsonRecord {
   const content = item?.content;
   return content && typeof content === "object" ? (content as JsonRecord) : {};
+}
+
+function spaceOf(item: JsonRecord): JsonRecord {
+  const space = item?.space;
+  return space && typeof space === "object" ? (space as JsonRecord) : {};
 }
 
 /**

@@ -81,3 +81,33 @@ describe("errors", () => {
     expect(err.suggestions.join(" ")).toContain("brew install acli");
   });
 });
+
+describe("acli error mapping (2026-07-19 live phrasings)", () => {
+  it("maps a JQL parse failure to VALIDATION_ERROR, not NOT_FOUND", () => {
+    const err = mapError(
+      "✗ Error: failed to parse JQL query: field 'this' does not exist or you do not have permission to view it.",
+    );
+    expect(err.code).toBe("VALIDATION_ERROR");
+    expect(err.message).not.toContain("✗");
+    expect(err.suggestions.length).toBeGreaterThan(0);
+  });
+
+  it("maps 'No project could be found' to NOT_FOUND without the acli glyph", () => {
+    const err = mapError("✗ Error: No project could be found with key 'NOPE'.");
+    expect(err.code).toBe("NOT_FOUND");
+    expect(err.message).toBe("No project could be found with key 'NOPE'.");
+  });
+
+  it("maps 'does not support sprints' to VALIDATION_ERROR with a board hint", () => {
+    const err = mapError("✗ The board does not support sprints");
+    expect(err.code).toBe("VALIDATION_ERROR");
+    expect(err.message).toBe("The board does not support sprints");
+    expect(err.suggestions.join(" ")).toContain("board view");
+  });
+
+  it("strips the acli glyph on the UNKNOWN fallback too", () => {
+    const err = mapError("✗ Error: something entirely novel happened");
+    expect(err.code).toBe("UNKNOWN");
+    expect(err.message).toBe("something entirely novel happened");
+  });
+});

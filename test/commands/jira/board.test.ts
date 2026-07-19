@@ -30,7 +30,7 @@ describe("board list", () => {
 
     const out = await boardCommand(["list"]);
     expect(out).toMatchInlineSnapshot(`
-      "count: 2 of 35 total
+      "count: 2 of 35 total (use --limit 35 for all)
       boards[2]{id,name,type,location}:
         1013,Team Scrum,scrum,Team Project (TEAM)
         1333,Ops Kanban,kanban,Operations (OPS)
@@ -137,7 +137,7 @@ describe("board list-sprints", () => {
 
     const out = await boardCommand(["list-sprints", "1013"]);
     expect(out).toMatchInlineSnapshot(`
-      "count: 2 of 10 total
+      "count: 2 of 10 total (use --limit 10 for all)
       sprints[2]{id,name,state,start,end}:
         5205,Sprint 12,active,2026-07-07,2026-07-18
         5206,Sprint 11,closed,2026-06-22,2026-07-04

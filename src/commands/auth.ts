@@ -69,6 +69,11 @@ const PING_TIMEOUT_MS = 15_000;
 export async function authCommand(args: string[]): Promise<string> {
   const action = args[0];
   const rest = args.slice(1);
+  // Bare `auth` is a help request, matching the jira/confluence routers
+  // (help on exit 0, never a validation error).
+  if (!action || action === "--help") {
+    return AUTH_HELP;
+  }
   switch (action) {
     case "login":
       return authLogin(rest);
@@ -78,7 +83,7 @@ export async function authCommand(args: string[]): Promise<string> {
       return authLogout();
     default:
       throw new AxiError(
-        action ? `Unknown auth action: ${action}` : "Missing auth action",
+        `Unknown auth action: ${action}`,
         "VALIDATION_ERROR",
         ["Run `atlassian-axi auth <login|status|logout>`"],
       );

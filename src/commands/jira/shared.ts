@@ -50,7 +50,8 @@ export function textOf(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const parts: string[] = [];
   walkAdf(value as JsonRecord, parts);
-  return parts.join("");
+  // listItem wraps paragraph, so both push "\n" — collapse the doubles.
+  return parts.join("").replace(/\n{2,}/g, "\n");
 }
 
 function walkAdf(node: JsonRecord, parts: string[]): void {
@@ -64,7 +65,15 @@ function walkAdf(node: JsonRecord, parts: string[]): void {
         walkAdf(child as JsonRecord, parts);
       }
     }
-    if (node.type === "paragraph" || node.type === "heading") {
+    // Every block-level node ends its own line; without codeBlock/listItem
+    // here a fenced block ran straight into the next paragraph
+    // ("const x = 42;Link to Atlassian" — sweep finding 2026-07-19).
+    if (
+      node.type === "paragraph" ||
+      node.type === "heading" ||
+      node.type === "codeBlock" ||
+      node.type === "listItem"
+    ) {
       parts.push("\n");
     }
   }
@@ -258,6 +267,11 @@ export function fieldsSchema(fields: string[]): FieldDef[] {
           const value = fieldOf(item, name);
           if (name === "updated" || name === "created") {
             return relativeOf(item, name);
+          }
+          // Same enum shortening as the default schemas — a --fields render
+          // showed raw "Done" while list/view showed "done" (sweep finding).
+          if (name === "status") {
+            return shortStatus(item);
           }
           if (value && typeof value === "object" && !Array.isArray(value)) {
             return nameOf(value);

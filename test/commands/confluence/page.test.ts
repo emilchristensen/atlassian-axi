@@ -619,8 +619,12 @@ describe("page delete", () => {
   });
 
   it("treats a 404 on the DELETE itself (pre-read race) as already deleted", async () => {
+    // First GET (pre-read) sees the page; after the DELETE 404s, the verify
+    // re-read finds it gone — a genuine race, so still a no-op success.
+    let gets = 0;
     const { fetchImpl } = makeConfluenceFake([
-      { match: getPage, result: pagePayload },
+      { match: (c: FetchCall) => getPage(c) && ++gets === 1, result: pagePayload },
+      { match: getPage, result: { status: 404, body: {} } },
       {
         match: (c: FetchCall) => c.method === "DELETE",
         result: { status: 404, body: {} },
@@ -629,6 +633,21 @@ describe("page delete", () => {
     setConfluenceFetch(fetchImpl);
     const out = await pageCommand(["delete", "12345"]);
     expect(out).toContain("message: Already deleted");
+  });
+
+  it("refuses to claim deletion when the DELETE 404s but the page still exists (permission-masked 404)", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: getPage, result: pagePayload },
+      {
+        match: (c: FetchCall) => c.method === "DELETE",
+        result: { status: 404, body: {} },
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await expect(pageCommand(["delete", "12345"])).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: expect.stringContaining("still exists"),
+    });
   });
 
   it("rejects a second positional instead of deleting the wrong page", async () => {

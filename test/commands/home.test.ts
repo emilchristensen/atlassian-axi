@@ -49,6 +49,20 @@ describe("homeCommand", () => {
     expect(out).toContain("site: acme.atlassian.net");
   });
 
+  it("falls back to the stored credential's site when no flag/env context exists", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    const out = await homeCommand([]);
+    // Regression: the dashboard said "site: not configured" while auth was ok.
+    expect(out).toContain("site: acme.atlassian.net");
+    expect(out).not.toContain("site: not configured");
+  });
+
+  it("an explicit context site wins over the stored credential's site", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    const out = await homeCommand([], { site: "other.atlassian.net", source: "flag" });
+    expect(out).toContain("site: other.atlassian.net");
+  });
+
   it("reports auth ok when a full credential resolves", async () => {
     config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     const out = await homeCommand([]);

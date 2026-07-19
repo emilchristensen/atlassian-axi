@@ -9,7 +9,7 @@ import {
   renderHelp,
   renderOutput,
 } from "../../toon.js";
-import { parseFlags } from "../shared.js";
+import { parseFlags, unknownSubcommandError } from "../shared.js";
 import { attachmentsPage, childrenPage, labelsPage } from "./page-extras.js";
 import {
   pageDetailSchema,
@@ -68,10 +68,11 @@ export async function pageCommand(
     case "children":
       return childrenPage(args, PAGE_HELP, ctx);
     default:
-      throw new AxiError(
-        `Unknown page subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi confluence page --help` for usage"],
+      throw unknownSubcommandError(
+        "page subcommand",
+        sub,
+        ["get", "create", "update", "delete", "attachments", "labels", "children"],
+        "atlassian-axi confluence page --help",
       );
   }
 }
@@ -101,6 +102,23 @@ async function fetchPage(
     throw new AxiError(`Page not found: ${id}`, "NOT_FOUND");
   }
   return page;
+}
+
+/**
+ * Probe whether a page is still readable after an ambiguous DELETE 404.
+ * Returns false on a clean NOT_FOUND; any other failure rethrows so a
+ * network blip is never mistaken for a successful delete.
+ */
+async function pageStillExists(id: string): Promise<boolean> {
+  try {
+    await fetchPage(id, "storage");
+    return true;
+  } catch (error) {
+    if (error instanceof AxiError && error.code === "NOT_FOUND") {
+      return false;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -250,16 +268,34 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
     });
   }
 
-  const created = await confluenceJson<JsonRecord>("/wiki/api/v2/pages", {
-    method: "POST",
-    body: {
-      spaceId,
-      status: "current",
-      title,
-      ...(parent ? { parentId: parent } : {}),
-      body: { representation: "storage", value: body },
-    },
-  });
+  let created: JsonRecord;
+  try {
+    created = await confluenceJson<JsonRecord>("/wiki/api/v2/pages", {
+      method: "POST",
+      body: {
+        spaceId,
+        status: "current",
+        title,
+        ...(parent ? { parentId: parent } : {}),
+        body: { representation: "storage", value: body },
+      },
+    });
+  } catch (error) {
+    // The space resolved and the duplicate pre-check answered, so a 404 on
+    // the POST itself is almost always Confluence masking a missing
+    // create-permission (verified live 2026-07-19), not a bad id.
+    if (error instanceof AxiError && error.code === "NOT_FOUND") {
+      throw new AxiError(
+        `Create failed in space ${space} — Confluence masks a missing page-create permission as 404`,
+        "FORBIDDEN",
+        [
+          "Ask a space admin for create permission in this space",
+          "Run `atlassian-axi confluence space list` to pick another space",
+        ],
+      );
+    }
+    throw error;
+  }
 
   const id = created?.id;
   if (id === undefined || id === null) {
@@ -380,19 +416,33 @@ async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
     throw error;
   }
 
-  // A 404 on the DELETE itself (the page vanished between the pre-read and
-  // the delete) is the same no-op success as the pre-read miss above.
+  // A 404 on the DELETE itself is ambiguous: the page may have vanished
+  // between the pre-read and the delete (no-op success), but Confluence also
+  // masks missing delete-permission as 404 (verified live 2026-07-19). The
+  // pre-read just succeeded, so re-check: if the page is still readable the
+  // delete did NOT happen and claiming "Already deleted" would be a false
+  // success.
   let message = "Deleted";
   try {
     await confluenceJson<undefined>(`/wiki/api/v2/pages/${id}`, {
       method: "DELETE",
     });
   } catch (error) {
-    if (error instanceof AxiError && error.code === "NOT_FOUND") {
-      message = "Already deleted";
-    } else {
+    if (!(error instanceof AxiError) || error.code !== "NOT_FOUND") {
       throw error;
     }
+    const stillExists = await pageStillExists(id);
+    if (stillExists) {
+      throw new AxiError(
+        `Delete failed: page ${id} still exists — Confluence masks a missing delete permission as 404`,
+        "FORBIDDEN",
+        [
+          "Ask a space admin for delete permission in this space",
+          "Run `atlassian-axi auth status` to verify the credential",
+        ],
+      );
+    }
+    message = "Already deleted";
   }
 
   return renderOutput([

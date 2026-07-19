@@ -108,7 +108,7 @@ describe("page attachments", () => {
     ]);
     setConfluenceFetch(fetchImpl);
     const out = await pageCommand(["attachments", "12345"]);
-    expect(out).toContain("count: 2 (showing first 2)");
+    expect(out).toContain("count: 2 (showing first 2 — raise with --limit)");
   });
 
   it("renders an empty result with a count of 0 and a suggestion", async () => {
@@ -443,7 +443,7 @@ describe("page children", () => {
     setConfluenceFetch(fetchImpl);
     const out = await pageCommand(["children", "12345", "--limit", "2"]);
     expect(calls[0].url.searchParams.get("limit")).toBe("2");
-    expect(out).toContain("count: 2 (showing first 2)");
+    expect(out).toContain("count: 2 (showing first 2 — raise with --limit)");
   });
 
   it("suggests creating a child page when there are none", async () => {

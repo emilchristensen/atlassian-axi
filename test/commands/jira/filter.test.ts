@@ -115,6 +115,24 @@ describe("filter search", () => {
     expect(out).toContain('"33312",My Open Bugs,Jane Doe');
     expect(out).toContain('"29941",Team Backlog,John Smith');
   });
+
+  it("treats a bare positional as --name shorthand instead of discarding it", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: (args) => args[2] === "search", result: filterSearchPayload },
+    ]);
+    setAcliRunner(runner);
+
+    await filterCommand(["search", "bolia"]);
+    expect(calls[0].args).toContain("--name");
+    expect(calls[0].args).toContain("bolia");
+  });
+
+  it("rejects a positional combined with --name (ambiguous query)", async () => {
+    setAcliRunner(makeAcliFake([]).runner);
+    await expect(
+      filterCommand(["search", "bolia", "--name", "other"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
 });
 
 describe("filter view", () => {

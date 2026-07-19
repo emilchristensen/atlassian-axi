@@ -7,16 +7,16 @@ describe('formatCountLine', () => {
   });
 
   it('returns count with total when totalCount is provided', () => {
-    expect(formatCountLine({ count: 30, totalCount: 150 })).toBe('count: 30 of 150 total');
+    expect(formatCountLine({ count: 30, totalCount: 150 })).toBe('count: 30 of 150 total (use --limit 150 for all)');
   });
 
   it('returns showing first N when truncated (count equals limit)', () => {
-    expect(formatCountLine({ count: 30, limit: 30 })).toBe('count: 30 (showing first 30)');
+    expect(formatCountLine({ count: 30, limit: 30 })).toBe('count: 30 (showing first 30 — raise with --limit)');
   });
 
   it('returns count with total even when truncated if totalCount is known', () => {
     // totalCount takes priority over limit-based truncation message
-    expect(formatCountLine({ count: 30, limit: 30, totalCount: 200 })).toBe('count: 30 of 200 total');
+    expect(formatCountLine({ count: 30, limit: 30, totalCount: 200 })).toBe('count: 30 of 200 total (use --limit 200 for all)');
   });
 
   it('returns simple count when count is less than limit', () => {

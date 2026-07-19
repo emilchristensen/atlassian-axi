@@ -1,6 +1,6 @@
 import { takeFlag } from "../../args.js";
 import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { pageCommand, PAGE_HELP } from "./page.js";
 import { spaceCommand, SPACE_HELP } from "./space.js";
 import { searchCommand, SEARCH_HELP } from "./search.js";
@@ -39,6 +39,22 @@ export async function confluenceCommand(
     return CONFLUENCE_HELP;
   }
 
+  // --help anywhere after a known resource means that resource's help
+  // (`confluence page --help`, `confluence page get --help`). The SDK only
+  // intercepts --help for commands registered in COMMAND_HELP, so confluence
+  // is deliberately NOT registered there — this router owns all its help.
+  if (rest.slice(1).includes("--help")) {
+    const helpForResource: Record<string, string> = {
+      page: PAGE_HELP,
+      space: SPACE_HELP,
+      search: SEARCH_HELP,
+    };
+    const help = helpForResource[resource];
+    if (help) {
+      return help;
+    }
+  }
+
   switch (resource) {
     case "page":
       return pageCommand(rest.slice(1), ctx);
@@ -48,10 +64,11 @@ export async function confluenceCommand(
       // search has no sub-resources; it consumes its own positional CQL.
       return searchCommand(rest, ctx);
     default:
-      throw new AxiError(
-        `Unknown confluence resource: ${resource}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi confluence --help` for usage"],
+      throw unknownSubcommandError(
+        "confluence resource",
+        resource,
+        ["page", "space", "search"],
+        "atlassian-axi confluence --help",
       );
   }
 }

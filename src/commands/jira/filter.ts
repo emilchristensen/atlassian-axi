@@ -1,6 +1,7 @@
 import { acliJson } from "../../acli.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
@@ -75,10 +76,11 @@ export async function filterCommand(
     case "update":
       return updateFilter(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown filter subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira filter --help` for usage"],
+      throw unknownSubcommandError(
+        "filter subcommand",
+        sub,
+        ["list", "search", "view", "update"],
+        "atlassian-axi jira filter --help",
       );
   }
 }
@@ -120,6 +122,7 @@ async function listFilters(args: string[], ctx?: SiteContext): Promise<string> {
       getSuggestions({
         domain: "filter",
         action: "list",
+        state: favourite ? "favourite" : "my",
         isEmpty: items.length === 0,
         site: ctx,
       }),
@@ -134,7 +137,16 @@ async function searchFilters(
 ): Promise<string> {
   const parsed = parseFlags(args, { values: ["--name", "--owner", "--limit"] });
   if (parsed.help) return FILTER_HELP;
-  const name = parsed.values["--name"];
+  // A bare positional is --name shorthand (`filter search bolia`); silently
+  // discarding it made the unfiltered list read as a (wrong) match set.
+  if (parsed.positional && parsed.values["--name"]) {
+    throw new AxiError(
+      `Pass the name query once: either \`filter search ${parsed.positional}\` or --name`,
+      "VALIDATION_ERROR",
+      ['Run `atlassian-axi jira filter search --name "<text>"`'],
+    );
+  }
+  const name = parsed.values["--name"] ?? parsed.positional;
   const owner = parsed.values["--owner"];
   const limit = parseLimit(parsed.values["--limit"]);
 

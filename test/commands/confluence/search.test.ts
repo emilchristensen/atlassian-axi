@@ -63,6 +63,32 @@ describe("confluence search", () => {
     `);
   });
 
+  it("renders space-entity hits with the space key as id and entityType as type", async () => {
+    // Space hits carry no `content` block (live shape 2026-07-19); the row
+    // must not leak literal null/unknown.
+    const spaceHit = {
+      results: [
+        {
+          space: { key: "FTA", name: "FE Tech Authority", type: "global" },
+          title: "FE Tech Authority",
+          excerpt: "",
+          entityType: "space",
+          resultGlobalContainer: { title: "FE Tech Authority" },
+          lastModified: "2026-07-01T00:00:00.000Z",
+        },
+      ],
+      totalSize: 1,
+    };
+    const { fetchImpl } = makeConfluenceFake([
+      { match: searchRoute, result: spaceHit },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await searchCommand(["search", "type = space"]);
+    expect(out).toContain("FTA,space,FE Tech Authority");
+    expect(out).not.toContain("null,unknown");
+  });
+
   it("sends the CQL verbatim (URL-encoded) with the limit against the v1 endpoint", async () => {
     const { fetchImpl, calls } = makeConfluenceFake([
       { match: searchRoute, result: searchPayload },
@@ -163,5 +189,33 @@ describe("confluence search", () => {
     setConfluenceFetch(fetchImpl);
     expect(await searchCommand(["search", "--help"])).toBe(SEARCH_HELP);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("stripHighlights excerpt cleaning", () => {
+  it("decodes HTML entities without double-decoding &amp;lt;", async () => {
+    const { stripHighlights } = await import(
+      "../../../src/commands/confluence/shared.js"
+    );
+    expect(stripHighlights("Q&amp;A &quot;quoted&quot; a&nbsp;b")).toBe(
+      'Q&A "quoted" a b',
+    );
+    expect(stripHighlights("&amp;lt;")).toBe("&lt;");
+  });
+
+  it("drops lone surrogate halves from mid-codepoint truncation", async () => {
+    const { stripHighlights } = await import(
+      "../../../src/commands/confluence/shared.js"
+    );
+    expect(stripHighlights("emoji tail \uD83D")).toBe("emoji tail ");
+    expect(stripHighlights("\uDE00 head")).toBe(" head");
+    expect(stripHighlights("intact 😀")).toBe("intact 😀");
+  });
+
+  it("still strips the @@@hl@@@ markers", async () => {
+    const { stripHighlights } = await import(
+      "../../../src/commands/confluence/shared.js"
+    );
+    expect(stripHighlights("a @@@hl@@@match@@@endhl@@@ b")).toBe("a match b");
   });
 });
