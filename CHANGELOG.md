@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/emilchristensen/atlassian-axi/compare/atlassian-axi-v0.1.1...atlassian-axi-v0.1.2) (2026-07-19)
+
+
+### Bug Fixes
+
+* unblock npm publish (token wiring + bin path normalization) ([bfbfc5a](https://github.com/emilchristensen/atlassian-axi/commit/bfbfc5a31936343e80db8253c5098085e8928d5b))
+
 ## [0.1.1](https://github.com/emilchristensen/atlassian-axi/compare/atlassian-axi-v0.1.0...atlassian-axi-v0.1.1) (2026-07-19)
 
 
