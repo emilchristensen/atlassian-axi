@@ -114,6 +114,20 @@ describe("board view", () => {
     expect(out).toContain("board list-sprints 1013");
   });
 
+  it("suppresses the list-sprints hint for a kanban board (it would fail)", async () => {
+    const { runner } = makeAcliFake([
+      {
+        match: (args) => args[2] === "view",
+        result: { ...boardViewPayload, id: 1333, name: "Ops Kanban", type: "kanban" },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await boardCommand(["view", "1333"]);
+    expect(out).not.toContain("board list-sprints");
+    expect(out).toContain("board list-projects 1333");
+  });
+
   it("requires a numeric board ID", async () => {
     setAcliRunner(makeAcliFake([]).runner);
     await expect(boardCommand(["view"])).rejects.toMatchObject({

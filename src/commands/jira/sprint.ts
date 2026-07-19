@@ -1,6 +1,7 @@
 import { acliJson } from "../../acli.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
@@ -86,10 +87,11 @@ export async function sprintCommand(
     case "update":
       return updateSprint(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown sprint subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira sprint --help` for usage"],
+      throw unknownSubcommandError(
+        "sprint subcommand",
+        sub,
+        ["view", "list-workitems", "create", "update"],
+        "atlassian-axi jira sprint --help",
       );
   }
 }

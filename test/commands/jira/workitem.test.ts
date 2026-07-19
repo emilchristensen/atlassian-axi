@@ -293,7 +293,7 @@ describe("workitem view", () => {
       "key,status,updated",
     );
     expect(out).toContain("key: TEAM-1");
-    expect(out).toContain("status: In Progress");
+    expect(out).toContain("status: in progress");
     expect(out).toContain("updated: 1d ago");
     expect(out).not.toContain("summary:");
   });

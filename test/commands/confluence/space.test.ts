@@ -71,7 +71,7 @@ describe("space list", () => {
 
     const out = await spaceCommand(["list", "--limit", "2"]);
     expect(calls[0].url.searchParams.get("limit")).toBe("2");
-    expect(out).toContain("count: 2 (showing first 2)");
+    expect(out).toContain("count: 2 (showing first 2 — raise with --limit)");
   });
 
   it("suggests an auth check when no spaces are visible", async () => {

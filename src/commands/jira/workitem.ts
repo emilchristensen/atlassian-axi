@@ -3,6 +3,7 @@ import { writeAdfTempFile } from "../../adf.js";
 import { takeBody } from "../../body.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
@@ -80,10 +81,11 @@ export async function workitemCommand(
     case "search":
       return searchWorkitems(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown workitem subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira workitem --help` for usage"],
+      throw unknownSubcommandError(
+        "workitem subcommand",
+        sub,
+        ["list", "view", "create", "edit", "transition", "assign", "comment", "search"],
+        "atlassian-axi jira workitem --help",
       );
   }
 }

@@ -226,6 +226,35 @@ describe("page create", () => {
     ];
   }
 
+  it("maps a POST 404 to FORBIDDEN (permission-masked 404), not not-found", async () => {
+    // Space resolved and duplicate pre-check answered, so a 404 on the POST
+    // itself is Confluence masking a missing create permission (live 2026-07-19).
+    const { fetchImpl } = makeConfluenceFake([
+      { match: spacesLookup, result: spacesPayload },
+      { match: pagesLookup, result: pagesLookupEmptyPayload },
+      {
+        match: onPath("POST", "/wiki/api/v2/pages"),
+        result: { status: 404, body: {} },
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    await expect(
+      pageCommand([
+        "create",
+        "--space",
+        "ENG",
+        "--title",
+        "Release notes",
+        "--body",
+        "<p>x</p>",
+      ]),
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: expect.stringContaining("create permission"),
+    });
+  });
+
   it("resolves the space key to spaceId and POSTs the storage body", async () => {
     const { fetchImpl, calls } = makeConfluenceFake(
       createRoutes(pagesLookupEmptyPayload),
@@ -619,8 +648,12 @@ describe("page delete", () => {
   });
 
   it("treats a 404 on the DELETE itself (pre-read race) as already deleted", async () => {
+    // First GET (pre-read) sees the page; after the DELETE 404s, the verify
+    // re-read finds it gone — a genuine race, so still a no-op success.
+    let gets = 0;
     const { fetchImpl } = makeConfluenceFake([
-      { match: getPage, result: pagePayload },
+      { match: (c: FetchCall) => getPage(c) && ++gets === 1, result: pagePayload },
+      { match: getPage, result: { status: 404, body: {} } },
       {
         match: (c: FetchCall) => c.method === "DELETE",
         result: { status: 404, body: {} },
@@ -629,6 +662,39 @@ describe("page delete", () => {
     setConfluenceFetch(fetchImpl);
     const out = await pageCommand(["delete", "12345"]);
     expect(out).toContain("message: Already deleted");
+  });
+
+  it("rethrows a failed verify probe instead of claiming Already deleted", async () => {
+    // Pre-read ok, DELETE 404s, verify probe 500s: a network blip must never
+    // be mistaken for a successful delete.
+    let gets = 0;
+    const { fetchImpl } = makeConfluenceFake([
+      { match: (c: FetchCall) => getPage(c) && ++gets === 1, result: pagePayload },
+      { match: getPage, result: { status: 500, body: {} } },
+      {
+        match: (c: FetchCall) => c.method === "DELETE",
+        result: { status: 404, body: {} },
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await expect(pageCommand(["delete", "12345"])).rejects.toMatchObject({
+      code: "UNKNOWN",
+    });
+  });
+
+  it("refuses to claim deletion when the DELETE 404s but the page still exists (permission-masked 404)", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: getPage, result: pagePayload },
+      {
+        match: (c: FetchCall) => c.method === "DELETE",
+        result: { status: 404, body: {} },
+      },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await expect(pageCommand(["delete", "12345"])).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: expect.stringContaining("still exists"),
+    });
   });
 
   it("rejects a second positional instead of deleting the wrong page", async () => {

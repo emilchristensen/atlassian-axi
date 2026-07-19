@@ -55,10 +55,33 @@ const patterns: ErrorPattern[] = [
     ],
   },
   {
+    // JQL parse failures ("failed to parse JQL query: field 'x' does not
+    // exist...") must outrank NOT_FOUND: the "does not exist" fragment refers
+    // to a JQL field, not a resource, and the fix is rewriting the query.
+    pattern: /failed to parse jql|error in the jql/i,
+    code: "VALIDATION_ERROR",
+    message: (_m, raw) => cleanAcliError(raw),
+    suggestions: () => [
+      "Fix the JQL (check field names and quoting) and re-run",
+      'Example: `atlassian-axi jira workitem search "project = TEAM AND status = Done"`',
+    ],
+  },
+  {
+    // Asking a kanban/simple board for sprints — acli prints the real reason
+    // on stdout and a generic failure on stderr (verified live, acli v1.3.22).
+    pattern: /does not support sprints/i,
+    code: "VALIDATION_ERROR",
+    message: (_m, raw) => cleanAcliError(raw),
+    suggestions: () => [
+      "Kanban/simple boards have no sprints — use `atlassian-axi jira board view <ID>` or `board list-projects <ID>`",
+    ],
+  },
+  {
     // acli's agile/filter not-found phrasings, e.g. "We could not find the
-    // sprint" and "The selected filter is not available to you, perhaps it
-    // has been deleted or had its permissions changed."
-    pattern: /not found|does not exist|no work item|no such|could not find|not available to you/i,
+    // sprint", "No project could be found with key 'X'." and "The selected
+    // filter is not available to you, perhaps it has been deleted or had its
+    // permissions changed."
+    pattern: /not found|does not exist|no work item|no such|could not find|could be found|not available to you/i,
     code: "NOT_FOUND",
     message: (_m, raw) => cleanAcliError(raw),
     suggestions: () => [
@@ -101,7 +124,7 @@ export function mapError(raw: string, exitCode = 1): AxiError {
     }
   }
   return new AxiError(
-    firstLine(raw) || `command failed with exit code ${exitCode}`,
+    cleanAcliError(raw) || `command failed with exit code ${exitCode}`,
     "UNKNOWN",
   );
 }
@@ -122,6 +145,11 @@ export function confluenceHttpError(
       return new AxiError(
         detail || "Confluence rejected the request (400)",
         "VALIDATION_ERROR",
+        /cql/i.test(detail)
+          ? [
+              'Check the CQL syntax — e.g. `atlassian-axi confluence search "space = ENG AND type = page"`',
+            ]
+          : [],
       );
     case 401:
       return new AxiError(
@@ -180,7 +208,7 @@ function confluenceErrorDetail(bodyText: string): string {
   try {
     const parsed = JSON.parse(bodyText) as Record<string, unknown>;
     if (typeof parsed.message === "string" && parsed.message) {
-      return firstLine(parsed.message);
+      return stripJavaExceptionPrefix(firstLine(parsed.message));
     }
     const errors = parsed.errors;
     if (Array.isArray(errors) && errors.length > 0) {
@@ -195,6 +223,15 @@ function confluenceErrorDetail(bodyText: string): string {
     return firstLine(bodyText).slice(0, 200);
   }
   return "";
+}
+
+/**
+ * Confluence v1 prefixes some error messages with the throwing Java class
+ * ("com.atlassian...BadRequestException: Could not parse cql : ..." —
+ * verified live 2026-07-19); the class name is noise for a CLI user.
+ */
+function stripJavaExceptionPrefix(message: string): string {
+  return message.replace(/^(?:[a-z][\w$]*\.)+[A-Z][\w$]*(?:Exception|Error):\s*/, "");
 }
 
 /** acli binary missing on PATH — surfaced when the Jira half shells out. */

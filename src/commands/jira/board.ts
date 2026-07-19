@@ -1,6 +1,7 @@
 import { acliJson } from "../../acli.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
@@ -79,10 +80,11 @@ export async function boardCommand(
     case "list-projects":
       return listProjects(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown board subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira board --help` for usage"],
+      throw unknownSubcommandError(
+        "board subcommand",
+        sub,
+        ["list", "view", "list-sprints", "list-projects"],
+        "atlassian-axi jira board --help",
       );
   }
 }
@@ -162,10 +164,20 @@ async function viewBoard(args: string[], ctx?: SiteContext): Promise<string> {
     throw new AxiError(`Board not found: ${id}`, "NOT_FOUND");
   }
 
+  // Pass the board type so the sprint hint is gated: only scrum boards
+  // support sprints, and hinting `list-sprints` on a kanban board points at
+  // a command that fails ("The board does not support sprints").
+  const boardType = (payload as JsonRecord).type;
   return renderOutput([
     renderDetail("board", payload as JsonRecord, boardSchema),
     renderHelp(
-      getSuggestions({ domain: "board", action: "view", id, site: ctx }),
+      getSuggestions({
+        domain: "board",
+        action: "view",
+        id,
+        ...(typeof boardType === "string" ? { state: boardType } : {}),
+        site: ctx,
+      }),
     ),
   ]);
 }

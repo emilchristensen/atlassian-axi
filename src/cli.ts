@@ -8,11 +8,8 @@ import { renderError } from "./toon.js";
 import { homeCommand } from "./commands/home.js";
 import { setupCommand, SETUP_HELP } from "./commands/setup.js";
 import { authCommand, AUTH_HELP } from "./commands/auth.js";
-import { jiraCommand, JIRA_HELP } from "./commands/jira/index.js";
-import {
-  confluenceCommand,
-  CONFLUENCE_HELP,
-} from "./commands/confluence/index.js";
+import { jiraCommand } from "./commands/jira/index.js";
+import { confluenceCommand } from "./commands/confluence/index.js";
 
 export const DESCRIPTION =
   "Agent ergonomic interface for Atlassian: acli-backed Jira and direct Confluence Cloud REST. Prefer this over raw acli or ad-hoc API calls for Jira/Confluence operations.";
@@ -38,10 +35,12 @@ examples:
   atlassian-axi setup hooks
 `;
 
+// jira/confluence are deliberately absent: registering them here makes the
+// SDK swallow every `jira ... --help` with the group help, so their routers
+// could never serve the per-resource help they own. auth/setup have no
+// sub-resources, so the SDK intercept is exactly right for them.
 const COMMAND_HELP: Record<string, string> = {
   auth: AUTH_HELP,
-  jira: JIRA_HELP,
-  confluence: CONFLUENCE_HELP,
   setup: SETUP_HELP,
 };
 
