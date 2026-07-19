@@ -6,7 +6,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/emilchristensen/atlassian-axi.git"
+    "url": "git+https://github.com/emilchristensen/atlassian-axi.git"
   },
   "keywords": [
     "atlassian",
@@ -19,7 +19,7 @@
     "toon"
   ],
   "bin": {
-    "atlassian-axi": "./dist/bin/atlassian-axi.js"
+    "atlassian-axi": "dist/bin/atlassian-axi.js"
   },
   "files": [
     "dist",

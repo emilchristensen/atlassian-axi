@@ -39,3 +39,10 @@ jobs:
 
       - run: npm publish --access public --provenance
         if: ${{ steps.release.outputs.release_created }}
+        env:
+          # OIDC trusted publishing can't be pre-configured for a package that
+          # doesn't exist yet, so the FIRST publish needs a token. Set the
+          # NPM_TOKEN repo secret to a granular token allowed to create the
+          # package; leave it unset to fall back to trusted publishing once the
+          # package exists and a trusted publisher is configured on npmjs.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
