@@ -24,7 +24,7 @@ export interface AtlassianCredential {
 }
 
 /** Where each resolved field came from, so callers can explain precedence. */
-export type CredentialSource = "env" | "config" | "keychain";
+export type CredentialSource = "flag" | "env" | "config" | "keychain";
 
 /** Partial resolution — any field may be missing until fully configured. */
 export interface ResolvedCredential {
@@ -253,13 +253,43 @@ export function normalizeSite(site: string | undefined): string | undefined {
  *   email  : ATLASSIAN_EMAIL      > config.email
  *   token  : ATLASSIAN_API_TOKEN  > keychain > config.token
  */
+/**
+ * Per-invocation site override from the `--site` flag. Highest precedence in
+ * credential resolution (flag > env > stored) — without this the flag only
+ * decorated help suggestions while requests silently hit the stored site
+ * (found live 2026-07-19 querying dept-dk with a dept-nl credential).
+ */
+let siteOverride: string | undefined;
+
+export function setSiteOverride(site: string | undefined): void {
+  siteOverride = normalizeSite(site);
+}
+
+/**
+ * The site the user EXPLICITLY asked for this invocation (--site flag or
+ * ATLASSIAN_SITE env), or undefined when running against the stored default.
+ * Used by transports that cannot re-target (OAuth cloudId, acli login) to
+ * refuse a mismatch instead of silently querying the wrong instance.
+ */
+export function requestedSite(): string | undefined {
+  return siteOverride ?? normalizeSite(envValue("ATLASSIAN_SITE"));
+}
+
+/** The site persisted in the config file, ignoring flag/env overrides. */
+export function storedSite(): string | undefined {
+  return normalizeSite(readStoredConfig().site);
+}
+
 export async function resolveCredential(): Promise<ResolvedCredential> {
   const stored = readStoredConfig();
   const resolved: ResolvedCredential = { sources: {} };
 
   const envSite = normalizeSite(envValue("ATLASSIAN_SITE"));
   const storedSite = normalizeSite(stored.site);
-  if (envSite) {
+  if (siteOverride) {
+    resolved.site = siteOverride;
+    resolved.sources.site = "flag";
+  } else if (envSite) {
     resolved.site = envSite;
     resolved.sources.site = "env";
   } else if (storedSite) {

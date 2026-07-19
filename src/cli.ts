@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAxiCli } from "axi-sdk-js";
 import { resolveSite, type SiteContext } from "./context.js";
+import { setSiteOverride } from "./config.js";
 import { closestCommand } from "./suggestions.js";
 import { renderError } from "./toon.js";
 import { homeCommand } from "./commands/home.js";
@@ -63,7 +64,14 @@ export async function main(options: MainOptions = {}): Promise<void> {
     home: homeCommand,
     commands: COMMANDS,
     getCommandHelp: (command) => COMMAND_HELP[command],
-    resolveContext: ({ args }) => resolveSite(parseSiteFlag(args)),
+    resolveContext: ({ args }) => {
+      const ctx = resolveSite(parseSiteFlag(args));
+      // Feed the --site flag into credential resolution (flag > env > stored);
+      // without this the flag only decorated help lines while every request
+      // silently hit the stored site (found live 2026-07-19).
+      setSiteOverride(ctx?.source === "flag" ? ctx.site : undefined);
+      return ctx;
+    },
     renderUnknownCommand,
   });
 }

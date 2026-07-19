@@ -105,14 +105,16 @@ async function fetchPage(
 }
 
 /**
- * Probe whether a page is still readable after an ambiguous DELETE 404.
- * Returns false on a clean NOT_FOUND; any other failure rethrows so a
- * network blip is never mistaken for a successful delete.
+ * Probe whether a page is still LIVE after an ambiguous DELETE 404.
+ * A trashed page still answers GET with 200 + status "trashed" (verified
+ * live on dept-dk 2026-07-19), so status decides — only a `current` page
+ * counts as existing. Returns false on a clean NOT_FOUND; any other failure
+ * rethrows so a network blip is never mistaken for a successful delete.
  */
 async function pageStillExists(id: string): Promise<boolean> {
   try {
-    await fetchPage(id, "storage");
-    return true;
+    const page = await fetchPage(id, "storage");
+    return page.status === "current";
   } catch (error) {
     if (error instanceof AxiError && error.code === "NOT_FOUND") {
       return false;
@@ -398,6 +400,8 @@ async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
   const id = requirePageId(args, parsed.positional, "delete");
 
   // Idempotent: deleting a page that is already gone is a no-op success.
+  // "Gone" includes trashed — v2 GET answers a trashed page with 200 +
+  // status "trashed", and a DELETE on it 404s (verified live 2026-07-19).
   let current: JsonRecord;
   try {
     current = await fetchPage(id, "storage");
@@ -414,6 +418,18 @@ async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
       ]);
     }
     throw error;
+  }
+  if (current.status === "trashed") {
+    return renderOutput([
+      renderDetail(
+        "page",
+        { id, title: current.title ?? null, _message: "Already deleted (in trash)" },
+        [field("id"), field("title"), field("_message", "message")],
+      ),
+      renderHelp(
+        getSuggestions({ domain: "page", action: "delete", id, site: ctx }),
+      ),
+    ]);
   }
 
   // A 404 on the DELETE itself is ambiguous: the page may have vanished

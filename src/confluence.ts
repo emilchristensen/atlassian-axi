@@ -1,4 +1,5 @@
 import {
+  requestedSite,
   requireAuth,
   type AtlassianCredential,
   type OAuthSession,
@@ -87,6 +88,20 @@ function authorizationHeader(auth: TransportAuth): string {
 async function resolveTransportAuth(): Promise<TransportAuth> {
   const mode = await requireAuth();
   if (mode.mode === "oauth") {
+    // The OAuth transport is pinned to the session's cloudId, so a --site/env
+    // override naming a DIFFERENT site cannot be honoured — refuse loudly
+    // instead of silently querying the wrong instance (found live 2026-07-19).
+    const requested = requestedSite();
+    if (requested && requested !== mode.oauth.site) {
+      throw new AxiError(
+        `The OAuth session is bound to ${mode.oauth.site} — cannot target ${requested}`,
+        "VALIDATION_ERROR",
+        [
+          `Run \`echo -n "<token>" | atlassian-axi auth login --token --site ${requested} --email <email>\` for cross-site use`,
+          "Or drop --site / unset ATLASSIAN_SITE",
+        ],
+      );
+    }
     // Proactive refresh just before expiry so calls rarely see a 401 at all.
     return { kind: "oauth", session: await ensureFreshSession(mode.oauth) };
   }
