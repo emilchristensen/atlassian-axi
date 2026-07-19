@@ -28,7 +28,7 @@ flags{get}:
 flags{create}:
   --space <KEY> (required), --title <text> (required), --body <text> or --body-file <path> (storage format; required), --parent <id>
 flags{update}:
-  --title <text>, --body <text> or --body-file <path> (storage format; at least one required; version bump is automatic)
+  --title <text>, --body <text> or --body-file <path> (storage format; at least one required; version bump is automatic), --allow-macro-loss (permit dropping an embedded macro/whiteboard the current body still has; blocked by default)
 flags{attachments}:
   --limit <n> (default 30), --media-type <type>, --filename <name>
 flags{labels}:
@@ -88,6 +88,31 @@ function resolveRepresentation(raw: string | undefined): string {
   throw new AxiError(`Invalid --format: ${raw}`, "VALIDATION_ERROR", [
     "Use --format storage (XHTML) or --format adf (Atlas Doc Format)",
   ]);
+}
+
+/**
+ * Names of structured macros present in `current` storage-format body but
+ * absent from `next`. Identity is the macro's `ac:name` keyed by count, so
+ * dropping one of two identical embeds is still caught. Used to guard
+ * `page update` against silently deleting an embedded whiteboard/diagram.
+ */
+function droppedMacros(current: string | null, next: string): string[] {
+  const names = (xhtml: string): string[] => {
+    const out: string[] = [];
+    const re = /<ac:structured-macro\b[^>]*\bac:name="([^"]*)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(xhtml)) !== null) out.push(m[1] ?? "");
+    return out;
+  };
+  if (!current) return [];
+  const remaining = names(next);
+  const dropped: string[] = [];
+  for (const name of names(current)) {
+    const i = remaining.indexOf(name);
+    if (i === -1) dropped.push(name);
+    else remaining.splice(i, 1);
+  }
+  return dropped;
 }
 
 /** Fetch one page by id with its body in the given representation. */
@@ -329,7 +354,10 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
     label: "page body",
     valueBoundaryFlags: ["--title"],
   });
-  const parsed = parseFlags(args, { values: ["--title"] });
+  const parsed = parseFlags(args, {
+    values: ["--title"],
+    bools: ["--allow-macro-loss"],
+  });
   if (parsed.help) return PAGE_HELP;
 
   const id = requirePageId(args, parsed.positional, "update");
@@ -365,6 +393,26 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
 
   const nextTitle = title ?? (current.title as string);
   const nextBody = body ?? (currentBody as string);
+
+  // A storage-format update is a FULL-body replace, so a new --body that omits
+  // a macro/embed present in the current page silently deletes it — this is
+  // how an embedded whiteboard/diagram "disappears" on an innocent text edit.
+  // Refuse by default; require an explicit opt-in to drop it. Only relevant
+  // when the caller supplied a new body (title-only edits keep the body).
+  if (body !== undefined && !parsed.bools["--allow-macro-loss"]) {
+    const dropped = droppedMacros(currentBody, nextBody);
+    if (dropped.length > 0) {
+      throw new AxiError(
+        `This update would remove ${dropped.length} embedded macro${dropped.length > 1 ? "s" : ""} (${dropped.join(", ")}) — e.g. a whiteboard/diagram would disappear`,
+        "VALIDATION_ERROR",
+        [
+          `Read the current body first (\`atlassian-axi confluence page get ${id} --full\`), keep the \`<ac:structured-macro …>\` block(s) in your new body, and re-run`,
+          "Or pass --allow-macro-loss to intentionally drop them",
+        ],
+      );
+    }
+  }
+
   const unchanged = nextTitle === current.title && nextBody === currentBody;
   if (unchanged) {
     return renderPage(current, {
