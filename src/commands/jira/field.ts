@@ -1,6 +1,7 @@
 import { acliExec, acliJson } from "../../acli.js";
 import type { SiteContext } from "../../context.js";
 import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
@@ -66,10 +67,11 @@ export async function fieldCommand(
     case "restore":
       return restoreField(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown field subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira field --help` for usage"],
+      throw unknownSubcommandError(
+        "field subcommand",
+        sub,
+        ["create", "update", "delete", "restore"],
+        "atlassian-axi jira field --help",
       );
   }
 }

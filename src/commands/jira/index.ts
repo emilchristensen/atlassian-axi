@@ -1,6 +1,6 @@
 import { takeFlag } from "../../args.js";
 import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { workitemCommand, WORKITEM_HELP } from "./workitem.js";
 import { projectCommand, PROJECT_HELP } from "./project.js";
 import { boardCommand, BOARD_HELP } from "./board.js";
@@ -51,6 +51,26 @@ export async function jiraCommand(
     return JIRA_HELP;
   }
 
+  // --help anywhere after a known resource means that resource's help
+  // (`jira workitem --help`, `jira workitem list --help`). The SDK only
+  // intercepts --help for commands registered in COMMAND_HELP, so jira is
+  // deliberately NOT registered there — this router owns all its help.
+  if (rest.slice(1).includes("--help")) {
+    const helpForResource: Record<string, string> = {
+      workitem: WORKITEM_HELP,
+      project: PROJECT_HELP,
+      board: BOARD_HELP,
+      sprint: SPRINT_HELP,
+      filter: FILTER_HELP,
+      dashboard: DASHBOARD_HELP,
+      field: FIELD_HELP,
+    };
+    const help = helpForResource[resource];
+    if (help) {
+      return help;
+    }
+  }
+
   switch (resource) {
     case "workitem":
       return workitemCommand(rest.slice(1), ctx);
@@ -67,10 +87,11 @@ export async function jiraCommand(
     case "field":
       return fieldCommand(rest.slice(1), ctx);
     default:
-      throw new AxiError(
-        `Unknown jira resource: ${resource}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira --help` for usage"],
+      throw unknownSubcommandError(
+        "jira resource",
+        resource,
+        ["workitem", "project", "board", "sprint", "filter", "dashboard", "field"],
+        "atlassian-axi jira --help",
       );
   }
 }

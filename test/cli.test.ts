@@ -161,3 +161,92 @@ describe("cli help/version contract", () => {
     expect(process.exitCode).toBe(2);
   });
 });
+
+describe("per-resource help routing (2026-07-19)", () => {
+  it("serves workitem help (with flags) for `jira workitem --help`", async () => {
+    const cap = capture();
+    await main({ argv: ["jira", "workitem", "--help"], stdout: cap.stdout });
+    const out = cap.output();
+    expect(out).toContain("usage: atlassian-axi jira workitem");
+    expect(out).toContain("--fields");
+  });
+
+  it("serves workitem help for a deep `jira workitem list --help`", async () => {
+    const cap = capture();
+    await main({ argv: ["jira", "workitem", "list", "--help"], stdout: cap.stdout });
+    expect(cap.output()).toContain("usage: atlassian-axi jira workitem");
+  });
+
+  it("serves page help (with flags) for `confluence page --help`", async () => {
+    const cap = capture();
+    await main({ argv: ["confluence", "page", "--help"], stdout: cap.stdout });
+    const out = cap.output();
+    expect(out).toContain("usage: atlassian-axi confluence page");
+    expect(out).toContain("--body-file");
+  });
+
+  it("still serves the jira group help for `jira --help`", async () => {
+    const cap = capture();
+    await main({ argv: ["jira", "--help"], stdout: cap.stdout });
+    expect(cap.output()).toContain("resources[7]");
+  });
+
+  it("serves auth help for bare `auth` (consistent with bare jira)", async () => {
+    const cap = capture();
+    await main({ argv: ["auth"], stdout: cap.stdout });
+    expect(cap.output()).toContain("usage: atlassian-axi auth");
+    expect(process.exitCode ?? 0).toBe(0);
+  });
+});
+
+describe("resource/subcommand did-you-mean (2026-07-19)", () => {
+  it("suggests workitem for `jira workitm`", async () => {
+    const cap = capture();
+    await main({ argv: ["jira", "workitm"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Did you mean `workitem`?");
+    expect(process.exitCode).toBe(2);
+  });
+
+  it("suggests view for `jira workitem vieww`", async () => {
+    const cap = capture();
+    await main({ argv: ["jira", "workitem", "vieww"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Did you mean `view`?");
+    expect(process.exitCode).toBe(2);
+  });
+
+  it("suggests page for `confluence pge`", async () => {
+    const cap = capture();
+    await main({ argv: ["confluence", "pge"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Did you mean `page`?");
+    expect(process.exitCode).toBe(2);
+  });
+});
+
+describe("router help table covers every resource (2026-07-19)", () => {
+  const jiraResources = [
+    "workitem",
+    "project",
+    "board",
+    "sprint",
+    "filter",
+    "dashboard",
+    "field",
+  ] as const;
+
+  it.each(jiraResources)("jira %s --help serves that resource's help", async (resource) => {
+    const cap = capture();
+    await main({ argv: ["jira", resource, "--help"], stdout: cap.stdout });
+    expect(cap.output()).toContain(`usage: atlassian-axi jira ${resource}`);
+  });
+
+  const confluenceResources = ["page", "space", "search"] as const;
+
+  it.each(confluenceResources)(
+    "confluence %s --help serves that resource's help",
+    async (resource) => {
+      const cap = capture();
+      await main({ argv: ["confluence", resource, "--help"], stdout: cap.stdout });
+      expect(cap.output()).toContain(`usage: atlassian-axi confluence ${resource}`);
+    },
+  );
+});

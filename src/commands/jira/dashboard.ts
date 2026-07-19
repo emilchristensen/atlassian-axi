@@ -1,6 +1,6 @@
 import { acliJson } from "../../acli.js";
 import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
+import { unknownSubcommandError } from "../shared.js";
 import { formatCountLine } from "../../format.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
@@ -52,10 +52,11 @@ export async function dashboardCommand(
     case "list":
       return listDashboards(args, ctx);
     default:
-      throw new AxiError(
-        `Unknown dashboard subcommand: ${sub}`,
-        "VALIDATION_ERROR",
-        ["Run `atlassian-axi jira dashboard --help` for usage"],
+      throw unknownSubcommandError(
+        "dashboard subcommand",
+        sub,
+        ["list"],
+        "atlassian-axi jira dashboard --help",
       );
   }
 }
