@@ -19,8 +19,6 @@ import { AxiError } from "./errors.js";
  * newest (refreshSession does).
  */
 
-/** The registered atlassian-axi 3LO app. The client ID is public by design. */
-export const DEFAULT_OAUTH_CLIENT_ID = "rwIB6Tt3xeLL0NW0Z5ciYUIQNfVXDmXy";
 export const OAUTH_AUTHORIZE_URL = "https://auth.atlassian.com/authorize";
 export const OAUTH_TOKEN_URL = "https://auth.atlassian.com/oauth/token";
 export const ACCESSIBLE_RESOURCES_URL =
@@ -48,10 +46,26 @@ export const OAUTH_SCOPES = [
 const EXPIRY_SKEW_MS = 60_000;
 const CALLBACK_TIMEOUT_MS = 300_000;
 
-/** Active OAuth client id: env override (for forks) > shipped default. */
+/**
+ * Active OAuth client id, from `ATLASSIAN_AXI_OAUTH_CLIENT_ID`. There is no
+ * shipped default: OAuth login requires the caller to register their own
+ * Atlassian 3LO app and supply its client id (and secret) via env/config.
+ * Throws when unset so the browser flow never starts with a missing client id.
+ */
 export function oauthClientId(): string {
   const env = process.env["ATLASSIAN_AXI_OAUTH_CLIENT_ID"];
-  return env && env.trim() !== "" ? env.trim() : DEFAULT_OAUTH_CLIENT_ID;
+  if (env && env.trim() !== "") {
+    return env.trim();
+  }
+  throw new AxiError(
+    "No OAuth client id configured",
+    "VALIDATION_ERROR",
+    [
+      "Register an Atlassian OAuth 2.0 (3LO) app and set ATLASSIAN_AXI_OAUTH_CLIENT_ID to its client id",
+      "Also set ATLASSIAN_AXI_OAUTH_CLIENT_SECRET (or paste the secret when prompted)",
+      "For agents/CI, prefer `atlassian-axi auth login --token` (site + email + API token via stdin) instead of OAuth",
+    ],
+  );
 }
 
 // ---------------------------------------------------------------------------
