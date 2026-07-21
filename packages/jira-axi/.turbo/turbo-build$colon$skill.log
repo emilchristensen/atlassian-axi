@@ -1,5 +1,0 @@
-
-> jira-axi@0.0.0 build:skill /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/jira-axi
-> tsx scripts/build-skill.ts "--check"
-
-skills/jira-axi/SKILL.md is up to date.
