@@ -2,10 +2,17 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
+  "separate-pull-requests": true,
   "packages": {
-    ".": {
+    "packages/jira-axi": {
       "release-type": "node",
-      "package-name": "atlassian-axi"
+      "package-name": "jira-axi",
+      "component": "jira-axi"
+    },
+    "packages/confluence-axi": {
+      "release-type": "node",
+      "package-name": "confluence-axi",
+      "component": "confluence-axi"
     }
   }
 }
