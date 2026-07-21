@@ -1,10 +1,10 @@
-# atlassian-axi confluence
+# confluence-axi commands
 
-Confluence Cloud page, space, and search operations against the Confluence REST API directly (not through acli).
+Confluence Cloud page, space, and search operations against the Confluence REST API directly.
 
 Use for reading and mutating Confluence pages, listing spaces, and CQL search.
 Requires configured auth (see [auth](./auth.md)).
-The `--site` flag retargets Confluence (flag > env > stored); the Jira half does not honour it.
+The `--site` flag retargets Confluence (flag > env > stored).
 
 ## API version model
 
@@ -23,11 +23,10 @@ Page bodies are storage-format XHTML by default.
 
 Markdown is NOT converted for Confluence page bodies.
 Passing markdown to `--body`/`--body-file` stores it literally as text and is user error.
-This differs from Jira, where markdown in a body IS converted to ADF.
 
 ## page
 
-### `atlassian-axi confluence page get <id>`
+### `confluence-axi page get <id>`
 
 Fetch a single page by numeric id.
 
@@ -36,14 +35,14 @@ Fetch a single page by numeric id.
 - `--format <storage|adf>` - body format. Default `storage`.
 
 ```bash
-atlassian-axi confluence page get 12345 --full
+confluence-axi page get 12345 --full
 ```
 
 **Caveats:**
 - A trashed page returns 200 with `status: "trashed"` (it is not treated as absent by `get`).
 - Run `page get <id> --full` before `page update` to capture the current body, including any embedded macros. See the macro-loss guard below.
 
-### `atlassian-axi confluence page create`
+### `confluence-axi page create`
 
 Create a page in a space.
 
@@ -54,7 +53,7 @@ Create a page in a space.
 - `--parent <id>` - parent page id.
 
 ```bash
-atlassian-axi confluence page create --space ENG --title "Release notes" --body-file notes.html
+confluence-axi page create --space ENG --title "Release notes" --body-file notes.html
 ```
 
 **Caveats:**
@@ -62,7 +61,7 @@ atlassian-axi confluence page create --space ENG --title "Release notes" --body-
 - A create POST without space create-permission returns 404 from Confluence; this is re-mapped to FORBIDDEN (the space and duplicate pre-checks already passed, so the id is valid).
 - `--body`/`--body-file` is storage-format XHTML, not markdown. See "Page body format" above.
 
-### `atlassian-axi confluence page update <id>`
+### `confluence-axi page update <id>`
 
 Full-body replace of a page. The version number is bumped automatically.
 
@@ -74,10 +73,10 @@ Full-body replace of a page. The version number is bumped automatically.
 ```bash
 # 1. Read the current body. Output is TOON (the body is a field), NOT raw XHTML,
 #    so do not redirect it straight to a file - read the body value out of it.
-atlassian-axi confluence page get 12345 --full
+confluence-axi page get 12345 --full
 # 2. Build the new storage-format XHTML yourself, keeping any <ac:structured-macro> blocks,
 #    write it to body.html, then replace the body.
-atlassian-axi confluence page update 12345 --body-file body.html
+confluence-axi page update 12345 --body-file body.html
 ```
 
 **Macro-loss guard (most important gotcha):**
@@ -92,19 +91,19 @@ See [limitations](./limitations.md).
 - No-op success: if title and body are unchanged, the update succeeds without incrementing the version.
 - A title-only edit keeps the existing body and never triggers the macro-loss guard.
 
-### `atlassian-axi confluence page delete <id>`
+### `confluence-axi page delete <id>`
 
 Delete (trash) a page by id.
 
 ```bash
-atlassian-axi confluence page delete 12345
+confluence-axi page delete 12345
 ```
 
 **Caveats:**
 - Idempotent: a page that is already trashed or genuinely gone is reported as "Already deleted".
 - A bare 404 is NOT proof of absence. Confluence returns 404 (not 403) for a DELETE without delete-permission. After a DELETE 404 the page is re-read; "Already deleted" is only claimed when the page is actually gone, otherwise FORBIDDEN is reported.
 
-### `atlassian-axi confluence page attachments <id>`
+### `confluence-axi page attachments <id>`
 
 List attachments on a page. Read-only.
 
@@ -114,14 +113,14 @@ List attachments on a page. Read-only.
 - `--filename <name>` - filter by filename.
 
 ```bash
-atlassian-axi confluence page attachments 12345 --media-type image/png
+confluence-axi page attachments 12345 --media-type image/png
 ```
 
 **Caveats:**
 - Read-only. Attachment UPLOAD is not supported; upload in the Confluence UI. See [limitations](./limitations.md).
 - Cursor-paginated with no total count.
 
-### `atlassian-axi confluence page labels <id>`
+### `confluence-axi page labels <id>`
 
 List or mutate page labels. With no flags, lists labels.
 
@@ -132,9 +131,9 @@ List or mutate page labels. With no flags, lists labels.
 - `--limit <n>` - max results when listing. Default 30.
 
 ```bash
-atlassian-axi confluence page labels 12345
-atlassian-axi confluence page labels 12345 --add release,july
-atlassian-axi confluence page labels 12345 --remove draft
+confluence-axi page labels 12345
+confluence-axi page labels 12345 --add release,july
+confluence-axi page labels 12345 --remove draft
 ```
 
 **Caveats:**
@@ -142,7 +141,7 @@ atlassian-axi confluence page labels 12345 --remove draft
 - Idempotent: adding an already-present label or removing an absent one is reported and succeeds.
 - After a mutation the authoritative label set is re-fetched and rendered; the mutation response itself is not parsed.
 
-### `atlassian-axi confluence page children <id>`
+### `confluence-axi page children <id>`
 
 List child pages of a page.
 
@@ -150,7 +149,7 @@ List child pages of a page.
 - `--limit <n>` - max results. Default 30.
 
 ```bash
-atlassian-axi confluence page children 12345
+confluence-axi page children 12345
 ```
 
 **Caveats:**
@@ -158,7 +157,7 @@ atlassian-axi confluence page children 12345
 
 ## space
 
-### `atlassian-axi confluence space list`
+### `confluence-axi space list`
 
 List spaces.
 
@@ -166,7 +165,7 @@ List spaces.
 - `--limit <n>` - max results. Default 30.
 
 ```bash
-atlassian-axi confluence space list --limit 50
+confluence-axi space list --limit 50
 ```
 
 **Caveats:**
@@ -174,7 +173,7 @@ atlassian-axi confluence space list --limit 50
 
 ## search
 
-### `atlassian-axi confluence search "<CQL>"`
+### `confluence-axi search "<CQL>"`
 
 CQL search across Confluence (v1 REST; the v2 API has no search endpoint).
 
@@ -182,9 +181,9 @@ CQL search across Confluence (v1 REST; the v2 API has no search endpoint).
 - `--limit <n>` - max results. Default 30.
 
 ```bash
-atlassian-axi confluence search "space = ENG AND type = page"
-atlassian-axi confluence search "title ~ 'release notes'" --limit 5
-atlassian-axi confluence search "text ~ 'pagination' AND lastmodified >= now('-30d')"
+confluence-axi search "space = ENG AND type = page"
+confluence-axi search "title ~ 'release notes'" --limit 5
+confluence-axi search "text ~ 'pagination' AND lastmodified >= now('-30d')"
 ```
 
 **Caveats:**

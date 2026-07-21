@@ -5,23 +5,23 @@
 
  RUN  v3.2.7 /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/jira-axi
 
- ✓ test/commands/jira/workitem.test.ts (44 tests) 19ms
- ✓ test/commands/jira/shared-adf.test.ts (4 tests) 1ms
- ✓ test/commands/setup.test.ts (5 tests) 2ms
- ✓ test/acli.test.ts (10 tests) 3ms
- ✓ test/commands/jira/dashboard.test.ts (3 tests) 6ms
  ✓ test/commands/home.test.ts (8 tests) 3ms
- ✓ test/adf.test.ts (29 tests) 3ms
- ✓ test/commands/jira/sprint.test.ts (16 tests) 9ms
+ ✓ test/commands/jira/shared-adf.test.ts (4 tests) 1ms
  ✓ test/commands/jira/filter.test.ts (14 tests) 8ms
- ✓ test/commands/jira/board.test.ts (13 tests) 8ms
- ✓ test/cli.test.ts (20 tests) 3ms
+ ✓ test/commands/jira/dashboard.test.ts (3 tests) 6ms
+ ✓ test/commands/jira/sprint.test.ts (16 tests) 9ms
  ✓ test/errors.test.ts (11 tests) 2ms
+ ✓ test/adf.test.ts (29 tests) 3ms
+ ✓ test/acli.test.ts (10 tests) 3ms
+ ✓ test/cli.test.ts (20 tests) 3ms
  ✓ test/commands/jira/project.test.ts (6 tests) 7ms
+ ✓ test/commands/jira/board.test.ts (13 tests) 9ms
+ ✓ test/commands/setup.test.ts (5 tests) 2ms
+ ✓ test/commands/jira/workitem.test.ts (44 tests) 18ms
  ✓ test/commands/jira/field.test.ts (9 tests) 5ms
 
  Test Files  14 passed (14)
       Tests  192 passed (192)
-   Start at  13:08:53
-   Duration  7.90s (transform 128ms, setup 0ms, collect 312ms, tests 78ms, environment 1ms, prepare 305ms)
+   Start at  13:15:37
+   Duration  7.98s (transform 123ms, setup 0ms, collect 296ms, tests 79ms, environment 1ms, prepare 306ms)
 

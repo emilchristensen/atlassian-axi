@@ -1,16 +1,15 @@
-# Jira commands
+# Commands
 
-`atlassian-axi jira <resource> <subcommand> [flags]` wraps Atlassian `acli` to read and mutate Jira work items, projects, boards, sprints, filters, dashboards, and custom fields.
+`jira-axi <resource> <subcommand> [flags]` wraps Atlassian `acli` to read and mutate Jira work items, projects, boards, sprints, filters, dashboards, and custom fields.
 
 Use these commands for any Jira operation.
 Flags MUST come after the subcommand.
-Requires a configured credential and a bootstrapped `acli` login (see [auth](./auth.md)).
-The Jira half runs through `acli`, which is bound to its own login: `--site`/`ATLASSIAN_SITE` naming a different site than the stored one throws `VALIDATION_ERROR` (only Confluence honours `--site`).
+Requires `acli` installed (`brew install acli`) and logged in (`acli jira auth login`); see [getting started](./getting-started.md).
 All output is TOON.
 
 Resources are addressed two ways:
-- workitem and project are KEY-addressed (e.g. `TEAM-1`, `TEAM`).
-- board, sprint, filter, dashboard, field are ID-addressed (numeric).
+- `workitem` and `project` are KEY-addressed (e.g. `TEAM-1`, `TEAM`).
+- `board`, `sprint`, `filter`, `dashboard`, `field` are ID-addressed (numeric).
 
 ## workitem
 
@@ -21,7 +20,7 @@ Body inputs (`--body`/`--body-file` on `create`, `edit`, `comment`) accept a mar
 Raw ADF JSON is passed through unchanged.
 It is NOT full CommonMark; unsupported markdown may render literally.
 
-### `atlassian-axi jira workitem list`
+### `jira-axi workitem list`
 
 List work items. Builds JQL internally and calls acli `workitem search` (acli has no `workitem list` subcommand).
 
@@ -34,7 +33,7 @@ List work items. Builds JQL internally and calls acli `workitem search` (acli ha
 - `--fields <a,b,c>`
 
 ```bash
-atlassian-axi jira workitem list --project TEAM --status "In Progress"
+jira-axi workitem list --project TEAM --status "In Progress"
 ```
 
 **Caveats:**
@@ -42,7 +41,7 @@ atlassian-axi jira workitem list --project TEAM --status "In Progress"
 - `--jql` combined with any of `--project`/`--assignee`/`--status` throws `VALIDATION_ERROR`.
 - `--assignee @me` maps to `currentUser()`.
 
-### `atlassian-axi jira workitem view <KEY>`
+### `jira-axi workitem view <KEY>`
 
 Show one work item.
 
@@ -52,7 +51,7 @@ Show one work item.
 - `--fields <a,b,c>` render only these fields; `key` is always included.
 
 ```bash
-atlassian-axi jira workitem view TEAM-1 --comments
+jira-axi workitem view TEAM-1 --comments
 ```
 
 **Caveats:**
@@ -61,7 +60,7 @@ atlassian-axi jira workitem view TEAM-1 --comments
 - Fields acli did not return are reported in a `note:` line, so a null row is not mistaken for an empty value.
 - `--comments` is lossy: acli flattens comment ADF upstream (drops list items, strips marks). See [limitations](./limitations.md). The stored comment ADF is intact in the Jira UI.
 
-### `atlassian-axi jira workitem create`
+### `jira-axi workitem create`
 
 Create a work item, then re-fetch and render it.
 
@@ -74,14 +73,14 @@ Create a work item, then re-fetch and render it.
 - `--label <a,b>`
 
 ```bash
-atlassian-axi jira workitem create --project TEAM --type Task --summary "Fix login"
+jira-axi workitem create --project TEAM --type Task --summary "Fix login"
 ```
 
 **Caveats:**
 - Missing any required flag throws `VALIDATION_ERROR`.
 - If acli output has no detectable key, the CLI still reports success with a `message` field.
 
-### `atlassian-axi jira workitem edit <KEY>`
+### `jira-axi workitem edit <KEY>`
 
 Edit a work item, then re-fetch and render it.
 
@@ -94,13 +93,13 @@ Edit a work item, then re-fetch and render it.
 - `--remove-labels <a,b>`
 
 ```bash
-atlassian-axi jira workitem edit TEAM-1 --summary "New title" --labels backend,urgent
+jira-axi workitem edit TEAM-1 --summary "New title" --labels backend,urgent
 ```
 
 **Caveats:**
 - At least one changing flag is required; none throws `VALIDATION_ERROR`.
 
-### `atlassian-axi jira workitem transition <KEY> --to <status>`
+### `jira-axi workitem transition <KEY> --to <status>`
 
 Move a work item to a status.
 
@@ -108,13 +107,13 @@ Move a work item to a status.
 - `--to <status>` (required)
 
 ```bash
-atlassian-axi jira workitem transition TEAM-1 --to Done
+jira-axi workitem transition TEAM-1 --to Done
 ```
 
 **Caveats:**
 - Idempotent: `--to` naming the current status is a no-op success (renders `message: "Already <status>"`), safe to retry.
 
-### `atlassian-axi jira workitem assign <KEY> --assignee <user>`
+### `jira-axi workitem assign <KEY> --assignee <user>`
 
 Assign a work item.
 
@@ -122,13 +121,13 @@ Assign a work item.
 - `--assignee <email|@me>` (required)
 
 ```bash
-atlassian-axi jira workitem assign TEAM-1 --assignee jane@acme.com
+jira-axi workitem assign TEAM-1 --assignee jane@acme.com
 ```
 
 **Caveats:**
 - Idempotent for a concrete user: if already assigned to that user, it is a no-op success. `@me` and `default` always resolve server-side and go through acli.
 
-### `atlassian-axi jira workitem comment <KEY> --body <text>`
+### `jira-axi workitem comment <KEY> --body <text>`
 
 Add a comment, then re-fetch and render the item.
 
@@ -136,10 +135,10 @@ Add a comment, then re-fetch and render the item.
 - `--body <text>` or `--body-file <path>` (required) markdown, stored as ADF.
 
 ```bash
-atlassian-axi jira workitem comment TEAM-1 --body "Deployed to staging"
+jira-axi workitem comment TEAM-1 --body "Deployed to staging"
 ```
 
-### `atlassian-axi jira workitem search "<JQL>"`
+### `jira-axi workitem search "<JQL>"`
 
 Run a verbatim JQL query.
 
@@ -148,7 +147,7 @@ Run a verbatim JQL query.
 - `--fields <a,b,c>`
 
 ```bash
-atlassian-axi jira workitem search "assignee = currentUser() AND resolution = EMPTY"
+jira-axi workitem search "assignee = currentUser() AND resolution = EMPTY"
 ```
 
 **Caveats:**
@@ -158,7 +157,7 @@ atlassian-axi jira workitem search "assignee = currentUser() AND resolution = EM
 
 Projects are key-addressed (e.g. `TEAM`).
 
-### `atlassian-axi jira project list`
+### `jira-axi project list`
 
 List projects.
 
@@ -166,22 +165,22 @@ List projects.
 - `--limit <n>` (default 30)
 
 ```bash
-atlassian-axi jira project list
+jira-axi project list
 ```
 
-### `atlassian-axi jira project view <KEY>`
+### `jira-axi project view <KEY>`
 
 Show one project.
 
 ```bash
-atlassian-axi jira project view TEAM
+jira-axi project view TEAM
 ```
 
 ## board
 
 Boards are ID-addressed (numeric).
 
-### `atlassian-axi jira board list`
+### `jira-axi board list`
 
 List boards. Maps onto acli `board search` (acli has no `board list`).
 
@@ -192,18 +191,18 @@ List boards. Maps onto acli `board search` (acli has no `board list`).
 - `--limit <n>` (default 30)
 
 ```bash
-atlassian-axi jira board list --project TEAM
+jira-axi board list --project TEAM
 ```
 
-### `atlassian-axi jira board view <ID>`
+### `jira-axi board view <ID>`
 
 Show one board.
 
 ```bash
-atlassian-axi jira board view 1013
+jira-axi board view 1013
 ```
 
-### `atlassian-axi jira board list-sprints <ID>`
+### `jira-axi board list-sprints <ID>`
 
 List sprints on a board.
 
@@ -212,10 +211,10 @@ List sprints on a board.
 - `--limit <n>` (default 30)
 
 ```bash
-atlassian-axi jira board list-sprints 1013 --state active
+jira-axi board list-sprints 1013 --state active
 ```
 
-### `atlassian-axi jira board list-projects <ID>`
+### `jira-axi board list-projects <ID>`
 
 List projects associated with a board.
 
@@ -223,7 +222,7 @@ List projects associated with a board.
 - `--limit <n>` (default 30)
 
 ```bash
-atlassian-axi jira board list-projects 1013
+jira-axi board list-projects 1013
 ```
 
 ## sprint
@@ -231,15 +230,15 @@ atlassian-axi jira board list-projects 1013
 Sprints are ID-addressed (numeric).
 Dates render as `YYYY-MM-DD`, not relative times.
 
-### `atlassian-axi jira sprint view <ID>`
+### `jira-axi sprint view <ID>`
 
 Show one sprint.
 
 ```bash
-atlassian-axi jira sprint view 5205
+jira-axi sprint view 5205
 ```
 
-### `atlassian-axi jira sprint list-workitems <ID> --board <ID>`
+### `jira-axi sprint list-workitems <ID> --board <ID>`
 
 List work items in a sprint.
 
@@ -250,13 +249,13 @@ List work items in a sprint.
 - `--limit <n>` (default 30)
 
 ```bash
-atlassian-axi jira sprint list-workitems 5205 --board 1013
+jira-axi sprint list-workitems 5205 --board 1013
 ```
 
 **Caveats:**
 - Both the sprint ID positional AND `--board` are required; the agile API needs both.
 
-### `atlassian-axi jira sprint create --board <ID> --name <text>`
+### `jira-axi sprint create --board <ID> --name <text>`
 
 Create a sprint.
 
@@ -268,10 +267,10 @@ Create a sprint.
 - `--goal <text>`
 
 ```bash
-atlassian-axi jira sprint create --board 1013 --name "Sprint 13" --goal "Ship checkout"
+jira-axi sprint create --board 1013 --name "Sprint 13" --goal "Ship checkout"
 ```
 
-### `atlassian-axi jira sprint update <ID>`
+### `jira-axi sprint update <ID>`
 
 Update a sprint.
 
@@ -283,7 +282,7 @@ Update a sprint.
 - `--end <ISO date>`
 
 ```bash
-atlassian-axi jira sprint update 5205 --state closed
+jira-axi sprint update 5205 --state closed
 ```
 
 **Caveats:**
@@ -293,7 +292,7 @@ atlassian-axi jira sprint update 5205 --state closed
 
 Filters are ID-addressed (numeric).
 
-### `atlassian-axi jira filter list`
+### `jira-axi filter list`
 
 List filters. Defaults to filters you own.
 
@@ -302,13 +301,13 @@ List filters. Defaults to filters you own.
 - `--limit <n>` (default 30, applied client-side)
 
 ```bash
-atlassian-axi jira filter list
+jira-axi filter list
 ```
 
 **Caveats:**
 - The upstream API requires exactly one of my/favourite; the CLI defaults to owned (`--my`) and `--favourite` switches to favourites.
 
-### `atlassian-axi jira filter search`
+### `jira-axi filter search`
 
 Search filters.
 
@@ -318,18 +317,18 @@ Search filters.
 - `--limit <n>` (default 30)
 
 ```bash
-atlassian-axi jira filter search --name backlog
+jira-axi filter search --name backlog
 ```
 
-### `atlassian-axi jira filter view <ID>`
+### `jira-axi filter view <ID>`
 
 Show one filter.
 
 ```bash
-atlassian-axi jira filter view 33312
+jira-axi filter view 33312
 ```
 
-### `atlassian-axi jira filter update <ID>`
+### `jira-axi filter update <ID>`
 
 Update a filter.
 
@@ -339,7 +338,7 @@ Update a filter.
 - `--jql <query>`
 
 ```bash
-atlassian-axi jira filter update 33312 --jql "project = TEAM AND status = Open"
+jira-axi filter update 33312 --jql "project = TEAM AND status = Open"
 ```
 
 **Caveats:**
@@ -349,7 +348,7 @@ atlassian-axi jira filter update 33312 --jql "project = TEAM AND status = Open"
 
 Dashboards are ID-addressed. Only `list` is available (maps onto acli `dashboard search`; acli has no `dashboard list`).
 
-### `atlassian-axi jira dashboard list`
+### `jira-axi dashboard list`
 
 List dashboards.
 
@@ -359,17 +358,17 @@ List dashboards.
 - `--limit <n>` (default 30)
 
 ```bash
-atlassian-axi jira dashboard list --name release --owner jane@acme.com
+jira-axi dashboard list --name release --owner jane@acme.com
 ```
 
 ## field
 
 Custom fields are ID-addressed (`customfield_<n>`). acli has NO field `list`/`view` - only the mutations below.
 
-To inspect field VALUES on a work item, use `atlassian-axi jira workitem view <KEY> --fields <a,b,c>` instead.
+To inspect field VALUES on a work item, use `jira-axi workitem view <KEY> --fields <a,b,c>` instead.
 A bare numeric ID `<n>` is accepted and expanded to `customfield_<n>` (the expanded ID is echoed in the output).
 
-### `atlassian-axi jira field create --name <text> --type <key>`
+### `jira-axi field create --name <text> --type <key>`
 
 Create a custom field.
 
@@ -380,10 +379,10 @@ Create a custom field.
 - `--searcher-key <key>`
 
 ```bash
-atlassian-axi jira field create --name "Customer Name" --type "com.atlassian.jira.plugin.system.customfieldtypes:textfield"
+jira-axi field create --name "Customer Name" --type "com.atlassian.jira.plugin.system.customfieldtypes:textfield"
 ```
 
-### `atlassian-axi jira field update <ID>`
+### `jira-axi field update <ID>`
 
 Update a custom field.
 
@@ -393,30 +392,31 @@ Update a custom field.
 - `--searcher-key <key>`
 
 ```bash
-atlassian-axi jira field update customfield_12345 --name "Client Name"
+jira-axi field update customfield_12345 --name "Client Name"
 ```
 
-### `atlassian-axi jira field delete <ID>`
+### `jira-axi field delete <ID>`
 
 Move a custom field to trash.
 
 ```bash
-atlassian-axi jira field delete customfield_12345
+jira-axi field delete customfield_12345
 ```
 
 **Caveats:**
 - Delete moves the field to trash; it is restorable with `restore`.
+- acli has no `--json` for delete/restore, so the CLI renders its own confirmation.
 
-### `atlassian-axi jira field restore <ID>`
+### `jira-axi field restore <ID>`
 
 Restore a trashed custom field.
 
 ```bash
-atlassian-axi jira field restore customfield_12345
+jira-axi field restore customfield_12345
 ```
 
 ## See also
 
-- [auth](./auth.md) - configuring credentials and the acli login.
-- [confluence](./confluence.md) - the Confluence command family.
-- [limitations](./limitations.md) - known lossy behaviors (e.g. comment ADF flattening).
+- [Getting started](./getting-started.md) - the `acli` prerequisite and login.
+- [Limitations](./limitations.md) - known lossy behaviors (e.g. comment ADF flattening).
+- [Setup & update](./setup.md) - `setup hooks`, `update`.
