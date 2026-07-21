@@ -11,6 +11,7 @@ There are two auth modes: an OAuth 2.0 browser flow (default `auth login`) and a
 Uses Bearer tokens against `api.atlassian.com`, auto-refreshed.
 Requires an interactive TTY; fails fast with `VALIDATION_ERROR` when stdin/stdout is not a terminal.
 Cannot bootstrap acli, so the Jira half is unavailable in pure OAuth mode.
+There is no shipped OAuth app: you must register your own Atlassian 3LO app once and set `ATLASSIAN_AXI_OAUTH_CLIENT_ID` (and supply the secret). See [getting-started](./getting-started.md#registering-your-own-oauth-app). If you only need Jira/Confluence non-interactively, prefer the API-token mode below.
 
 **API token** - `auth login --token`.
 Stores site + email + API token for headless use.
@@ -29,8 +30,8 @@ A half-configured env token (env var set but incomplete) resolves to a loud `non
 - `ATLASSIAN_EMAIL` - account email.
 - `ATLASSIAN_API_TOKEN` - API token; when set, takes precedence over any stored credential.
 - `ATLASSIAN_AXI_NO_KEYCHAIN=1` - force the file-based credential store, bypassing the OS keychain.
-- `ATLASSIAN_AXI_OAUTH_CLIENT_ID` - override the shipped OAuth client id.
-- `ATLASSIAN_AXI_OAUTH_CLIENT_SECRET` - supply the OAuth client secret via env; env-supplied secrets are never persisted.
+- `ATLASSIAN_AXI_OAUTH_CLIENT_ID` - client id of your own registered Atlassian OAuth app. Required for OAuth login; there is no shipped default (see [getting-started](./getting-started.md#registering-your-own-oauth-app)).
+- `ATLASSIAN_AXI_OAUTH_CLIENT_SECRET` - client secret of that app; env-supplied secrets are never persisted. If unset you are prompted once on first login and it is stored in the 0600 config.
 
 ## Credential storage
 
@@ -122,6 +123,6 @@ See [limitations](./limitations.md) for the full `--site` caveat.
 
 ## OAuth threat model
 
-The shipped OAuth app is a confidential client with no PKCE / public-client option, so the bundled client secret is effectively public.
-The real defenses are: the loopback-only callback (`http://localhost:8765/callback`), a single-use `state` parameter validated on return, and the `0600` on-disk store.
-For a stronger posture, register your own Atlassian OAuth app and supply it via `ATLASSIAN_AXI_OAUTH_CLIENT_ID` and `ATLASSIAN_AXI_OAUTH_CLIENT_SECRET`.
+This CLI ships no OAuth app. You register your own Atlassian 3LO app and supply it via `ATLASSIAN_AXI_OAUTH_CLIENT_ID` and `ATLASSIAN_AXI_OAUTH_CLIENT_SECRET`, so the client credentials never leave your machine.
+This is deliberate: Atlassian 3LO has no PKCE / public-client option and its token and refresh grants both require the client secret, so a distributed CLI cannot bundle a working app without either shipping a secret (insecure) or operating a hosted token broker (out of scope). Self-registration is Atlassian's own recommended pattern.
+The runtime defenses are: the loopback-only callback (`http://localhost:8765/callback`), a single-use `state` parameter validated on return, and the `0600` on-disk store.

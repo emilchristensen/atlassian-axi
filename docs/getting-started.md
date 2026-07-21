@@ -55,14 +55,35 @@ export ATLASSIAN_API_TOKEN=<token>
 
 `auth login` with no `--token` runs an OAuth 2.0 browser flow.
 It requires an interactive TTY and fails fast otherwise, so it is not for agents or CI.
+It also requires your own registered OAuth app (see [Registering your own OAuth app](#registering-your-own-oauth-app) below); there is no shipped default.
 
 ```bash
+export ATLASSIAN_AXI_OAUTH_CLIENT_ID=<your app client id>
+export ATLASSIAN_AXI_OAUTH_CLIENT_SECRET=<your app client secret>   # or omit and paste when prompted
 atlassian-axi auth login
 ```
 
 It opens `auth.atlassian.com`, catches the `http://localhost:8765/callback` redirect, and stores tokens plus `cloudId` in the 0600 config.
-`--site <site>` pre-selects among multiple sites.
+When you have access to more than one site and do not pass `--site`, it lists your accessible sites and prompts you to pick one.
 Tokens auto-refresh.
+
+## Registering your own OAuth app
+
+The OAuth browser flow needs an Atlassian 3LO app that you own.
+This CLI ships none on purpose: Atlassian 3LO has no PKCE / public-client option and both its token and refresh grants require the client secret, so a distributed CLI cannot bundle a working app without shipping a secret (insecure) or running a hosted token broker (out of scope).
+Registering your own app keeps the client id and secret entirely on your machine, which is Atlassian's own recommended pattern.
+This is a one-time setup of a few minutes.
+
+1. Open the [Atlassian developer console](https://developer.atlassian.com/console/myapps/) and create an app: **Create** -> **OAuth 2.0 integration**. Give it any name.
+2. **Permissions** -> add the **Confluence API**, then grant these scopes: `read:confluence-content.all`, `write:confluence-content`, `read:confluence-space.summary`, `search:confluence`. (`offline_access` is requested automatically for refresh tokens.)
+3. **Authorization** -> configure **OAuth 2.0 (3LO)** and set the **Callback URL** to EXACTLY `http://localhost:8765/callback`.
+4. **Settings** -> copy the **Client ID** and generate/copy the **Secret**.
+5. Provide them to the CLI as `ATLASSIAN_AXI_OAUTH_CLIENT_ID` and `ATLASSIAN_AXI_OAUTH_CLIENT_SECRET` (env), or set only the id and paste the secret when `auth login` prompts once (it is then stored in the 0600 config, never re-requested).
+
+Notes:
+- The callback must match `http://localhost:8765/callback` character-for-character or Atlassian rejects the redirect.
+- Only Confluence scopes are requested; the OAuth session never drives the Jira half (acli cannot use a Bearer token), so Jira still needs API-token mode.
+- Env-supplied secrets are never written to disk; a prompted secret is stored in the 0600 config so you are not asked again.
 
 ## First commands
 
