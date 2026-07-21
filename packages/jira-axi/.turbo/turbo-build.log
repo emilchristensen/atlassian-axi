@@ -1,0 +1,14 @@
+
+> jira-axi@0.0.0 build /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/jira-axi
+> tsup
+
+CLI Building entry: {"bin/jira-axi":"src/bin/jira-axi.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/jira-axi/tsup.config.ts
+CLI Target: node20
+CLI Cleaning output folder
+ESM Build start
+ESM dist/bin/jira-axi.js     110.39 KB
+ESM dist/bin/jira-axi.js.map 298.42 KB
+ESM ⚡️ Build success in 18ms

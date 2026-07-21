@@ -32,8 +32,8 @@ describe("project list", () => {
         TEAM,Team Project,software
         OPS,Operations,service_desk
       help[2]:
-        Run \`atlassian-axi jira project view <KEY>\` to view a project
-        Run \`atlassian-axi jira workitem list --project <KEY>\` to list its work items"
+        Run \`jira-axi project view <KEY>\` to view a project
+        Run \`jira-axi workitem list --project <KEY>\` to list its work items"
     `);
   });
 

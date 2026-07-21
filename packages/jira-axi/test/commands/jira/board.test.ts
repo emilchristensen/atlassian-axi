@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setAcliRunner } from "../../../src/acli.js";
 import { boardCommand } from "../../../src/commands/jira/board.js";
-import { jiraCommand } from "../../../src/commands/jira/index.js";
 import { makeAcliFake } from "../../helpers/acliFake.js";
 import {
   FROZEN_NOW,
@@ -35,8 +34,8 @@ describe("board list", () => {
         1013,Team Scrum,scrum,Team Project (TEAM)
         1333,Ops Kanban,kanban,Operations (OPS)
       help[2]:
-        Run \`atlassian-axi jira board list-sprints <ID>\` to list a board's sprints
-        Run \`atlassian-axi jira board view <ID>\` to view a board"
+        Run \`jira-axi board list-sprints <ID>\` to list a board's sprints
+        Run \`jira-axi board view <ID>\` to view a board"
     `);
   });
 
@@ -156,8 +155,8 @@ describe("board list-sprints", () => {
         5205,Sprint 12,active,2026-07-07,2026-07-18
         5206,Sprint 11,closed,2026-06-22,2026-07-04
       help[2]:
-        Run \`atlassian-axi jira sprint list-workitems <SPRINT_ID> --board 1013\` to list a sprint's work items
-        Run \`atlassian-axi jira sprint view <SPRINT_ID>\` to view a sprint"
+        Run \`jira-axi sprint list-workitems <SPRINT_ID> --board 1013\` to list a sprint's work items
+        Run \`jira-axi sprint view <SPRINT_ID>\` to view a sprint"
     `);
   });
 
@@ -218,19 +217,19 @@ describe("board list-projects", () => {
 });
 
 describe("board routing and help", () => {
-  it("routes through the jira router", async () => {
+  it("lists boards", async () => {
     const { runner } = makeAcliFake([
       { match: (args) => args[2] === "search", result: boardSearchPayload },
     ]);
     setAcliRunner(runner);
 
-    const out = await jiraCommand(["board", "list"]);
+    const out = await boardCommand(["list"]);
     expect(out).toContain("boards[2]");
   });
 
   it("returns help for --help and throws on unknown subcommands", async () => {
     expect(await boardCommand(["--help"])).toContain("list-sprints <ID>");
-    expect(await boardCommand([])).toContain("usage: atlassian-axi jira board");
+    expect(await boardCommand([])).toContain("usage: jira-axi board");
     await expect(boardCommand(["destroy"])).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
       message: expect.stringContaining("Unknown board subcommand: destroy"),

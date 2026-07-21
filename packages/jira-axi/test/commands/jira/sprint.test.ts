@@ -53,8 +53,8 @@ describe("sprint view", () => {
         board: 1013
         completed: none
       help[2]:
-        Run \`atlassian-axi jira sprint list-workitems 5205 --board <BOARD_ID>\` to list its work items
-        Run \`atlassian-axi jira sprint update 5205 --state <future|active|closed>\` to change its state"
+        Run \`jira-axi sprint list-workitems 5205 --board <BOARD_ID>\` to list its work items
+        Run \`jira-axi sprint update 5205 --state <future|active|closed>\` to change its state"
     `);
   });
 

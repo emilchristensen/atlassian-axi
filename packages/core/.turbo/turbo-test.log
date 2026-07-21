@@ -1,0 +1,20 @@
+
+> @atlassian-axi/core@0.0.0 test /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/core
+> vitest run
+
+
+ RUN  v3.2.7 /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/core
+
+ ✓ test/body.test.ts (35 tests) 5ms
+ ✓ test/toon.test.ts (20 tests) 3ms
+ ✓ test/suggestions.test.ts (14 tests) 2ms
+ ✓ test/args.test.ts (31 tests) 2ms
+ ✓ test/commands/shared.test.ts (12 tests) 2ms
+ ✓ test/context.test.ts (4 tests) 1ms
+ ✓ test/format.test.ts (13 tests) 1ms
+
+ Test Files  7 passed (7)
+      Tests  129 passed (129)
+   Start at  13:08:53
+   Duration  7.45s (transform 77ms, setup 0ms, collect 116ms, tests 17ms, environment 0ms, prepare 164ms)
+

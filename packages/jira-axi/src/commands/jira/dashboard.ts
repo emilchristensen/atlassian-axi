@@ -1,7 +1,7 @@
 import { acliJson } from "../../acli.js";
-import type { SiteContext } from "../../context.js";
-import { unknownSubcommandError } from "../shared.js";
-import { formatCountLine } from "../../format.js";
+import type { SiteContext } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
@@ -9,7 +9,7 @@ import {
   renderList,
   renderOutput,
   type FieldDef,
-} from "../../toon.js";
+} from "@atlassian-axi/core";
 import {
   itemsOf,
   nameOf,
@@ -18,14 +18,14 @@ import {
   type JsonRecord,
 } from "./shared.js";
 
-export const DASHBOARD_HELP = `usage: atlassian-axi jira dashboard <subcommand> [flags]
+export const DASHBOARD_HELP = `usage: jira-axi dashboard <subcommand> [flags]
 subcommands[1]:
   list
 flags{list}:
   --name <substring>, --owner <email>, --limit <n> (default 30)
 examples:
-  atlassian-axi jira dashboard list
-  atlassian-axi jira dashboard list --name release --owner jane@acme.com`;
+  jira-axi dashboard list
+  jira-axi dashboard list --name release --owner jane@acme.com`;
 
 /**
  * Dashboard schema: acli dashboard search returns a bare array of {id, name,
@@ -56,7 +56,7 @@ export async function dashboardCommand(
         "dashboard subcommand",
         sub,
         ["list"],
-        "atlassian-axi jira dashboard --help",
+        "jira-axi dashboard --help",
       );
   }
 }

@@ -1,8 +1,8 @@
 import { acliJson } from "../../acli.js";
-import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
-import { unknownSubcommandError } from "../shared.js";
-import { formatCountLine } from "../../format.js";
+import type { SiteContext } from "@atlassian-axi/core";
+import { AxiError } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
@@ -12,7 +12,7 @@ import {
   renderList,
   renderOutput,
   type FieldDef,
-} from "../../toon.js";
+} from "@atlassian-axi/core";
 import {
   dateOnly,
   fieldsSchema,
@@ -26,7 +26,7 @@ import {
   type JsonRecord,
 } from "./shared.js";
 
-export const SPRINT_HELP = `usage: atlassian-axi jira sprint <subcommand> [flags]
+export const SPRINT_HELP = `usage: jira-axi sprint <subcommand> [flags]
 subcommands[4]:
   view <ID>, list-workitems <ID> --board <ID>, create, update <ID>
 flags{list-workitems}:
@@ -36,10 +36,10 @@ flags{create}:
 flags{update}:
   --name <text>, --goal <text>, --state <future|active|closed> (no-op success when already there), --start <ISO date>, --end <ISO date>
 examples:
-  atlassian-axi jira sprint view 5205
-  atlassian-axi jira sprint list-workitems 5205 --board 1013
-  atlassian-axi jira sprint create --board 1013 --name "Sprint 13" --goal "Ship checkout"
-  atlassian-axi jira sprint update 5205 --state closed`;
+  jira-axi sprint view 5205
+  jira-axi sprint list-workitems 5205 --board 1013
+  jira-axi sprint create --board 1013 --name "Sprint 13" --goal "Ship checkout"
+  jira-axi sprint update 5205 --state closed`;
 
 const SPRINT_STATES = ["future", "active", "closed"];
 
@@ -91,7 +91,7 @@ export async function sprintCommand(
         "sprint subcommand",
         sub,
         ["view", "list-workitems", "create", "update"],
-        "atlassian-axi jira sprint --help",
+        "jira-axi sprint --help",
       );
   }
 }
@@ -117,7 +117,7 @@ async function viewSprint(args: string[], ctx?: SiteContext): Promise<string> {
   if (parsed.help) return SPRINT_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `atlassian-axi jira sprint view <ID>` (find IDs via `jira board list-sprints <BOARD_ID>`)",
+    "Run `jira-axi sprint view <ID>` (find IDs via `jira board list-sprints <BOARD_ID>`)",
     "sprint ID",
   );
 
@@ -140,7 +140,7 @@ async function listWorkitems(
   if (parsed.help) return SPRINT_HELP;
   const sprintId = requireNumericId(
     parsed.positional,
-    "Run `atlassian-axi jira sprint list-workitems <ID> --board <BOARD_ID>`",
+    "Run `jira-axi sprint list-workitems <ID> --board <BOARD_ID>`",
     "sprint ID",
   );
   const boardId = requireNumericId(
@@ -223,12 +223,12 @@ async function createSprint(
   const name = parsed.values["--name"];
   if (!name) {
     throw new AxiError("Missing required flag: --name", "VALIDATION_ERROR", [
-      'Run `atlassian-axi jira sprint create --board <ID> --name "..."`',
+      'Run `jira-axi sprint create --board <ID> --name "..."`',
     ]);
   }
   const board = requireNumericId(
     parsed.values["--board"],
-    'Run `atlassian-axi jira sprint create --board <ID> --name "..."` (find IDs via `jira board list`)',
+    'Run `jira-axi sprint create --board <ID> --name "..."` (find IDs via `jira board list`)',
     "--board",
   );
 
@@ -296,7 +296,7 @@ async function updateSprint(
   if (parsed.help) return SPRINT_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `atlassian-axi jira sprint update <ID> --state closed` (find IDs via `jira board list-sprints <BOARD_ID>`)",
+    "Run `jira-axi sprint update <ID> --state closed` (find IDs via `jira board list-sprints <BOARD_ID>`)",
     "sprint ID",
   );
 

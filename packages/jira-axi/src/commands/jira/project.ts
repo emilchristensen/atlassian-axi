@@ -1,8 +1,8 @@
 import { acliJson } from "../../acli.js";
-import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
-import { unknownSubcommandError } from "../shared.js";
-import { formatCountLine } from "../../format.js";
+import type { SiteContext } from "@atlassian-axi/core";
+import { AxiError } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
@@ -11,7 +11,7 @@ import {
   renderList,
   renderOutput,
   type FieldDef,
-} from "../../toon.js";
+} from "@atlassian-axi/core";
 import {
   itemsOf,
   nameOf,
@@ -20,14 +20,14 @@ import {
   type JsonRecord,
 } from "./shared.js";
 
-export const PROJECT_HELP = `usage: atlassian-axi jira project <subcommand> [flags]
+export const PROJECT_HELP = `usage: jira-axi project <subcommand> [flags]
 subcommands[2]:
   list, view <KEY>
 flags{list}:
   --limit <n> (default 30)
 examples:
-  atlassian-axi jira project list
-  atlassian-axi jira project view TEAM`;
+  jira-axi project list
+  jira-axi project view TEAM`;
 
 /**
  * Project schema: key, name, type. acli project payloads mirror the Jira REST
@@ -69,7 +69,7 @@ export async function projectCommand(
         "project subcommand",
         sub,
         ["list", "view"],
-        "atlassian-axi jira project --help",
+        "jira-axi project --help",
       );
   }
 }
@@ -118,7 +118,7 @@ async function viewProject(
   const key = parsed.positional?.toUpperCase();
   if (!key) {
     throw new AxiError("Missing project key", "VALIDATION_ERROR", [
-      "Run `atlassian-axi jira project view <KEY>`",
+      "Run `jira-axi project view <KEY>`",
     ]);
   }
 

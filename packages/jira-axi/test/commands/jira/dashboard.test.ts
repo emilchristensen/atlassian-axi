@@ -39,7 +39,7 @@ describe("dashboard list", () => {
         "12805",Team Dashboard,Jane Doe
         "12745",Release Overview,John Smith
       help[1]:
-        Narrow with \`atlassian-axi jira dashboard list --name <substring> --owner <email>\`"
+        Narrow with \`jira-axi dashboard list --name <substring> --owner <email>\`"
     `);
   });
 
@@ -77,7 +77,7 @@ describe("dashboard list", () => {
   it("returns help for --help and throws on unknown subcommands", async () => {
     expect(await dashboardCommand(["--help"])).toContain("dashboard list");
     expect(await dashboardCommand([])).toContain(
-      "usage: atlassian-axi jira dashboard",
+      "usage: jira-axi dashboard",
     );
     await expect(dashboardCommand(["view"])).rejects.toMatchObject({
       code: "VALIDATION_ERROR",

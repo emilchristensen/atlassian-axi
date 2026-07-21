@@ -1,0 +1,4 @@
+
+> @atlassian-axi/core@0.0.0 typecheck /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/core
+> tsc --noEmit
+

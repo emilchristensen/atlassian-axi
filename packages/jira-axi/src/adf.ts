@@ -77,7 +77,7 @@ export function writeAdfTempFile(body: string): {
   cleanup: () => void;
 } {
   const doc = bodyToAdf(body);
-  const dir = mkdtempSync(join(tmpdir(), "atlassian-axi-adf-"));
+  const dir = mkdtempSync(join(tmpdir(), "jira-axi-adf-"));
   const path = join(dir, "body.json");
   writeFileSync(path, JSON.stringify(doc), "utf8");
   return {

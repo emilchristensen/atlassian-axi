@@ -1,10 +1,10 @@
-import { custom, extract, relativeTime, type FieldDef } from "../../toon.js";
-import { truncateBody } from "../../body.js";
-import { AxiError } from "../../errors.js";
+import { custom, extract, relativeTime, type FieldDef } from "@atlassian-axi/core";
+import { truncateBody } from "@atlassian-axi/core";
+import { AxiError } from "@atlassian-axi/core";
 
 // Domain-agnostic plumbing lives in commands/shared.ts (also used by the
 // Confluence half); re-exported so jira modules keep one import site.
-export { parseFlags, parseLimit, type ParsedFlags } from "../shared.js";
+export { parseFlags, parseLimit, type ParsedFlags } from "@atlassian-axi/core";
 
 /**
  * Shared tolerant accessors + FieldDef schemas for the acli-backed Jira half.

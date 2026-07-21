@@ -1,10 +1,10 @@
 import { acliJson } from "../../acli.js";
 import { writeAdfTempFile } from "../../adf.js";
-import { takeBody } from "../../body.js";
-import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
-import { unknownSubcommandError } from "../shared.js";
-import { formatCountLine } from "../../format.js";
+import { takeBody } from "@atlassian-axi/core";
+import type { SiteContext } from "@atlassian-axi/core";
+import { AxiError } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import {
   field,
@@ -12,7 +12,7 @@ import {
   renderHelp,
   renderList,
   renderOutput,
-} from "../../toon.js";
+} from "@atlassian-axi/core";
 import {
   commentSchema,
   fieldsSchema,
@@ -27,7 +27,7 @@ import {
   type JsonRecord,
 } from "./shared.js";
 
-export const WORKITEM_HELP = `usage: atlassian-axi jira workitem <subcommand> [flags]
+export const WORKITEM_HELP = `usage: jira-axi workitem <subcommand> [flags]
 subcommands[8]:
   list, view <KEY>, create, edit <KEY>, transition <KEY>, assign <KEY>, comment <KEY>, search "<JQL>"
 flags{list}:
@@ -47,11 +47,11 @@ flags{comment}:
 flags{search}:
   --limit <n> (default 30), --fields <a,b,c>
 examples:
-  atlassian-axi jira workitem list --project TEAM --status "In Progress"
-  atlassian-axi jira workitem view TEAM-1 --comments
-  atlassian-axi jira workitem create --project TEAM --type Task --summary "Fix login"
-  atlassian-axi jira workitem transition TEAM-1 --to Done
-  atlassian-axi jira workitem search "assignee = currentUser() AND resolution = EMPTY"`;
+  jira-axi workitem list --project TEAM --status "In Progress"
+  jira-axi workitem view TEAM-1 --comments
+  jira-axi workitem create --project TEAM --type Task --summary "Fix login"
+  jira-axi workitem transition TEAM-1 --to Done
+  jira-axi workitem search "assignee = currentUser() AND resolution = EMPTY"`;
 
 export async function workitemCommand(
   args: string[],
@@ -85,7 +85,7 @@ export async function workitemCommand(
         "workitem subcommand",
         sub,
         ["list", "view", "create", "edit", "transition", "assign", "comment", "search"],
-        "atlassian-axi jira workitem --help",
+        "jira-axi workitem --help",
       );
   }
 }
@@ -97,7 +97,7 @@ export async function workitemCommand(
 function requireKey(positional: string | undefined, sub: string): string {
   if (!positional) {
     throw new AxiError(`Missing work item key`, "VALIDATION_ERROR", [
-      `Run \`atlassian-axi jira workitem ${sub} <KEY> ...\``,
+      `Run \`jira-axi workitem ${sub} <KEY> ...\``,
     ]);
   }
   return positional.toUpperCase();
@@ -266,7 +266,7 @@ async function searchWorkitems(
   const jql = parsed.positional;
   if (!jql) {
     throw new AxiError("Missing JQL query", "VALIDATION_ERROR", [
-      'Run `atlassian-axi jira workitem search "<JQL>"`',
+      'Run `jira-axi workitem search "<JQL>"`',
     ]);
   }
   const limit = parseLimit(parsed.values["--limit"]);
@@ -396,7 +396,7 @@ async function createWorkitem(
       `Missing required flags: ${missing.join(", ")}`,
       "VALIDATION_ERROR",
       [
-        'Run `atlassian-axi jira workitem create --project <KEY> --type Task --summary "..."`',
+        'Run `jira-axi workitem create --project <KEY> --type Task --summary "..."`',
       ],
     );
   }
@@ -572,7 +572,7 @@ async function transitionWorkitem(
   const to = parsed.values["--to"];
   if (!to) {
     throw new AxiError("Missing --to <status>", "VALIDATION_ERROR", [
-      "Run `atlassian-axi jira workitem transition <KEY> --to <status>`",
+      "Run `jira-axi workitem transition <KEY> --to <status>`",
     ]);
   }
 
@@ -646,7 +646,7 @@ async function assignWorkitem(
   const assignee = parsed.values["--assignee"];
   if (!assignee) {
     throw new AxiError("Missing --assignee <email|@me>", "VALIDATION_ERROR", [
-      "Run `atlassian-axi jira workitem assign <KEY> --assignee <email|@me>`",
+      "Run `jira-axi workitem assign <KEY> --assignee <email|@me>`",
     ]);
   }
 
