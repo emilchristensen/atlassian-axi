@@ -62,7 +62,11 @@ packages/
 
 ## Release flow
 
-release-please on `main` (conventional commits) in **manifest/monorepo mode** (`release-please-config.json` has per-package entries for `packages/jira-axi` + `packages/confluence-axi`; components `jira-axi`/`confluence-axi`, `separate-pull-requests: true`). Merging a package's release PR publishes THAT package: the workflow loops `paths_released` and runs `npm publish --access public --provenance` (OIDC) in each dir; `NPM_TOKEN` is the fallback for a package's first publish before a trusted publisher exists. `CHANGELOG.md` + `.release-please-manifest.json` are bot-owned - do not hand-edit. Manifest seeded at `0.0.0` (first release will be `0.1.0`).
+release-please on `main` (conventional commits) in **manifest/monorepo mode** (`release-please-config.json` has per-package entries for `packages/jira-axi` + `packages/confluence-axi`; components `jira-axi`/`confluence-axi`, `separate-pull-requests: true`). Merging a package's release PR tags it + publishes THAT package: `.github/workflows/release-please.yml` loops `paths_released` and runs `npm publish --access public` per dir. `CHANGELOG.md` + `.release-please-manifest.json` are bot-owned - do not hand-edit.
+
+**Publishing = npm TRUSTED PUBLISHING (OIDC), no token.** The workflow has `id-token: write`, pins `npm@latest` (OIDC needs npm >= 11.5.1), and publishes with no `NODE_AUTH_TOKEN`; provenance is automatic. Each package needs a trusted publisher configured on npmjs.com (org `emilchristensen`, repo `atlassian-axi`, workflow `release-please.yml`). npm is deprecating token/2FA-bypass publishing (sensitive actions ~Aug 2026, direct publish ~Jan 2027), which is why there is no `NPM_TOKEN` fallback.
+
+**First publish of a NEW package name is a chicken-and-egg:** a trusted publisher can only be configured on an existing package's settings page, so a brand-new name's first publish must be bootstrapped once by hand (`cd packages/<pkg> && npm login && npm publish --access public`, entering the 2FA OTP; that one release has no provenance). Then configure the trusted publisher and every later release publishes tokenless + provenanced via CI. `.github/workflows/publish.yml` is a `workflow_dispatch` OIDC publish for re-running a single already-tagged package. jira-axi was bootstrapped at 0.2.0 (via `release-as` in the config, since removed); confluence-axi still needs the same one-time bootstrap before its first release. Manifest seeded at `0.0.0`.
 
 ## Maintaining this file
 
