@@ -1,0 +1,38 @@
+{
+  "name": "confluence-axi",
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.1.1",
+  "description": "Agent-ergonomic Confluence Cloud CLI over the REST API directly. Token-efficient TOON output, contextual suggestions, idempotent mutations, OAuth 3LO + API-token auth.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emilchristensen/atlassian-axi.git",
+    "directory": "packages/confluence-axi"
+  },
+  "keywords": ["atlassian", "confluence", "cli", "agent", "axi", "toon"],
+  "bin": {
+    "confluence-axi": "dist/bin/confluence-axi.js"
+  },
+  "files": ["dist", "skills/confluence-axi", "LICENSE", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "build:skill": "tsx scripts/build-skill.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "dev": "tsx src/bin/confluence-axi.ts"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "axi-sdk-js": "0.1.8"
+  },
+  "devDependencies": {
+    "@atlassian-axi/core": "workspace:*"
+  }
+}

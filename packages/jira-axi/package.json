@@ -1,0 +1,38 @@
+{
+  "name": "jira-axi",
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.1.1",
+  "description": "Agent-ergonomic Jira CLI, backed by Atlassian's acli. Token-efficient TOON output, contextual suggestions, idempotent mutations. Self-contained: auth is delegated to acli's own login, no extra credential setup.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emilchristensen/atlassian-axi.git",
+    "directory": "packages/jira-axi"
+  },
+  "keywords": ["atlassian", "jira", "acli", "cli", "agent", "axi", "toon"],
+  "bin": {
+    "jira-axi": "dist/bin/jira-axi.js"
+  },
+  "files": ["dist", "skills/jira-axi", "LICENSE", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "build:skill": "tsx scripts/build-skill.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "dev": "tsx src/bin/jira-axi.ts"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "axi-sdk-js": "0.1.8"
+  },
+  "devDependencies": {
+    "@atlassian-axi/core": "workspace:*"
+  }
+}

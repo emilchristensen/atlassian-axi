@@ -1,0 +1,43 @@
+
+> confluence-axi@0.0.0 test /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/confluence-axi
+> vitest run
+
+
+ RUN  v3.2.7 /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/confluence-axi
+
+ ✓ test/oauth.test.ts (27 tests) 37ms
+ ✓ test/commands/confluence/page.test.ts (44 tests) 27ms
+ ✓ test/confluence.test.ts (18 tests) 9ms
+ ✓ test/commands/home.test.ts (13 tests) 3ms
+ ✓ test/config.test.ts (21 tests) 9ms
+ ✓ test/config-oauth.test.ts (13 tests) 13ms
+ ✓ test/commands/setup.test.ts (5 tests) 2ms
+Opened the browser to:
+  https://auth.atlassian.com/authorize?...
+Waiting for the callback on http://localhost:8765/callback ...
+First OAuth login: the app's client secret is needed once (stored in the 0600 config).
+Opened the browser to:
+  https://auth.atlassian.com/authorize?...
+Waiting for the callback on http://localhost:8765/callback ...
+Opened the browser to:
+  https://auth.atlassian.com/authorize?...
+Waiting for the callback on http://localhost:8765/callback ...
+Opened the browser to:
+  https://auth.atlassian.com/authorize?...
+Waiting for the callback on http://localhost:8765/callback ...
+Opened the browser to:
+  https://auth.atlassian.com/authorize?...
+Waiting for the callback on http://localhost:8765/callback ...
+ ✓ test/commands/auth.test.ts (21 tests) 6ms
+ ✓ test/cli.test.ts (18 tests) 7ms
+ ✓ test/confluence-oauth.test.ts (5 tests) 9ms
+ ✓ test/commands/confluence/space.test.ts (5 tests) 9ms
+ ✓ test/errors.test.ts (4 tests) 2ms
+ ✓ test/commands/confluence/page-extras.test.ts (29 tests) 18ms
+ ✓ test/commands/confluence/search.test.ts (14 tests) 14ms
+
+ Test Files  14 passed (14)
+      Tests  237 passed (237)
+   Start at  13:15:37
+   Duration  5.79s (transform 136ms, setup 0ms, collect 357ms, tests 162ms, environment 1ms, prepare 316ms)
+

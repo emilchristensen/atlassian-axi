@@ -1,0 +1,5 @@
+
+> confluence-axi@0.0.0 build:skill /Users/emil.christensen/Projects/Personal/atlassian-axi/packages/confluence-axi
+> tsx scripts/build-skill.ts "--check"
+
+skills/confluence-axi/SKILL.md is up to date.
