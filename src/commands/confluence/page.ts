@@ -132,7 +132,7 @@ async function fetchPage(
 /**
  * Probe whether a page is still LIVE after an ambiguous DELETE 404.
  * A trashed page still answers GET with 200 + status "trashed" (verified
- * live on example-site 2026-07-19), so status decides — only a `current` page
+ * live 2026-07-19), so status decides — only a `current` page
  * counts as existing. Returns false on a clean NOT_FOUND; any other failure
  * rethrows so a network blip is never mistaken for a successful delete.
  */

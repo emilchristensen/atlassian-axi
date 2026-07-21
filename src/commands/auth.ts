@@ -42,8 +42,10 @@ Manage Atlassian auth. Two modes:
 login            OAuth browser login. Opens auth.atlassian.com, catches the
                  http://localhost:8765/callback redirect, stores tokens + cloudId
                  in the 0600 config. --site <site> pre-selects among multiple sites.
-                 Client secret: ATLASSIAN_AXI_OAUTH_CLIENT_SECRET env, or prompted
-                 once and stored in the 0600 config.
+                 Requires your own registered 3LO app (no shipped default):
+                 ATLASSIAN_AXI_OAUTH_CLIENT_ID (required) + client secret from
+                 ATLASSIAN_AXI_OAUTH_CLIENT_SECRET env or prompted once and stored.
+                 App setup: docs/getting-started.md#registering-your-own-oauth-app
 login --token    API-token login (agents/CI; no browser).
                  --site <site>   e.g. mysite.atlassian.net (falls back to ATLASSIAN_SITE / stored)
                  --email <email> account email (falls back to ATLASSIAN_EMAIL / stored)
