@@ -718,7 +718,7 @@ describe("page delete", () => {
 
 describe("page delete trash semantics (2026-07-19)", () => {
   it("treats an already-trashed page as Already deleted, not FORBIDDEN", async () => {
-    // v2 GET answers a trashed page with 200 + status "trashed" (live example-site).
+    // v2 GET answers a trashed page with 200 + status "trashed" (verified live).
     const trashed = { ...pagePayload, status: "trashed" };
     const { fetchImpl, calls } = makeConfluenceFake([
       { match: getPage, result: trashed },
