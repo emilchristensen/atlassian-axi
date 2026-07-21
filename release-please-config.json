@@ -7,8 +7,7 @@
     "packages/jira-axi": {
       "release-type": "node",
       "package-name": "jira-axi",
-      "component": "jira-axi",
-      "release-as": "0.2.0"
+      "component": "jira-axi"
     },
     "packages/confluence-axi": {
       "release-type": "node",

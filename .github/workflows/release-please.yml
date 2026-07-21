@@ -31,22 +31,28 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: pnpm
 
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; pin it so we do not
+      # depend on whatever npm the Node image happens to bundle.
+      - run: npm install -g npm@latest
+        if: ${{ steps.release.outputs.releases_created }}
+
       - run: pnpm install --frozen-lockfile
         if: ${{ steps.release.outputs.releases_created }}
 
       - run: pnpm run build
         if: ${{ steps.release.outputs.releases_created }}
 
-      # Publish every package release-please just tagged, from its own dir.
-      # tsup bundles @atlassian-axi/core in, so each published package is
-      # self-contained. OIDC provenance is used; NPM_TOKEN is the fallback for
-      # the FIRST publish of a package that has no trusted publisher yet.
+      # Publish every package release-please just tagged, from its own dir via
+      # npm TRUSTED PUBLISHING (OIDC): no NPM_TOKEN, short-lived signed creds,
+      # provenance generated automatically. Requires a trusted publisher for
+      # each package on npmjs.com (org emilchristensen, repo atlassian-axi,
+      # workflow release-please.yml). A package's FIRST publish must be
+      # bootstrapped once (local `npm publish` with OTP) before its trusted
+      # publisher can be configured - see AGENTS.md release flow.
       - name: Publish released packages
         if: ${{ steps.release.outputs.releases_created }}
         run: |
           for dir in $(echo '${{ steps.release.outputs.paths_released }}' | jq -r '.[]'); do
             echo "Publishing $dir"
-            (cd "$dir" && npm publish --access public --provenance)
+            (cd "$dir" && npm publish --access public)
           done
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
