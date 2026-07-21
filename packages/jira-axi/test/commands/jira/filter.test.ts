@@ -165,8 +165,8 @@ describe("filter view", () => {
         favourite: no
         description: none
       help[2]:
-        Run \`atlassian-axi jira workitem search "<the filter's JQL>"\` to run it
-        Run \`atlassian-axi jira filter update 33312 --jql "..."\` to change it"
+        Run \`jira-axi workitem search "<the filter's JQL>"\` to run it
+        Run \`jira-axi filter update 33312 --jql "..."\` to change it"
     `);
   });
 

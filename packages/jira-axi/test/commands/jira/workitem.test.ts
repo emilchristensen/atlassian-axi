@@ -1,10 +1,6 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setAcliRunner } from "../../../src/acli.js";
 import { workitemCommand } from "../../../src/commands/jira/workitem.js";
-import { jiraCommand } from "../../../src/commands/jira/index.js";
 import { makeAcliFake, type AcliCall } from "../../helpers/acliFake.js";
 import {
   FROZEN_NOW,
@@ -16,26 +12,14 @@ import {
   viewPayloadDone,
 } from "../../fixtures/acli.js";
 
-let savedXdg: string | undefined;
-
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(FROZEN_NOW));
-  // Isolate from the dev machine's real config: the jira router's site-mismatch
-  // guard reads the stored site, and the real config would trip it.
-  savedXdg = process.env["XDG_CONFIG_HOME"];
-  process.env["XDG_CONFIG_HOME"] = mkdtempSync(join(tmpdir(), "axi-wi-"));
 });
 
 afterEach(() => {
   setAcliRunner(null);
   vi.useRealTimers();
-  rmSync(process.env["XDG_CONFIG_HOME"] as string, {
-    recursive: true,
-    force: true,
-  });
-  if (savedXdg === undefined) delete process.env["XDG_CONFIG_HOME"];
-  else process.env["XDG_CONFIG_HOME"] = savedXdg;
 });
 
 function searchCall(calls: AcliCall[]): AcliCall | undefined {
@@ -62,8 +46,8 @@ describe("workitem list", () => {
         TEAM-1,Fix login redirect loop,wip,Jane Doe
         TEAM-2,Add audit log export,todo,unassigned
       help[2]:
-        Run \`atlassian-axi jira workitem view <KEY>\` to view details
-        Run \`atlassian-axi jira workitem transition <KEY> --to <status>\` to move one"
+        Run \`jira-axi workitem view <KEY>\` to view details
+        Run \`jira-axi workitem transition <KEY> --to <status>\` to move one"
     `);
   });
 
@@ -159,7 +143,7 @@ describe("workitem list", () => {
     const { runner, calls } = makeAcliFake([]);
     setAcliRunner(runner);
     const out = await workitemCommand(["list", "--help"]);
-    expect(out).toContain("usage: atlassian-axi jira workitem");
+    expect(out).toContain("usage: jira-axi workitem");
     expect(calls).toHaveLength(0);
   });
 
@@ -234,10 +218,10 @@ describe("workitem view", () => {
         updated: 1d ago
         body: "Login loops back to the SSO page.\\nRepro: log in with a fresh session."
       help[4]:
-        Run \`atlassian-axi jira workitem comment TEAM-1 --body "..."\` to comment
-        Run \`atlassian-axi jira workitem transition TEAM-1 --to <status>\` to change status
-        Run \`atlassian-axi jira workitem assign TEAM-1 --assignee <email|@me>\` to assign
-        Run \`atlassian-axi jira workitem edit TEAM-1 --summary "..."\` to edit"
+        Run \`jira-axi workitem comment TEAM-1 --body "..."\` to comment
+        Run \`jira-axi workitem transition TEAM-1 --to <status>\` to change status
+        Run \`jira-axi workitem assign TEAM-1 --assignee <email|@me>\` to assign
+        Run \`jira-axi workitem edit TEAM-1 --summary "..."\` to edit"
     `);
   });
 
@@ -779,7 +763,7 @@ describe("workitem comment", () => {
   it("returns help for `comment --help` instead of a missing-body error", async () => {
     setAcliRunner(makeAcliFake([]).runner);
     const out = await workitemCommand(["comment", "--help"]);
-    expect(out).toContain("usage: atlassian-axi jira workitem");
+    expect(out).toContain("usage: jira-axi workitem");
   });
 });
 
@@ -827,49 +811,15 @@ describe("workitem error mapping", () => {
 });
 
 // ---------------------------------------------------------------------------
-// jira router
+// workitem router
 // ---------------------------------------------------------------------------
 
-describe("jira router", () => {
-  it("strips --site before dispatch so its value is not read as a positional", async () => {
-    const { runner, calls } = makeAcliFake([
-      { match: isSearch, result: searchPayload },
-    ]);
-    setAcliRunner(runner);
-
-    await jiraCommand([
-      "workitem",
-      "search",
-      "--site",
-      "acme.atlassian.net",
-      "project = TEAM",
-    ]);
-
-    const call = searchCall(calls);
-    const jql = call?.args[call.args.indexOf("--jql") + 1];
-    expect(jql).toBe("project = TEAM");
-  });
-
-  it("appends --site to suggestions when the site came from the flag", async () => {
-    const { runner } = makeAcliFake([{ match: isSearch, result: searchPayload }]);
-    setAcliRunner(runner);
-
-    const out = await jiraCommand(["workitem", "list"], {
-      site: "acme.atlassian.net",
-      source: "flag",
-    });
-    expect(out).toContain("--site acme.atlassian.net");
-  });
-
-  it("returns help for bare `jira` and throws on unknown resources", async () => {
-    expect(await jiraCommand([])).toContain("usage: atlassian-axi jira");
-    expect(await jiraCommand(["--help", "workitem"])).toContain(
-      "usage: atlassian-axi jira",
+describe("workitem router", () => {
+  it("returns help for bare `workitem` and for --help", async () => {
+    expect(await workitemCommand([])).toContain("usage: jira-axi workitem");
+    expect(await workitemCommand(["--help"])).toContain(
+      "usage: jira-axi workitem",
     );
-    await expect(jiraCommand(["bogus"])).rejects.toMatchObject({
-      code: "VALIDATION_ERROR",
-      message: expect.stringContaining("Unknown jira resource: bogus"),
-    });
   });
 
   it("throws VALIDATION_ERROR on an unknown workitem subcommand", async () => {
@@ -877,46 +827,5 @@ describe("jira router", () => {
       code: "VALIDATION_ERROR",
       message: expect.stringContaining("Unknown workitem subcommand: vieww"),
     });
-  });
-});
-
-describe("jira --site guard (2026-07-19)", () => {
-  it("refuses a --site override that differs from the stored (acli-bound) site", async () => {
-    const { writeFileSync, mkdirSync } = await import("node:fs");
-    const dir = join(process.env["XDG_CONFIG_HOME"] as string, "atlassian-axi");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, "config.json"),
-      JSON.stringify({ site: "stored.atlassian.net", email: "me@acme.com" }),
-    );
-    setAcliRunner(makeAcliFake([]).runner);
-
-    await expect(
-      jiraCommand(["workitem", "list"], {
-        site: "other.atlassian.net",
-        source: "flag",
-      }),
-    ).rejects.toMatchObject({
-      code: "VALIDATION_ERROR",
-      message: expect.stringContaining("logged in to stored.atlassian.net"),
-    });
-  });
-
-  it("allows --site when it matches the stored site", async () => {
-    const { writeFileSync, mkdirSync } = await import("node:fs");
-    const dir = join(process.env["XDG_CONFIG_HOME"] as string, "atlassian-axi");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      join(dir, "config.json"),
-      JSON.stringify({ site: "acme.atlassian.net", email: "me@acme.com" }),
-    );
-    const { runner } = makeAcliFake([{ match: isSearch, result: searchPayload }]);
-    setAcliRunner(runner);
-
-    const out = await jiraCommand(["workitem", "list"], {
-      site: "acme.atlassian.net",
-      source: "flag",
-    });
-    expect(out).toContain("--site acme.atlassian.net");
   });
 });

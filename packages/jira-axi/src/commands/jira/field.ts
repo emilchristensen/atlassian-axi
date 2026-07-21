@@ -1,7 +1,7 @@
 import { acliExec, acliJson } from "../../acli.js";
-import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
-import { unknownSubcommandError } from "../shared.js";
+import type { SiteContext } from "@atlassian-axi/core";
+import { AxiError } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
@@ -10,10 +10,10 @@ import {
   renderHelp,
   renderOutput,
   type FieldDef,
-} from "../../toon.js";
+} from "@atlassian-axi/core";
 import { parseFlags, type JsonRecord } from "./shared.js";
 
-export const FIELD_HELP = `usage: atlassian-axi jira field <subcommand> [flags]
+export const FIELD_HELP = `usage: jira-axi field <subcommand> [flags]
 subcommands[4]:
   create, update <ID>, delete <ID>, restore <ID>
 notes[3]:
@@ -25,9 +25,9 @@ flags{create}:
 flags{update}:
   --name <text>, --description <text>, --searcher-key <key>
 examples:
-  atlassian-axi jira field create --name "Customer Name" --type "com.atlassian.jira.plugin.system.customfieldtypes:textfield"
-  atlassian-axi jira field update customfield_12345 --name "Client Name"
-  atlassian-axi jira field delete customfield_12345`;
+  jira-axi field create --name "Customer Name" --type "com.atlassian.jira.plugin.system.customfieldtypes:textfield"
+  jira-axi field update customfield_12345 --name "Client Name"
+  jira-axi field delete customfield_12345`;
 
 /**
  * Field detail schema: acli field create/update --json mirrors the Jira REST
@@ -71,7 +71,7 @@ export async function fieldCommand(
         "field subcommand",
         sub,
         ["create", "update", "delete", "restore"],
-        "atlassian-axi jira field --help",
+        "jira-axi field --help",
       );
   }
 }
@@ -106,7 +106,7 @@ async function createField(args: string[], ctx?: SiteContext): Promise<string> {
       `Missing required flags: ${missing.join(", ")}`,
       "VALIDATION_ERROR",
       [
-        'Run `atlassian-axi jira field create --name "..." --type "com.atlassian.jira.plugin.system.customfieldtypes:textfield"`',
+        'Run `jira-axi field create --name "..." --type "com.atlassian.jira.plugin.system.customfieldtypes:textfield"`',
       ],
     );
   }
@@ -155,7 +155,7 @@ async function updateField(args: string[], ctx?: SiteContext): Promise<string> {
   if (parsed.help) return FIELD_HELP;
   const id = requireFieldId(
     parsed.positional,
-    'Run `atlassian-axi jira field update customfield_<n> --name "..."`',
+    'Run `jira-axi field update customfield_<n> --name "..."`',
   );
 
   const name = parsed.values["--name"];
@@ -194,7 +194,7 @@ async function deleteField(args: string[], ctx?: SiteContext): Promise<string> {
   if (parsed.help) return FIELD_HELP;
   const id = requireFieldId(
     parsed.positional,
-    "Run `atlassian-axi jira field delete customfield_<n>`",
+    "Run `jira-axi field delete customfield_<n>`",
   );
 
   // acli field delete has no --json (verified against v1.3.22); success is
@@ -220,7 +220,7 @@ async function restoreField(
   if (parsed.help) return FIELD_HELP;
   const id = requireFieldId(
     parsed.positional,
-    "Run `atlassian-axi jira field restore customfield_<n>`",
+    "Run `jira-axi field restore customfield_<n>`",
   );
 
   // acli field restore has no --json (verified against v1.3.22).

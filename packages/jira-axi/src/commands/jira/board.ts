@@ -1,8 +1,8 @@
 import { acliJson } from "../../acli.js";
-import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
-import { unknownSubcommandError } from "../shared.js";
-import { formatCountLine } from "../../format.js";
+import type { SiteContext } from "@atlassian-axi/core";
+import { AxiError } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
@@ -11,7 +11,7 @@ import {
   renderList,
   renderOutput,
   type FieldDef,
-} from "../../toon.js";
+} from "@atlassian-axi/core";
 import {
   itemsOf,
   parseFlags,
@@ -22,7 +22,7 @@ import {
 } from "./shared.js";
 import { sprintListSchema } from "./sprint.js";
 
-export const BOARD_HELP = `usage: atlassian-axi jira board <subcommand> [flags]
+export const BOARD_HELP = `usage: jira-axi board <subcommand> [flags]
 subcommands[4]:
   list, view <ID>, list-sprints <ID>, list-projects <ID>
 flags{list}:
@@ -32,9 +32,9 @@ flags{list-sprints}:
 flags{list-projects}:
   --limit <n> (default 30)
 examples:
-  atlassian-axi jira board list --project TEAM
-  atlassian-axi jira board view 1013
-  atlassian-axi jira board list-sprints 1013 --state active`;
+  jira-axi board list --project TEAM
+  jira-axi board view 1013
+  jira-axi board list-sprints 1013 --state active`;
 
 const BOARD_TYPES = ["scrum", "kanban", "simple"];
 const SPRINT_STATES = ["future", "active", "closed"];
@@ -84,7 +84,7 @@ export async function boardCommand(
         "board subcommand",
         sub,
         ["list", "view", "list-sprints", "list-projects"],
-        "atlassian-axi jira board --help",
+        "jira-axi board --help",
       );
   }
 }
@@ -148,7 +148,7 @@ async function viewBoard(args: string[], ctx?: SiteContext): Promise<string> {
   if (parsed.help) return BOARD_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `atlassian-axi jira board view <ID>` (find IDs via `jira board list`)",
+    "Run `jira-axi board view <ID>` (find IDs via `jira board list`)",
     "board ID",
   );
 
@@ -190,7 +190,7 @@ async function listSprints(
   if (parsed.help) return BOARD_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `atlassian-axi jira board list-sprints <ID>` (find IDs via `jira board list`)",
+    "Run `jira-axi board list-sprints <ID>` (find IDs via `jira board list`)",
     "board ID",
   );
   const state = parsed.values["--state"];
@@ -253,7 +253,7 @@ async function listProjects(
   if (parsed.help) return BOARD_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `atlassian-axi jira board list-projects <ID>` (find IDs via `jira board list`)",
+    "Run `jira-axi board list-projects <ID>` (find IDs via `jira board list`)",
     "board ID",
   );
   const limit = parseLimit(parsed.values["--limit"]);

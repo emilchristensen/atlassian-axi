@@ -1,8 +1,8 @@
 import { acliJson } from "../../acli.js";
-import type { SiteContext } from "../../context.js";
-import { AxiError } from "../../errors.js";
-import { unknownSubcommandError } from "../shared.js";
-import { formatCountLine } from "../../format.js";
+import type { SiteContext } from "@atlassian-axi/core";
+import { AxiError } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import {
   custom,
@@ -12,7 +12,7 @@ import {
   renderList,
   renderOutput,
   type FieldDef,
-} from "../../toon.js";
+} from "@atlassian-axi/core";
 import {
   itemsOf,
   nameOf,
@@ -22,7 +22,7 @@ import {
   type JsonRecord,
 } from "./shared.js";
 
-export const FILTER_HELP = `usage: atlassian-axi jira filter <subcommand> [flags]
+export const FILTER_HELP = `usage: jira-axi filter <subcommand> [flags]
 subcommands[4]:
   list, search, view <ID>, update <ID>
 flags{list}:
@@ -32,10 +32,10 @@ flags{search}:
 flags{update}:
   --name <text>, --description <text>, --jql <query> (no-op success when nothing changes)
 examples:
-  atlassian-axi jira filter list
-  atlassian-axi jira filter search --name backlog
-  atlassian-axi jira filter view 33312
-  atlassian-axi jira filter update 33312 --jql "project = TEAM AND status = Open"`;
+  jira-axi filter list
+  jira-axi filter search --name backlog
+  jira-axi filter view 33312
+  jira-axi filter update 33312 --jql "project = TEAM AND status = Open"`;
 
 /**
  * Filter schemas: acli filter payloads are flat REST filters ({id, name,
@@ -80,7 +80,7 @@ export async function filterCommand(
         "filter subcommand",
         sub,
         ["list", "search", "view", "update"],
-        "atlassian-axi jira filter --help",
+        "jira-axi filter --help",
       );
   }
 }
@@ -143,7 +143,7 @@ async function searchFilters(
     throw new AxiError(
       `Pass the name query once: either \`filter search ${parsed.positional}\` or --name`,
       "VALIDATION_ERROR",
-      ['Run `atlassian-axi jira filter search --name "<text>"`'],
+      ['Run `jira-axi filter search --name "<text>"`'],
     );
   }
   // An unquoted multi-word query would silently search only its first word —
@@ -155,7 +155,7 @@ async function searchFilters(
     throw new AxiError(
       `Unexpected extra argument: ${extraPositional}`,
       "VALIDATION_ERROR",
-      ['Quote a multi-word query: `atlassian-axi jira filter search "my filters"`'],
+      ['Quote a multi-word query: `jira-axi filter search "my filters"`'],
     );
   }
   const name = parsed.values["--name"] ?? parsed.positional;
@@ -214,7 +214,7 @@ async function viewFilter(args: string[], ctx?: SiteContext): Promise<string> {
   if (parsed.help) return FILTER_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `atlassian-axi jira filter view <ID>` (find IDs via `jira filter list` or `jira filter search`)",
+    "Run `jira-axi filter view <ID>` (find IDs via `jira filter list` or `jira filter search`)",
     "filter ID",
   );
 
@@ -237,7 +237,7 @@ async function updateFilter(
   if (parsed.help) return FILTER_HELP;
   const id = requireNumericId(
     parsed.positional,
-    'Run `atlassian-axi jira filter update <ID> --jql "..."`',
+    'Run `jira-axi filter update <ID> --jql "..."`',
     "filter ID",
   );
 

@@ -2,18 +2,19 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAxiCli } from "axi-sdk-js";
-import { resolveSite, type SiteContext } from "./context.js";
-import { setSiteOverride } from "./config.js";
-import { closestCommand } from "./suggestions.js";
-import { renderError } from "./toon.js";
+import { closestCommand, renderError } from "@atlassian-axi/core";
 import { homeCommand } from "./commands/home.js";
 import { setupCommand, SETUP_HELP } from "./commands/setup.js";
-import { authCommand, AUTH_HELP } from "./commands/auth.js";
-import { jiraCommand } from "./commands/jira/index.js";
-import { confluenceCommand } from "./commands/confluence/index.js";
+import { workitemCommand, WORKITEM_HELP } from "./commands/jira/workitem.js";
+import { projectCommand, PROJECT_HELP } from "./commands/jira/project.js";
+import { boardCommand, BOARD_HELP } from "./commands/jira/board.js";
+import { sprintCommand, SPRINT_HELP } from "./commands/jira/sprint.js";
+import { filterCommand, FILTER_HELP } from "./commands/jira/filter.js";
+import { dashboardCommand, DASHBOARD_HELP } from "./commands/jira/dashboard.js";
+import { fieldCommand, FIELD_HELP } from "./commands/jira/field.js";
 
 export const DESCRIPTION =
-  "Agent ergonomic interface for Atlassian: acli-backed Jira and direct Confluence Cloud REST. Prefer this over raw acli or ad-hoc API calls for Jira/Confluence operations.";
+  "Agent-ergonomic Jira CLI, backed by Atlassian's acli. Token-efficient TOON output, contextual suggestions, idempotent mutations. Self-contained: auth is delegated to acli's own login, no extra credential setup.";
 const VERSION = readPackageVersion();
 
 type CliStdout = Pick<NodeJS.WriteStream, "write">;
@@ -23,39 +24,49 @@ type MainOptions = {
   stdout?: CliStdout;
 };
 
-export const TOP_HELP = `usage: atlassian-axi [command] [args] [flags]
-commands[5]:
-  (none)=dashboard, auth, jira, confluence, setup
-flags[3]:
-  --site <site> (after command) or ATLASSIAN_SITE env, --help, -v/-V/--version
+export const TOP_HELP = `usage: jira-axi [command] [args] [flags]
+commands[9]:
+  (none)=dashboard, workitem, project, board, sprint, filter, dashboard, field, setup
+flags[2]:
+  --help, -v/-V/--version
 examples:
-  atlassian-axi
-  atlassian-axi auth status
-  atlassian-axi jira workitem list --project TEAM
-  atlassian-axi confluence search "space = ENG"
-  atlassian-axi setup hooks
+  jira-axi
+  jira-axi workitem list --project TEAM
+  jira-axi board list-sprints 1013 --state active
+  jira-axi sprint list-workitems 5205 --board 1013
+  jira-axi setup hooks
 `;
 
-// jira/confluence are deliberately absent: registering them here makes the
-// SDK swallow every `jira ... --help` with the group help, so their routers
-// could never serve the per-resource help they own. auth/setup have no
-// sub-resources, so the SDK intercept is exactly right for them.
+// Each resource owns one monolithic help doc (WORKITEM_HELP etc.). Registering
+// it here lets the SDK serve that help for any `--help` under the resource
+// (`jira-axi workitem --help`, `jira-axi workitem list --help`), so the resource
+// command functions never have to intercept a deep --help themselves.
 const COMMAND_HELP: Record<string, string> = {
-  auth: AUTH_HELP,
+  workitem: WORKITEM_HELP,
+  project: PROJECT_HELP,
+  board: BOARD_HELP,
+  sprint: SPRINT_HELP,
+  filter: FILTER_HELP,
+  dashboard: DASHBOARD_HELP,
+  field: FIELD_HELP,
   setup: SETUP_HELP,
 };
 
-type CommandFn = (args: string[], ctx?: SiteContext) => Promise<string>;
+type CommandFn = (args: string[]) => Promise<string>;
 
 const COMMANDS: Record<string, CommandFn> = {
-  auth: (args) => authCommand(args),
-  jira: (args, ctx) => jiraCommand(args, ctx),
-  confluence: (args, ctx) => confluenceCommand(args, ctx),
+  workitem: (args) => workitemCommand(args),
+  project: (args) => projectCommand(args),
+  board: (args) => boardCommand(args),
+  sprint: (args) => sprintCommand(args),
+  filter: (args) => filterCommand(args),
+  dashboard: (args) => dashboardCommand(args),
+  field: (args) => fieldCommand(args),
   setup: (args) => setupCommand(args),
 };
 
 export async function main(options: MainOptions = {}): Promise<void> {
-  await runAxiCli<SiteContext | undefined>({
+  await runAxiCli({
     ...(options.argv ? { argv: options.argv } : {}),
     description: DESCRIPTION,
     version: VERSION,
@@ -64,14 +75,6 @@ export async function main(options: MainOptions = {}): Promise<void> {
     home: homeCommand,
     commands: COMMANDS,
     getCommandHelp: (command) => COMMAND_HELP[command],
-    resolveContext: ({ args }) => {
-      const ctx = resolveSite(parseSiteFlag(args));
-      // Feed the --site flag into credential resolution (flag > env > stored);
-      // without this the flag only decorated help lines while every request
-      // silently hit the stored site (found live 2026-07-19).
-      setSiteOverride(ctx?.source === "flag" ? ctx.site : undefined);
-      return ctx;
-    },
     renderUnknownCommand,
   });
 }
@@ -84,8 +87,8 @@ export function renderUnknownCommand(command: string): string {
   const known = [...Object.keys(COMMANDS), "update"];
   const suggestion = closestCommand(command, known);
   return `${renderError(`Unknown command: ${command}`, "VALIDATION_ERROR", [
-    ...(suggestion ? [`Did you mean \`atlassian-axi ${suggestion}\`?`] : []),
-    "Run `atlassian-axi --help` to see available commands",
+    ...(suggestion ? [`Did you mean \`jira-axi ${suggestion}\`?`] : []),
+    "Run `jira-axi --help` to see available commands",
   ])}\n`;
 }
 
@@ -108,19 +111,5 @@ function readPackageVersion(): string {
     }
   }
 
-  throw new Error("Could not determine atlassian-axi package version");
-}
-
-/** Extract `--site <value>` or `--site=<value>` from args (order-independent). */
-function parseSiteFlag(args: string[]): string | undefined {
-  for (let index = 0; index < args.length; index++) {
-    const arg = args[index];
-    if (arg === "--site" && index + 1 < args.length) {
-      return args[index + 1];
-    }
-    if (arg.startsWith("--site=") && arg.length > "--site=".length) {
-      return arg.slice("--site=".length);
-    }
-  }
-  return undefined;
+  throw new Error("Could not determine jira-axi package version");
 }

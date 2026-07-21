@@ -7,58 +7,50 @@ import { DESCRIPTION } from "./cli.js";
  */
 export function createSkillMarkdown(): string {
   return `---
-name: atlassian-axi
+name: jira-axi
 description: "${DESCRIPTION}"
 user-invocable: false
 metadata:
   hermes:
-    tags: [atlassian, jira, confluence, acli]
+    tags: [atlassian, jira, acli]
     category: productivity
 ---
 
-# atlassian-axi
+# jira-axi
 
 ${DESCRIPTION}
 
-You do not need atlassian-axi installed globally — invoke it with \`npx -y atlassian-axi <command>\`.
+You do not need jira-axi installed globally — invoke it with \`npx -y jira-axi <command>\`.
 
 ## Status
 
-The dashboard, \`auth\`, the acli-backed \`jira\` family, the direct-REST \`confluence\` family, \`setup hooks\`, and the inherited \`update\` command work today.
-Auth has two modes: \`auth login\` runs an OAuth browser flow (humans, interactive terminals; tokens auto-refresh), and \`auth login --token\` takes site + email + API token via stdin (agents/CI — use this one; the OAuth flow fails fast without a TTY).
-Resolution order: \`ATLASSIAN_API_TOKEN\` env > OAuth session > stored API token.
-The Jira half shells out to \`acli\` — install it first (\`brew install acli\`); \`auth login --token\` bootstraps it (the OAuth flow cannot — acli needs an API token).
-The Confluence half calls the Cloud REST API directly (via \`api.atlassian.com\` in OAuth mode) — no extra setup.
+The dashboard, the acli-backed Jira commands (\`workitem\`, \`project\`, \`board\`, \`sprint\`, \`filter\`, \`dashboard\`, \`field\`), \`setup hooks\`, and the inherited \`update\` command work today.
+jira-axi shells out to Atlassian's \`acli\` — install it first (\`brew install acli\`) and log in with \`acli jira auth login\`.
+There is no separate credential setup: auth is delegated entirely to acli's own login.
 
 ## Commands
 
 \`\`\`
-commands[5]:
-  (none)=dashboard, auth, jira, confluence, setup
-jira workitem:
+commands[9]:
+  (none)=dashboard, workitem, project, board, sprint, filter, dashboard, field, setup
+workitem:
   list, view <KEY> [--fields <a,b,c>], create, edit <KEY>, transition <KEY> --to <status>, assign <KEY> --assignee <user>, comment <KEY> --body <text>, search "<JQL>"
-jira project:
+project:
   list, view <KEY>
-jira board:
+board:
   list, view <ID>, list-sprints <ID>, list-projects <ID>
-jira sprint:
+sprint:
   view <ID>, list-workitems <ID> --board <ID>, create --board <ID> --name <text>, update <ID>
-jira filter:
+filter:
   list, search, view <ID>, update <ID>
-jira dashboard:
+dashboard:
   list
-jira field:
+field:
   create --name <text> --type <key>, update <ID>, delete <ID>, restore <ID>
-confluence page:
-  get <id>, create --space <KEY> --title <text> --body-file <path>, update <id>, delete <id>, attachments <id>, labels <id> [--add|--remove <name,name,...>], children <id>
-confluence space:
-  list
-confluence:
-  search "<CQL>"
 \`\`\`
 
-Run \`npx -y atlassian-axi --help\` for global flags, or \`npx -y atlassian-axi <command> --help\` for per-command usage.
-Run \`npx -y atlassian-axi setup hooks\` to install SessionStart ambient context.
+Run \`npx -y jira-axi --help\` for global flags, or \`npx -y jira-axi <command> --help\` for per-command usage.
+Run \`npx -y jira-axi setup hooks\` to install SessionStart ambient context.
 
 ## Tips
 
@@ -67,12 +59,8 @@ Run \`npx -y atlassian-axi setup hooks\` to install SessionStart ambient context
 - \`view <KEY> --full\` shows complete bodies; \`--comments\` includes comments; \`--fields <a,b,c>\` renders only those fields (works on list/search/view).
 - \`workitem list\` builds JQL from --project/--assignee/--status; pass --jql or use \`search\` for raw JQL.
 - \`workitem create/edit --body\` and \`comment --body\` accept markdown (headings, lists, inline/block code, bold/italic, links) and store it as real Jira ADF; raw ADF JSON is passed through unchanged.
-- Boards/sprints/filters are ID-addressed: find board IDs via \`jira board list\`, sprint IDs via \`jira board list-sprints <BOARD_ID>\`.
+- Boards/sprints/filters are ID-addressed: find board IDs via \`board list\`, sprint IDs via \`board list-sprints <BOARD_ID>\`.
 - \`sprint list-workitems\` needs both the sprint ID and --board (a Jira agile API requirement).
-- \`sprint update <ID> --state closed\` closes a sprint (no-op success when already closed); acli has no field list/view, so \`jira field\` covers custom-field create/update/delete/restore only.
-- \`confluence page update\` is a FULL-body replace (version bump is automatic; re-running after a conflict is safe). It refuses by default when the new body drops a macro/embed the current page has (e.g. an embedded whiteboard/diagram) — to keep it, \`page get <id> --full\` first and carry the \`<ac:structured-macro …>\` block into your new body; pass --allow-macro-loss only to drop it intentionally.
-- \`confluence search\` uses v1 CQL (the v2 API has no search); page bodies are storage-format XHTML (\`--format adf\` for Atlas Doc Format).
-- \`confluence page labels <id> --add/--remove\` is idempotent and manages global-prefix labels only: already-present/absent names are reported, and the full post-mutation label set is rendered.
-- \`confluence page attachments <id>\` is read-only (filter with --filename/--media-type); upload attachments in the Confluence UI.
+- \`sprint update <ID> --state closed\` closes a sprint (no-op success when already closed); acli has no field list/view, so \`field\` covers custom-field create/update/delete/restore only.
 `;
 }
