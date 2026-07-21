@@ -1,3 +1,4 @@
 {
-  ".": "0.1.2"
+  "packages/jira-axi": "0.0.0",
+  "packages/confluence-axi": "0.0.0"
 }
