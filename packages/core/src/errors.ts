@@ -1,9 +1,9 @@
 import { AxiError, exitCodeForError } from "axi-sdk-js";
 
 /**
- * Error codes surfaced by atlassian-axi. Kept in one place so the acli-backed
- * Jira half and the direct-REST Confluence half map their failures to the same
- * vocabulary. Extended as later phases add real error mapping.
+ * Error codes surfaced by the AXI Atlassian CLIs. Kept as one shared vocabulary
+ * so the acli-backed Jira half and the direct-REST Confluence half map their
+ * failures to the same codes. (ACLI_NOT_INSTALLED is only raised by jira-axi.)
  */
 export type ErrorCode =
   | "NOT_FOUND"
@@ -17,106 +17,27 @@ export type ErrorCode =
 // Re-export the SDK error currency so command modules import a single symbol.
 export { AxiError, exitCodeForError };
 
-interface ErrorPattern {
+export interface ErrorPattern {
   pattern: RegExp;
   code: ErrorCode;
   message: (match: RegExpMatchArray, raw: string) => string;
   suggestions?: (match: RegExpMatchArray) => string[];
 }
 
-/**
- * Ordered stderr/response patterns → AxiError. Populated from real acli
- * stderr where observed (acli prefixes errors with "✗ Error: "); the
- * Confluence half (HTTP status bodies) extends this in Phase 3. Order
- * matters: first match wins.
- */
-const patterns: ErrorPattern[] = [
-  {
-    pattern: /unauthorized/i,
-    code: "AUTH_REQUIRED",
-    message: (_m, raw) => cleanAcliError(raw),
-    suggestions: () => [
-      "Run `atlassian-axi auth login --site <site> --email <email>` (token via stdin)",
-      "Run `atlassian-axi auth status` to check both halves",
-    ],
-  },
-  {
-    pattern: /rate limit/i,
-    code: "RATE_LIMITED",
-    message: (_m, raw) => cleanAcliError(raw),
-    suggestions: () => ["Wait a moment and re-run the command"],
-  },
-  {
-    pattern: /forbidden|permission denied|not permitted|does not have permission/i,
-    code: "FORBIDDEN",
-    message: (_m, raw) => cleanAcliError(raw),
-    suggestions: () => [
-      "Run `atlassian-axi auth status` to verify the credential and site",
-    ],
-  },
-  {
-    // JQL parse failures ("failed to parse JQL query: field 'x' does not
-    // exist...") must outrank NOT_FOUND: the "does not exist" fragment refers
-    // to a JQL field, not a resource, and the fix is rewriting the query.
-    pattern: /failed to parse jql|error in the jql/i,
-    code: "VALIDATION_ERROR",
-    message: (_m, raw) => cleanAcliError(raw),
-    suggestions: () => [
-      "Fix the JQL (check field names and quoting) and re-run",
-      'Example: `atlassian-axi jira workitem search "project = TEAM AND status = Done"`',
-    ],
-  },
-  {
-    // Asking a kanban/simple board for sprints — acli prints the real reason
-    // on stdout and a generic failure on stderr (verified live, acli v1.3.22).
-    pattern: /does not support sprints/i,
-    code: "VALIDATION_ERROR",
-    message: (_m, raw) => cleanAcliError(raw),
-    suggestions: () => [
-      "Kanban/simple boards have no sprints — use `atlassian-axi jira board view <ID>` or `board list-projects <ID>`",
-    ],
-  },
-  {
-    // acli's agile/filter not-found phrasings, e.g. "We could not find the
-    // sprint", "No project could be found with key 'X'." and "The selected
-    // filter is not available to you, perhaps it has been deleted or had its
-    // permissions changed."
-    pattern: /not found|does not exist|no work item|no such|could not find|could be found|not available to you/i,
-    code: "NOT_FOUND",
-    message: (_m, raw) => cleanAcliError(raw),
-    suggestions: () => [
-      "Find the right key/ID with the matching list or search command (e.g. `jira workitem search \"<JQL>\"`, `jira board list`)",
-    ],
-  },
-  {
-    pattern: /unbounded jql/i,
-    code: "VALIDATION_ERROR",
-    message: (_m, raw) => cleanAcliError(raw),
-    suggestions: () => [
-      "Add a restriction (project, assignee, status, or an updated >= -30d window) to the JQL",
-    ],
-  },
-  {
-    pattern:
-      /invalid|bad request|cannot be parsed|error in the jql|malformed|not allowed/i,
-    code: "VALIDATION_ERROR",
-    message: (_m, raw) => cleanAcliError(raw),
-  },
-];
-
-function firstLine(raw: string): string {
+export function firstLine(raw: string): string {
   return raw.trim().split("\n")[0] ?? "";
 }
 
-/** Strip acli's "✗ Error: "/"✗ " decoration so messages stay clean and token-lean. */
-function cleanAcliError(raw: string): string {
-  return firstLine(raw)
-    .replace(/^[✗x]?\s*Error:\s*/i, "")
-    .replace(/^✗\s*/, "");
-}
-
-/** Map a raw error string (acli stderr or REST body) to a typed AxiError. */
-export function mapError(raw: string, exitCode = 1): AxiError {
+/**
+ * Generic ordered-pattern matcher: first pattern whose regex matches `raw`
+ * wins and becomes a typed AxiError; otherwise `fallback(raw)` (or the first
+ * line) becomes an UNKNOWN error. Each CLI supplies its own pattern list.
+ */
+export function matchError(
+  raw: string,
+  patterns: readonly ErrorPattern[],
+  fallback?: (raw: string) => string,
+): AxiError {
   for (const { pattern, code, message, suggestions } of patterns) {
     const match = raw.match(pattern);
     if (match) {
@@ -124,121 +45,7 @@ export function mapError(raw: string, exitCode = 1): AxiError {
     }
   }
   return new AxiError(
-    cleanAcliError(raw) || `command failed with exit code ${exitCode}`,
+    fallback?.(raw) || firstLine(raw) || "command failed",
     "UNKNOWN",
-  );
-}
-
-/**
- * Map a Confluence REST failure (HTTP status + response body) to a typed
- * AxiError. The message probe tolerates both error shapes Atlassian ships:
- * v2 `{errors: [{title, detail}]}` and v1 `{message}`.
- */
-export function confluenceHttpError(
-  status: number,
-  bodyText: string,
-  retryAfter?: string | null,
-): AxiError {
-  const detail = confluenceErrorDetail(bodyText);
-  switch (status) {
-    case 400:
-      return new AxiError(
-        detail || "Confluence rejected the request (400)",
-        "VALIDATION_ERROR",
-        /cql/i.test(detail)
-          ? [
-              'Check the CQL syntax — e.g. `atlassian-axi confluence search "space = ENG AND type = page"`',
-            ]
-          : [],
-      );
-    case 401:
-      return new AxiError(
-        detail || "Confluence authentication failed (401)",
-        "AUTH_REQUIRED",
-        [
-          "Run `atlassian-axi auth login --site <site> --email <email>` (token via stdin)",
-          "Run `atlassian-axi auth status` to check both halves",
-        ],
-      );
-    case 403:
-      return new AxiError(
-        detail || "Confluence denied access (403)",
-        "FORBIDDEN",
-        ["Run `atlassian-axi auth status` to verify the credential and site"],
-      );
-    case 404:
-      // Confluence v2 also answers rejected credentials with 404 (anonymous
-      // anti-enumeration), so a 404 is ambiguous between "wrong id" and
-      // "bad token" — verified live 2026-07-15.
-      return new AxiError(detail || "Not found (404)", "NOT_FOUND", [
-        'Run `atlassian-axi confluence search "<CQL>"` to find the right page id',
-        "A 404 can also mean the credential was rejected — run `atlassian-axi auth status` to check it",
-      ]);
-    case 409:
-      return new AxiError(
-        detail || "Version conflict (409): the page changed since it was read",
-        "VALIDATION_ERROR",
-        [
-          "Re-run the command — it re-reads the current version before writing",
-        ],
-      );
-    case 429:
-      // Retry-After may be delta-seconds or an HTTP-date (RFC 9110); only the
-      // numeric form reads sensibly as "Wait Ns".
-      return new AxiError(
-        detail || "Confluence rate limit hit (429)",
-        "RATE_LIMITED",
-        [
-          retryAfter && /^\d+$/.test(retryAfter.trim())
-            ? `Wait ${retryAfter.trim()}s (Retry-After) and re-run the command`
-            : "Wait a moment and re-run the command",
-        ],
-      );
-    default:
-      return new AxiError(
-        detail || `Confluence request failed with HTTP ${status}`,
-        "UNKNOWN",
-      );
-  }
-}
-
-/** Best-effort human message out of a Confluence error response body. */
-function confluenceErrorDetail(bodyText: string): string {
-  if (!bodyText) return "";
-  try {
-    const parsed = JSON.parse(bodyText) as Record<string, unknown>;
-    if (typeof parsed.message === "string" && parsed.message) {
-      return stripJavaExceptionPrefix(firstLine(parsed.message));
-    }
-    const errors = parsed.errors;
-    if (Array.isArray(errors) && errors.length > 0) {
-      const first = errors[0] as Record<string, unknown>;
-      const title = first?.title ?? first?.detail;
-      if (typeof title === "string" && title) {
-        return firstLine(title);
-      }
-    }
-  } catch {
-    // Non-JSON body (HTML error page etc.) — fall through to the first line.
-    return firstLine(bodyText).slice(0, 200);
-  }
-  return "";
-}
-
-/**
- * Confluence v1 prefixes some error messages with the throwing Java class
- * ("com.atlassian...BadRequestException: Could not parse cql : ..." —
- * verified live 2026-07-19); the class name is noise for a CLI user.
- */
-function stripJavaExceptionPrefix(message: string): string {
-  return message.replace(/^(?:[a-z][\w$]*\.)+[A-Z][\w$]*(?:Exception|Error):\s*/, "");
-}
-
-/** acli binary missing on PATH — surfaced when the Jira half shells out. */
-export function acliNotInstalledError(): AxiError {
-  return new AxiError(
-    "acli is not installed — see https://developer.atlassian.com/cloud/acli/",
-    "ACLI_NOT_INSTALLED",
-    ["Install with `brew install acli`, then `acli --version` to verify"],
   );
 }

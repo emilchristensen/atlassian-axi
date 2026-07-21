@@ -1,6 +1,6 @@
-import { takeBoolFlag, takeFlag } from "../args.js";
-import { AxiError } from "../errors.js";
-import { closestCommand } from "../suggestions.js";
+import { takeBoolFlag, takeFlag } from "./args.js";
+import { AxiError } from "./errors.js";
+import { closestCommand } from "./suggestions.js";
 
 /**
  * Domain-agnostic subcommand plumbing shared by the Jira and Confluence

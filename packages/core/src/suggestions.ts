@@ -4,6 +4,10 @@ import type { SiteContext } from "./context.js";
  * Contextual next-step suggestions, keyed by {domain, action, state, isEmpty}.
  * Every command response ends with these so an agent always knows the exact
  * follow-up commands to run (the core AXI ergonomic, mirrored from gh-axi).
+ *
+ * This module is the domain-agnostic ENGINE. Each CLI package owns its own
+ * suggestion `table` (jira-axi / confluence-axi) and passes it, plus its bin
+ * name, to `matchSuggestions`.
  */
 export interface SuggestionContext {
   domain: string;
@@ -15,7 +19,7 @@ export interface SuggestionContext {
   site?: SiteContext;
 }
 
-type SuggestionEntry = {
+export type SuggestionEntry = {
   match: (ctx: SuggestionContext) => boolean;
   lines: (ctx: SuggestionContext) => string[];
 };
@@ -31,431 +35,37 @@ function siteFlag(ctx: SuggestionContext): string {
   return "";
 }
 
-function appendSiteFlag(line: string, ctx: SuggestionContext): string {
-  const flag = siteFlag(ctx);
-  if (!flag) return line;
-  return line.replace(/`([^`]*\batlassian-axi\b[^`]*)`/g, `\`$1${flag}\``);
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const table: SuggestionEntry[] = [
-  // Home
-  {
-    match: (c) => c.domain === "home",
-    lines: () => [
-      "Run `atlassian-axi <command> <subcommand>` — commands: auth, jira, confluence, setup",
-    ],
-  },
+function appendSiteFlag(
+  line: string,
+  ctx: SuggestionContext,
+  binName: string,
+): string {
+  const flag = siteFlag(ctx);
+  if (!flag) return line;
+  const bin = escapeRegExp(binName);
+  return line.replace(
+    new RegExp(`\`([^\`]*\\b${bin}\\b[^\`]*)\``, "g"),
+    `\`$1${flag}\``,
+  );
+}
 
-  // Workitem list / search
-  {
-    match: (c) =>
-      c.domain === "workitem" &&
-      (c.action === "list" || c.action === "search") &&
-      !c.isEmpty,
-    lines: () => [
-      "Run `atlassian-axi jira workitem view <KEY>` to view details",
-      "Run `atlassian-axi jira workitem transition <KEY> --to <status>` to move one",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "workitem" &&
-      (c.action === "list" || c.action === "search") &&
-      c.isEmpty === true,
-    lines: () => [
-      'Run `atlassian-axi jira workitem create --project <KEY> --type Task --summary "..."` to create one',
-      'Run `atlassian-axi jira workitem search "<JQL>"` to search with a different query',
-    ],
-  },
-
-  // Workitem view
-  {
-    match: (c) => c.domain === "workitem" && c.action === "view",
-    lines: (c) => [
-      `Run \`atlassian-axi jira workitem comment ${c.id} --body "..."\` to comment`,
-      `Run \`atlassian-axi jira workitem transition ${c.id} --to <status>\` to change status`,
-      `Run \`atlassian-axi jira workitem assign ${c.id} --assignee <email|@me>\` to assign`,
-      `Run \`atlassian-axi jira workitem edit ${c.id} --summary "..."\` to edit`,
-    ],
-  },
-
-  // Workitem create
-  {
-    match: (c) => c.domain === "workitem" && c.action === "create",
-    lines: (c) => [
-      `Run \`atlassian-axi jira workitem view ${c.id}\` to see the full work item`,
-      `Run \`atlassian-axi jira workitem transition ${c.id} --to <status>\` to move it`,
-      `Run \`atlassian-axi jira workitem assign ${c.id} --assignee <email|@me>\` to assign`,
-    ],
-  },
-
-  // Workitem edit / assign
-  {
-    match: (c) =>
-      c.domain === "workitem" && (c.action === "edit" || c.action === "assign"),
-    lines: (c) => [
-      `Run \`atlassian-axi jira workitem view ${c.id}\` to see the updated work item`,
-    ],
-  },
-
-  // Workitem transition
-  {
-    match: (c) => c.domain === "workitem" && c.action === "transition",
-    lines: (c) => [
-      `Run \`atlassian-axi jira workitem view ${c.id}\` to see the updated work item`,
-      `Run \`atlassian-axi jira workitem comment ${c.id} --body "..."\` to add context`,
-    ],
-  },
-
-  // Workitem comment
-  {
-    match: (c) => c.domain === "workitem" && c.action === "comment",
-    lines: (c) => [
-      `Run \`atlassian-axi jira workitem view ${c.id} --comments\` to see all comments`,
-    ],
-  },
-
-  // Project list
-  {
-    match: (c) => c.domain === "project" && c.action === "list" && !c.isEmpty,
-    lines: () => [
-      "Run `atlassian-axi jira project view <KEY>` to view a project",
-      "Run `atlassian-axi jira workitem list --project <KEY>` to list its work items",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "project" && c.action === "list" && c.isEmpty === true,
-    lines: () => [
-      "Run `atlassian-axi auth status` to verify the credential has project access",
-    ],
-  },
-
-  // Project view
-  {
-    match: (c) => c.domain === "project" && c.action === "view",
-    lines: (c) => [
-      `Run \`atlassian-axi jira workitem list --project ${c.id}\` to list its work items`,
-      `Run \`atlassian-axi jira workitem create --project ${c.id} --type Task --summary "..."\` to create one`,
-    ],
-  },
-
-  // Board list
-  {
-    match: (c) => c.domain === "board" && c.action === "list" && !c.isEmpty,
-    lines: () => [
-      "Run `atlassian-axi jira board list-sprints <ID>` to list a board's sprints",
-      "Run `atlassian-axi jira board view <ID>` to view a board",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "board" && c.action === "list" && c.isEmpty === true,
-    lines: () => [
-      "Try `atlassian-axi jira board list --project <KEY>` or drop filters to broaden",
-      "Run `atlassian-axi auth status` to verify the credential has board access",
-    ],
-  },
-
-  // Board view — the sprint hint is gated on board type (state carries it):
-  // only scrum boards support sprints, so hinting list-sprints on a kanban/
-  // simple board would point at a command that fails.
-  {
-    match: (c) => c.domain === "board" && c.action === "view",
-    lines: (c) => [
-      ...(c.state === undefined || c.state === "scrum"
-        ? [
-            `Run \`atlassian-axi jira board list-sprints ${c.id}\` to list its sprints`,
-          ]
-        : []),
-      `Run \`atlassian-axi jira board list-projects ${c.id}\` to list its projects`,
-    ],
-  },
-
-  // Board list-sprints
-  {
-    match: (c) =>
-      c.domain === "board" && c.action === "list-sprints" && !c.isEmpty,
-    lines: (c) => [
-      `Run \`atlassian-axi jira sprint list-workitems <SPRINT_ID> --board ${c.id}\` to list a sprint's work items`,
-      "Run `atlassian-axi jira sprint view <SPRINT_ID>` to view a sprint",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "board" &&
-      c.action === "list-sprints" &&
-      c.isEmpty === true,
-    lines: (c) => [
-      `Try \`atlassian-axi jira board list-sprints ${c.id} --state future,active,closed\` to include all states`,
-    ],
-  },
-
-  // Board list-projects
-  {
-    match: (c) => c.domain === "board" && c.action === "list-projects",
-    lines: () => [
-      "Run `atlassian-axi jira project view <KEY>` to view a project",
-      "Run `atlassian-axi jira workitem list --project <KEY>` to list its work items",
-    ],
-  },
-
-  // Sprint view
-  {
-    match: (c) => c.domain === "sprint" && c.action === "view",
-    lines: (c) => [
-      `Run \`atlassian-axi jira sprint list-workitems ${c.id} --board <BOARD_ID>\` to list its work items`,
-      `Run \`atlassian-axi jira sprint update ${c.id} --state <future|active|closed>\` to change its state`,
-    ],
-  },
-
-  // Sprint list-workitems
-  {
-    match: (c) =>
-      c.domain === "sprint" && c.action === "list-workitems" && !c.isEmpty,
-    lines: () => [
-      "Run `atlassian-axi jira workitem view <KEY>` to view details",
-      "Run `atlassian-axi jira workitem transition <KEY> --to <status>` to move one",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "sprint" &&
-      c.action === "list-workitems" &&
-      c.isEmpty === true,
-    lines: (c) => [
-      `Run \`atlassian-axi jira sprint view ${c.id}\` to confirm the sprint (its board may differ from --board)`,
-      "Run `atlassian-axi jira board list-sprints <BOARD_ID>` to find the right sprint",
-    ],
-  },
-
-  // Sprint create / update (id can be missing when acli's create shape drifts)
-  {
-    match: (c) =>
-      c.domain === "sprint" && (c.action === "create" || c.action === "update"),
-    lines: (c) =>
-      c.id === undefined
-        ? [
-            "Run `atlassian-axi jira board list-sprints <BOARD_ID>` to find the sprint's ID",
-          ]
-        : [
-            `Run \`atlassian-axi jira sprint view ${c.id}\` to see the sprint`,
-            `Run \`atlassian-axi jira sprint list-workitems ${c.id} --board <BOARD_ID>\` to list its work items`,
-          ],
-  },
-
-  // Filter list / search
-  {
-    match: (c) =>
-      c.domain === "filter" &&
-      (c.action === "list" || c.action === "search") &&
-      !c.isEmpty,
-    lines: () => [
-      "Run `atlassian-axi jira filter view <ID>` to see a filter's JQL",
-    ],
-  },
-  {
-    // state carries which variant ran ("my" | "favourite") so the empty-state
-    // hint never suggests the exact flag combination that just came up empty.
-    match: (c) =>
-      c.domain === "filter" && c.action === "list" && c.isEmpty === true,
-    lines: (c) => [
-      c.state === "favourite"
-        ? "Run `atlassian-axi jira filter list` to list filters you own instead"
-        : "Run `atlassian-axi jira filter list --favourite` to list favourites instead",
-      "Run `atlassian-axi jira filter search --name <substring>` to search all filters",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "filter" && c.action === "search" && c.isEmpty === true,
-    lines: () => [
-      "Broaden the search: drop --name/--owner or try a shorter substring",
-    ],
-  },
-
-  // Filter view / update
-  {
-    match: (c) => c.domain === "filter" && c.action === "view",
-    lines: (c) => [
-      'Run `atlassian-axi jira workitem search "<the filter\'s JQL>"` to run it',
-      `Run \`atlassian-axi jira filter update ${c.id} --jql "..."\` to change it`,
-    ],
-  },
-  {
-    match: (c) => c.domain === "filter" && c.action === "update",
-    lines: (c) => [
-      `Run \`atlassian-axi jira filter view ${c.id}\` to see the updated filter`,
-    ],
-  },
-
-  // Dashboard list
-  {
-    match: (c) => c.domain === "dashboard" && c.action === "list" && !c.isEmpty,
-    lines: () => [
-      "Narrow with `atlassian-axi jira dashboard list --name <substring> --owner <email>`",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "dashboard" && c.action === "list" && c.isEmpty === true,
-    lines: () => [
-      "Broaden the search: drop --name/--owner or try a shorter substring",
-    ],
-  },
-
-  // Field mutations
-  {
-    match: (c) =>
-      c.domain === "field" && (c.action === "create" || c.action === "update"),
-    lines: () => [
-      "Run `atlassian-axi jira workitem view <KEY> --fields <a,b,c>` to see field values on a work item",
-    ],
-  },
-  {
-    match: (c) => c.domain === "field" && c.action === "delete",
-    lines: (c) => [
-      `Run \`atlassian-axi jira field restore ${c.id}\` to restore it from the trash`,
-    ],
-  },
-  {
-    match: (c) => c.domain === "field" && c.action === "restore",
-    lines: (c) => [
-      `Run \`atlassian-axi jira field update ${c.id} --name "..."\` to rename it`,
-    ],
-  },
-
-  // Confluence page get
-  {
-    match: (c) => c.domain === "page" && c.action === "get",
-    lines: (c) => [
-      `Run \`atlassian-axi confluence page update ${c.id} --body-file <path>\` to edit it`,
-      `Run \`atlassian-axi confluence page children ${c.id}\` to list its child pages`,
-      'Run `atlassian-axi confluence search "<CQL>"` to find related pages',
-    ],
-  },
-
-  // Confluence page attachments
-  {
-    match: (c) => c.domain === "page" && c.action === "attachments" && !c.isEmpty,
-    lines: (c) => [
-      `Narrow with \`atlassian-axi confluence page attachments ${c.id} --filename <name>\` or \`--media-type <type>\``,
-      `Run \`atlassian-axi confluence page get ${c.id}\` to read the page itself`,
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "page" &&
-      c.action === "attachments" &&
-      c.isEmpty === true &&
-      c.state === "filtered",
-    lines: (c) => [
-      `Broaden the search: drop --filename/--media-type, or run \`atlassian-axi confluence page attachments ${c.id}\` to list everything`,
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "page" && c.action === "attachments" && c.isEmpty === true,
-    lines: (c) => [
-      `Run \`atlassian-axi confluence page get ${c.id}\` to read the page (attachments are added in the Confluence UI)`,
-    ],
-  },
-
-  // Confluence page labels (list and mutations share the follow-ups)
-  {
-    match: (c) =>
-      c.domain === "page" &&
-      (c.action === "labels-add" || c.action === "labels-remove"),
-    lines: (c) => [
-      `Run \`atlassian-axi confluence page labels ${c.id}\` to list the labels again`,
-      "Run `atlassian-axi confluence search \"label = '<name>'\"` to find content sharing a label",
-    ],
-  },
-  {
-    match: (c) => c.domain === "page" && c.action === "labels" && !c.isEmpty,
-    lines: (c) => [
-      "Run `atlassian-axi confluence search \"label = '<name>'\"` to find content sharing a label",
-      `Run \`atlassian-axi confluence page labels ${c.id} --add <name>\` or \`--remove <name>\` to change them`,
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "page" && c.action === "labels" && c.isEmpty === true,
-    lines: (c) => [
-      `Run \`atlassian-axi confluence page labels ${c.id} --add <name,name,...>\` to add labels`,
-    ],
-  },
-
-  // Confluence page children
-  {
-    match: (c) => c.domain === "page" && c.action === "children" && !c.isEmpty,
-    lines: () => [
-      "Run `atlassian-axi confluence page get <id>` to read a child page",
-      "Run `atlassian-axi confluence page children <id>` to descend another level",
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "page" && c.action === "children" && c.isEmpty === true,
-    lines: (c) => [
-      `Run \`atlassian-axi confluence page create --space <KEY> --title "..." --body-file <path> --parent ${c.id}\` to create a child page`,
-    ],
-  },
-
-  // Confluence page create / update
-  {
-    match: (c) =>
-      c.domain === "page" && (c.action === "create" || c.action === "update"),
-    lines: (c) => [
-      `Run \`atlassian-axi confluence page get ${c.id} --full\` to see the full page`,
-    ],
-  },
-
-  // Confluence page delete
-  {
-    match: (c) => c.domain === "page" && c.action === "delete",
-    lines: () => [
-      'Run `atlassian-axi confluence search "<CQL>"` to find other pages',
-      "Run `atlassian-axi confluence space list` to browse spaces",
-    ],
-  },
-
-  // Confluence space list
-  {
-    match: (c) => c.domain === "space" && c.action === "list" && !c.isEmpty,
-    lines: () => [
-      'Run `atlassian-axi confluence search "space = <KEY> AND type = page"` to list a space\'s pages',
-      'Run `atlassian-axi confluence page create --space <KEY> --title "..." --body-file <path>` to create a page',
-    ],
-  },
-  {
-    match: (c) =>
-      c.domain === "space" && c.action === "list" && c.isEmpty === true,
-    lines: () => [
-      "Run `atlassian-axi auth status` to verify the credential has Confluence access",
-    ],
-  },
-
-  // Confluence search
-  {
-    match: (c) => c.domain === "confluence-search" && !c.isEmpty,
-    lines: () => [
-      "Run `atlassian-axi confluence page get <id>` to read a result",
-    ],
-  },
-  {
-    match: (c) => c.domain === "confluence-search" && c.isEmpty === true,
-    lines: () => [
-      'Broaden the CQL, e.g. `atlassian-axi confluence search "text ~ \'<term>\'"`',
-      "Run `atlassian-axi confluence space list` to check space keys",
-    ],
-  },
-];
-
-export function getSuggestions(ctx: SuggestionContext): string[] {
+/**
+ * Run a CLI's suggestion table against a context, appending the --site flag to
+ * any follow-up command line that mentions the bin (when the site came from a
+ * flag). First matching entry wins.
+ */
+export function matchSuggestions(
+  table: readonly SuggestionEntry[],
+  ctx: SuggestionContext,
+  binName: string,
+): string[] {
   for (const entry of table) {
     if (entry.match(ctx)) {
-      return entry.lines(ctx).map((line) => appendSiteFlag(line, ctx));
+      return entry.lines(ctx).map((line) => appendSiteFlag(line, ctx, binName));
     }
   }
   return [];
