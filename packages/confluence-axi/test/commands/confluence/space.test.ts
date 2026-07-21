@@ -58,8 +58,8 @@ describe("space list", () => {
         ENG,Engineering,global,"111"
         DOCS,Documentation,global,"222"
       help[2]:
-        Run \`atlassian-axi confluence search "space = <KEY> AND type = page"\` to list a space's pages
-        Run \`atlassian-axi confluence page create --space <KEY> --title "..." --body-file <path>\` to create a page"
+        Run \`confluence-axi search "space = <KEY> AND type = page"\` to list a space's pages
+        Run \`confluence-axi page create --space <KEY> --title "..." --body-file <path>\` to create a page"
     `);
   });
 

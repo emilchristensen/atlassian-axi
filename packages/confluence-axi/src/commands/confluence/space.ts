@@ -1,19 +1,19 @@
 import { confluenceJson } from "../../confluence.js";
-import type { SiteContext } from "../../context.js";
-import { formatCountLine } from "../../format.js";
+import type { SiteContext } from "@atlassian-axi/core";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
-import { renderHelp, renderList, renderOutput } from "../../toon.js";
-import { parseFlags, parseLimit, unknownSubcommandError } from "../shared.js";
+import { renderHelp, renderList, renderOutput } from "@atlassian-axi/core";
+import { parseFlags, parseLimit, unknownSubcommandError } from "@atlassian-axi/core";
 import { hasNextPage, resultsOf, spaceListSchema } from "./shared.js";
 
-export const SPACE_HELP = `usage: atlassian-axi confluence space <subcommand> [flags]
+export const SPACE_HELP = `usage: confluence-axi space <subcommand> [flags]
 subcommands[1]:
   list
 flags{list}:
   --limit <n> (default 30)
 examples:
-  atlassian-axi confluence space list
-  atlassian-axi confluence space list --limit 50`;
+  confluence-axi space list
+  confluence-axi space list --limit 50`;
 
 export async function spaceCommand(
   args: string[],
@@ -33,7 +33,7 @@ export async function spaceCommand(
         "space subcommand",
         sub,
         ["list"],
-        "atlassian-axi confluence space --help",
+        "confluence-axi space --help",
       );
   }
 }

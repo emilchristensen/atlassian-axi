@@ -76,8 +76,8 @@ describe("page attachments", () => {
         att900001,architecture.png,image/png,471 KB,2,2d ago
         att900002,meeting-notes.pdf,application/pdf,812 B,1,20h ago
       help[2]:
-        Narrow with \`atlassian-axi confluence page attachments 12345 --filename <name>\` or \`--media-type <type>\`
-        Run \`atlassian-axi confluence page get 12345\` to read the page itself"
+        Narrow with \`confluence-axi page attachments 12345 --filename <name>\` or \`--media-type <type>\`
+        Run \`confluence-axi page get 12345\` to read the page itself"
     `);
   });
 
@@ -178,8 +178,8 @@ describe("page labels list", () => {
         release,global,"50001"
         engineering,global,"50002"
       help[2]:
-        Run \`atlassian-axi confluence search "label = '<name>'"\` to find content sharing a label
-        Run \`atlassian-axi confluence page labels 12345 --add <name>\` or \`--remove <name>\` to change them"
+        Run \`confluence-axi search "label = '<name>'"\` to find content sharing a label
+        Run \`confluence-axi page labels 12345 --add <name>\` or \`--remove <name>\` to change them"
     `);
   });
 
@@ -431,8 +431,8 @@ describe("page children", () => {
         "20001",Release notes / July details,current,1
         "20002",Release notes / rollout checklist,current,2
       help[2]:
-        Run \`atlassian-axi confluence page get <id>\` to read a child page
-        Run \`atlassian-axi confluence page children <id>\` to descend another level"
+        Run \`confluence-axi page get <id>\` to read a child page
+        Run \`confluence-axi page children <id>\` to descend another level"
     `);
   });
 

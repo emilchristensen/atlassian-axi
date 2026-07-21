@@ -29,15 +29,15 @@ describe("setupCommand", () => {
     expect(installSessionStartHooks).not.toHaveBeenCalled();
   });
 
-  it("returns help for a bare setup (matching the jira/confluence routers)", async () => {
+  it("returns help for a bare setup (matching the other command routers)", async () => {
     const out = await setupCommand([]);
-    expect(out).toContain("usage: atlassian-axi setup hooks");
+    expect(out).toContain("usage: confluence-axi setup hooks");
     expect(installSessionStartHooks).not.toHaveBeenCalled();
   });
 
   it("returns help for setup --help", async () => {
     const out = await setupCommand(["--help"]);
-    expect(out).toContain("usage: atlassian-axi setup hooks");
+    expect(out).toContain("usage: confluence-axi setup hooks");
     expect(installSessionStartHooks).not.toHaveBeenCalled();
   });
 

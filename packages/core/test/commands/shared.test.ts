@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFlags, parseLimit } from "../../src/commands/shared.js";
+import { parseFlags, parseLimit } from "../../src/shared.js";
 
 describe("parseFlags", () => {
   it("consumes known value/bool flags and returns the positional", () => {
