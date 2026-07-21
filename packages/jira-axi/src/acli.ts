@@ -100,14 +100,53 @@ export async function acliJson<T = unknown>(
   stdin?: string,
 ): Promise<T> {
   const stdout = await acliExec(args, stdin);
+  let parsed: unknown;
   try {
-    return JSON.parse(stdout) as T;
+    parsed = JSON.parse(stdout);
   } catch {
     throw new AxiError(
       `Unexpected acli output: ${stdout.slice(0, 200)}`,
       "UNKNOWN",
     );
   }
+  assertBatchSuccess(parsed);
+  return parsed as T;
+}
+
+/**
+ * acli's batch-mutation commands (transition/assign/edit/comment...) exit 0
+ * even when the mutation FAILED, signalling the real outcome only in a JSON
+ * envelope: `{results: [{status: "SUCCESS"|"FAILURE", message, id}], totalCount,
+ * successCount}`. Without inspecting it, a failed transition/assign/edit would
+ * render as success (verified live against acli v1.3.22: e.g. transition to a
+ * non-allowed status returns `successCount: 0` at exit 0). Throw the acli
+ * failure message so the CLI surfaces it and exits non-zero. Payloads without
+ * this exact envelope (reads, create's issue object) are left untouched.
+ */
+function assertBatchSuccess(payload: unknown): void {
+  if (typeof payload !== "object" || payload === null) {
+    return;
+  }
+  const record = payload as Record<string, unknown>;
+  const results = record["results"];
+  if (!Array.isArray(results) || typeof record["successCount"] !== "number") {
+    return;
+  }
+  const failures = results.filter(
+    (r) =>
+      typeof r === "object" &&
+      r !== null &&
+      typeof (r as Record<string, unknown>)["status"] === "string" &&
+      (r as Record<string, unknown>)["status"] !== "SUCCESS",
+  );
+  if (failures.length === 0) {
+    return;
+  }
+  const message = failures
+    .map((r) => (r as Record<string, unknown>)["message"])
+    .filter((m): m is string => typeof m === "string" && m.length > 0)
+    .join("; ");
+  throw mapError(message || "acli reported the operation failed");
 }
 
 /**
