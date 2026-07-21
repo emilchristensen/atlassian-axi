@@ -257,7 +257,7 @@ export function normalizeSite(site: string | undefined): string | undefined {
  * Per-invocation site override from the `--site` flag. Highest precedence in
  * credential resolution (flag > env > stored) — without this the flag only
  * decorated help suggestions while requests silently hit the stored site
- * (found live 2026-07-19 querying example-site with a example-site credential).
+ * (found live 2026-07-19 querying one site with another site's credential).
  */
 let siteOverride: string | undefined;
 

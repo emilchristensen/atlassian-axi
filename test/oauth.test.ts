@@ -10,7 +10,6 @@ import {
 } from "../src/config.js";
 import { AxiError } from "../src/errors.js";
 import {
-  DEFAULT_OAUTH_CLIENT_ID,
   OAUTH_REDIRECT_URI,
   OAUTH_TOKEN_URL,
   buildAuthorizeUrl,
@@ -100,7 +99,7 @@ function makeOAuthFake(
 
 function makeSession(overrides: Partial<OAuthSession> = {}): OAuthSession {
   return {
-    clientId: DEFAULT_OAUTH_CLIENT_ID,
+    clientId: "test-client-id",
     accessToken: "access-token-old",
     refreshToken: "refresh-token-initial",
     expiresAt: Date.now() + 3_600_000,
@@ -140,8 +139,9 @@ describe("authorize URL", () => {
     expect(a).toMatch(/^[A-Za-z0-9_-]{20,}$/);
   });
 
-  it("oauthClientId honours the env override and defaults to the shipped app", () => {
-    expect(oauthClientId()).toBe(DEFAULT_OAUTH_CLIENT_ID);
+  it("oauthClientId requires the env var and has no shipped default", () => {
+    // No default: unset must throw rather than silently using a bundled id.
+    expect(() => oauthClientId()).toThrow(AxiError);
     process.env["ATLASSIAN_AXI_OAUTH_CLIENT_ID"] = "fork-client";
     expect(oauthClientId()).toBe("fork-client");
   });
