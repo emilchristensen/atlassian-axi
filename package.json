@@ -1,6 +1,6 @@
 {
   "name": "atlassian-axi",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "packageManager": "pnpm@11.1.1",
   "description": "AXI-compliant Atlassian CLI — acli-backed Jira + direct Confluence Cloud REST, token-efficient TOON output, contextual suggestions, idempotent mutations",
   "type": "module",
