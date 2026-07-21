@@ -1,0 +1,42 @@
+name: publish
+
+# Manual, provenance-preserving publish of a single package to npm.
+# Use when a package's version is already bumped on main + tagged (e.g. by
+# release-please) but the automated publish step did not complete - for
+# instance the first publish of a new package name after the NPM_TOKEN secret
+# is swapped to an npm Automation / Granular token (bypasses the 2FA OTP that
+# blocks CI). Builds from main and publishes whatever version is in the
+# package's package.json.
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_dir:
+        description: "Package directory to publish"
+        required: true
+        type: choice
+        options:
+          - packages/jira-axi
+          - packages/confluence-axi
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Publish ${{ inputs.package_dir }}
+        run: cd "${{ inputs.package_dir }}" && npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
