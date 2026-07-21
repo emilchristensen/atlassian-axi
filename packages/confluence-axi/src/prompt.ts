@@ -34,7 +34,7 @@ export function promptHidden(label: string): Promise<string> {
           if (value.trim() === "") {
             reject(
               new AxiError("Empty secret — nothing was stored", "VALIDATION_ERROR", [
-                "Re-run `atlassian-axi auth login` and paste the OAuth client secret",
+                "Re-run `confluence-axi auth login` and paste the OAuth client secret",
               ]),
             );
           } else {
@@ -86,6 +86,6 @@ export async function promptSelect(
     rl.close();
   }
   throw new AxiError("No valid selection made", "VALIDATION_ERROR", [
-    "Re-run `atlassian-axi auth login` and answer with the number of a listed site",
+    "Re-run `confluence-axi auth login` and answer with the number of a listed site",
   ]);
 }

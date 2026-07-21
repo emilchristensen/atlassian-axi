@@ -97,7 +97,7 @@ async function resolveTransportAuth(): Promise<TransportAuth> {
         `The OAuth session is bound to ${mode.oauth.site} — cannot target ${requested}`,
         "VALIDATION_ERROR",
         [
-          `Run \`echo -n "<token>" | atlassian-axi auth login --token --site ${requested} --email <email>\` for cross-site use`,
+          `Run \`echo -n "<token>" | confluence-axi auth login --token --site ${requested} --email <email>\` for cross-site use`,
           "Or drop --site / unset ATLASSIAN_SITE",
         ],
       );
@@ -135,7 +135,7 @@ async function performRequest(
     throw new AxiError(
       `Confluence request failed: ${reason}`,
       "UNKNOWN",
-      ["Check the network and the configured site (`atlassian-axi auth status`)"],
+      ["Check the network and the configured site (`confluence-axi auth status`)"],
     );
   }
 }

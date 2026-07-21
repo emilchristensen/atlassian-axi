@@ -1,10 +1,10 @@
 import { confluenceJson } from "../../confluence.js";
-import type { SiteContext } from "../../context.js";
+import type { SiteContext } from "@atlassian-axi/core";
 import { AxiError } from "../../errors.js";
-import { formatCountLine } from "../../format.js";
+import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
-import { renderHelp, renderList, renderOutput } from "../../toon.js";
-import { parseFlags, parseLimit } from "../shared.js";
+import { renderHelp, renderList, renderOutput } from "@atlassian-axi/core";
+import { parseFlags, parseLimit } from "@atlassian-axi/core";
 import {
   attachmentListSchema,
   childPageListSchema,

@@ -1,5 +1,4 @@
-import { acliRaw, acliExec, acliInstalled } from "../acli.js";
-import { takeBoolFlag, takeFlag } from "../args.js";
+import { takeBoolFlag, takeFlag } from "@atlassian-axi/core";
 import {
   type AtlassianCredential,
   type OAuthSession,
@@ -30,10 +29,10 @@ import {
   type AccessibleResource,
 } from "../oauth.js";
 import { promptHidden, promptSelect } from "../prompt.js";
-import { renderHelp, renderOutput } from "../toon.js";
+import { renderHelp, renderOutput } from "@atlassian-axi/core";
 
-export const AUTH_HELP = `usage: atlassian-axi auth <login|status|logout> [flags]
-Manage Atlassian auth. Two modes:
+export const AUTH_HELP = `usage: confluence-axi auth <login|status|logout> [flags]
+Manage Confluence auth. Two modes:
   oauth      browser login (the default \`auth login\`) — Bearer tokens against
              api.atlassian.com, auto-refreshed; needs an interactive terminal.
   api-token  \`auth login --token\` — site+email+API token for agents/CI; the
@@ -45,23 +44,20 @@ login            OAuth browser login. Opens auth.atlassian.com, catches the
                  Requires your own registered 3LO app (no shipped default):
                  ATLASSIAN_AXI_OAUTH_CLIENT_ID (required) + client secret from
                  ATLASSIAN_AXI_OAUTH_CLIENT_SECRET env or prompted once and stored.
-                 App setup: docs/getting-started.md#registering-your-own-oauth-app
 login --token    API-token login (agents/CI; no browser).
                  --site <site>   e.g. mysite.atlassian.net (falls back to ATLASSIAN_SITE / stored)
                  --email <email> account email (falls back to ATLASSIAN_EMAIL / stored)
-                 token via stdin: echo -n "<token>" | atlassian-axi auth login --token --site s --email e
-status           Active mode, token expiry, and both halves (acli + Confluence REST).
-logout           Clear OAuth tokens + API credential/keychain, and log acli out.
+                 token via stdin: echo -n "<token>" | confluence-axi auth login --token --site s --email e
+status           Active mode, token expiry, and the Confluence REST half.
+logout           Clear OAuth tokens + API credential/keychain.
 
 Resolution order: ATLASSIAN_API_TOKEN env > OAuth session > stored API token.
-The Jira half rides acli's own credential: \`auth login --token\` bootstraps it;
-the OAuth flow cannot (acli needs an API token), so status reports it separately.
 
 examples:
-  atlassian-axi auth login
-  echo -n "$TOKEN" | atlassian-axi auth login --token --site acme.atlassian.net --email me@acme.com
-  atlassian-axi auth status
-  atlassian-axi auth logout
+  confluence-axi auth login
+  echo -n "$TOKEN" | confluence-axi auth login --token --site acme.atlassian.net --email me@acme.com
+  confluence-axi auth status
+  confluence-axi auth logout
 `;
 
 const REST_SPACES_PATH = "/wiki/api/v2/spaces?limit=1";
@@ -71,7 +67,7 @@ const PING_TIMEOUT_MS = 15_000;
 export async function authCommand(args: string[]): Promise<string> {
   const action = args[0];
   const rest = args.slice(1);
-  // Bare `auth` is a help request, matching the jira/confluence routers
+  // Bare `auth` is a help request, matching the other command routers
   // (help on exit 0, never a validation error).
   if (!action || action === "--help") {
     return AUTH_HELP;
@@ -87,7 +83,7 @@ export async function authCommand(args: string[]): Promise<string> {
       throw new AxiError(
         `Unknown auth action: ${action}`,
         "VALIDATION_ERROR",
-        ["Run `atlassian-axi auth <login|status|logout>`"],
+        ["Run `confluence-axi auth <login|status|logout>`"],
       );
   }
 }
@@ -113,7 +109,7 @@ async function oauthLogin(args: string[]): Promise<string> {
       "OAuth browser login needs an interactive terminal (stdin/stdout is not a TTY)",
       "VALIDATION_ERROR",
       [
-        `Agents/CI: echo -n "<token>" | atlassian-axi auth login --token --site <site> --email <email>`,
+        `Agents/CI: echo -n "<token>" | confluence-axi auth login --token --site <site> --email <email>`,
         "Or set ATLASSIAN_SITE / ATLASSIAN_EMAIL / ATLASSIAN_API_TOKEN",
       ],
     );
@@ -140,7 +136,7 @@ async function oauthLogin(args: string[]): Promise<string> {
       throw new AxiError(
         "Empty client secret after stripping quotes — nothing was stored",
         "VALIDATION_ERROR",
-        ["Re-run `atlassian-axi auth login` and paste the raw secret value"],
+        ["Re-run `confluence-axi auth login` and paste the raw secret value"],
       );
     }
   }
@@ -182,7 +178,6 @@ async function oauthLogin(args: string[]): Promise<string> {
   };
   saveOAuthSession(session);
 
-  const acli = await acliStateFor(site);
   return renderOutput([
     [
       "auth:",
@@ -192,9 +187,8 @@ async function oauthLogin(args: string[]): Promise<string> {
       `  cloud-id: ${resource.id}`,
       `  token-expires: ${expiryPhrase(session.expiresAt)}`,
       `  secret-source: ${secretSource}`,
-      `  acli: ${acliOAuthNote(acli)}`,
     ].join("\n"),
-    renderHelp(["Verify end-to-end with `atlassian-axi auth status`"]),
+    renderHelp(["Verify end-to-end with `confluence-axi auth status`"]),
   ]);
 }
 
@@ -207,7 +201,7 @@ async function pickResource(
     throw new AxiError(
       "The OAuth token has no accessible Atlassian sites",
       "FORBIDDEN",
-      ["Grant the app access to a site at https://id.atlassian.com and re-run `atlassian-axi auth login`"],
+      ["Grant the app access to a site at https://id.atlassian.com and re-run `confluence-axi auth login`"],
     );
   }
   if (siteFlag) {
@@ -235,7 +229,7 @@ async function pickResource(
   return resources[index] as AccessibleResource;
 }
 
-// --- API-token flow (agents/CI; formerly the only flow) ----------------------
+// --- API-token flow (agents/CI) ---------------------------------------------
 
 async function tokenLogin(args: string[]): Promise<string> {
   const siteFlag = takeFlag(args, "--site");
@@ -255,7 +249,7 @@ async function tokenLogin(args: string[]): Promise<string> {
       `Missing required credential fields: ${missing.join(", ")}`,
       "VALIDATION_ERROR",
       [
-        `echo -n "<token>" | atlassian-axi auth login --token --site <site> --email <email>`,
+        `echo -n "<token>" | confluence-axi auth login --token --site <site> --email <email>`,
       ],
     );
   }
@@ -265,13 +259,10 @@ async function tokenLogin(args: string[]): Promise<string> {
   const credential: AtlassianCredential = { site, email, apiToken };
 
   // Validate BEFORE persisting so a mangled paste never overwrites a
-  // previously good stored credential. Without this ping, a bad token slips
-  // through whenever acli is already logged in (bootstrap is status-gated and
-  // never exercises the new token).
+  // previously good stored credential.
   const confluenceLine = await validateTokenForLogin(credential);
 
   const { tokenStore } = await saveCredential(credential);
-  const bootstrap = await bootstrapAcli(credential);
 
   return renderOutput([
     [
@@ -282,9 +273,8 @@ async function tokenLogin(args: string[]): Promise<string> {
       `  email: ${email}`,
       `  token-store: ${tokenStore}`,
       `  confluence: ${confluenceLine}`,
-      `  acli: ${bootstrap}`,
     ].join("\n"),
-    renderHelp(["Verify end-to-end with `atlassian-axi auth status`"]),
+    renderHelp(["Verify end-to-end with `confluence-axi auth status`"]),
   ]);
 }
 
@@ -293,8 +283,8 @@ async function tokenLogin(args: string[]): Promise<string> {
  * `confluence:` line for the login output, or throws AUTH_REQUIRED (before
  * anything is persisted) when the token is demonstrably rejected.
  *
- * - Network failure (status 0): the token may be fine — degrade gracefully
- *   like the acli-not-installed path and let login proceed with a warning.
+ * - Network failure (status 0): the token may be fine — degrade gracefully and
+ *   let login proceed with a warning.
  * - Non-200 from Confluence: ambiguous. Confluence v2 answers a rejected
  *   credential with 404 (live-verified), which is also what a Jira-only site
  *   without the Confluence product returns. Disambiguate with a Jira ping —
@@ -310,7 +300,7 @@ async function validateTokenForLogin(
     return "200 ok";
   }
   if (rest.status === 0) {
-    return `unreachable (${rest.detail}) — token not verified; check with \`atlassian-axi auth status\` once online`;
+    return `unreachable (${rest.detail}) — token not verified; check with \`confluence-axi auth status\` once online`;
   }
 
   const jira = await basicPing(credential, JIRA_MYSELF_PATH);
@@ -318,75 +308,16 @@ async function validateTokenForLogin(
     return `${rest.status} ${rest.detail} — token verified against Jira; the site may not have Confluence (or this account lacks Confluence access)`;
   }
   if (jira.status === 0) {
-    return `${rest.status} ${rest.detail} — network dropped before the token could be verified; check with \`atlassian-axi auth status\` once online`;
+    return `${rest.status} ${rest.detail} — network dropped before the token could be verified; check with \`confluence-axi auth status\` once online`;
   }
   throw new AxiError(
     `The token was rejected (Confluence ${rest.status}, Jira ${jira.status}) — nothing was saved. Confluence answers rejected credentials with 404/403, so the 404 does not mean the site lacks Confluence.`,
     "AUTH_REQUIRED",
     [
-      "Check the token: copy the raw value (no quotes) and re-run `atlassian-axi auth login --token`",
-      "Check the site host with `atlassian-axi auth status`",
+      "Check the token: copy the raw value (no quotes) and re-run `confluence-axi auth login --token`",
+      "Check the site host with `confluence-axi auth status`",
     ],
   );
-}
-
-/**
- * Bootstrap acli from our credential, status-gated so it is idempotent: only
- * log acli in when it is not already authenticated to the configured site.
- * acli's own store stays a derived cache of our source of truth.
- */
-async function bootstrapAcli(credential: AtlassianCredential): Promise<string> {
-  if (!(await acliInstalled())) {
-    return "not installed (Jira half unavailable until acli is installed)";
-  }
-  if (await acliLoggedIntoSite(credential.site)) {
-    return `already logged in to ${credential.site}`;
-  }
-  await acliExec(
-    [
-      "jira",
-      "auth",
-      "login",
-      "--site",
-      credential.site,
-      "--email",
-      credential.email,
-      "--token",
-    ],
-    credential.apiToken,
-  );
-  return `logged in to ${credential.site}`;
-}
-
-/** True when acli reports an authenticated session for the given site. */
-async function acliLoggedIntoSite(site: string): Promise<boolean> {
-  const result = await acliRaw(["jira", "auth", "status"]);
-  if (result.exitCode !== 0) {
-    return false;
-  }
-  const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-  return output.includes(site.toLowerCase());
-}
-
-type AcliState = "not installed" | "logged in" | "not logged in";
-
-async function acliStateFor(site: string): Promise<AcliState> {
-  if (!(await acliInstalled())) {
-    return "not installed";
-  }
-  return (await acliLoggedIntoSite(site)) ? "logged in" : "not logged in";
-}
-
-/** Honest acli line for OAuth contexts: the OAuth token cannot bootstrap acli. */
-function acliOAuthNote(state: AcliState): string {
-  switch (state) {
-    case "logged in":
-      return "logged in (separate acli credential — Jira half ready)";
-    case "not logged in":
-      return "not logged in — Jira half needs `auth login --token` (or `acli jira auth login`)";
-    case "not installed":
-      return "not installed (Jira half unavailable until acli is installed)";
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -400,8 +331,8 @@ async function authStatus(): Promise<string> {
       `Not authenticated (missing: ${mode.missing.join(", ")})`,
       "AUTH_REQUIRED",
       [
-        "Run `atlassian-axi auth login` for the OAuth browser flow (interactive terminals)",
-        "Or `echo -n \"<token>\" | atlassian-axi auth login --token --site <site> --email <email>` (agents/CI)",
+        "Run `confluence-axi auth login` for the OAuth browser flow (interactive terminals)",
+        "Or `echo -n \"<token>\" | confluence-axi auth login --token --site <site> --email <email>` (agents/CI)",
       ],
     );
   }
@@ -411,8 +342,6 @@ async function authStatus(): Promise<string> {
 }
 
 async function oauthStatus(session: OAuthSession): Promise<string> {
-  const acliState = await acliStateFor(session.site);
-
   // Refresh if expired so status exercises the same path real calls use; a
   // failed refresh is the honest "your session is dead" signal.
   let active = session;
@@ -433,8 +362,6 @@ async function oauthStatus(session: OAuthSession): Promise<string> {
         authorization: `Bearer ${active.accessToken}`,
       });
 
-  // The Jira half runs on acli's own credential in OAuth mode, so its state is
-  // reported but does not gate ok/degraded.
   const ok = rest.ok;
   const detail = [
     "auth:",
@@ -443,14 +370,13 @@ async function oauthStatus(session: OAuthSession): Promise<string> {
     `  site: ${active.site}`,
     `  cloud-id: ${active.cloudId}`,
     `  token: ${tokenLine}`,
-    `  acli: ${acliOAuthNote(acliState)}`,
     `  confluence: ${rest.ok ? "200 ok" : `${rest.status} ${rest.detail}`}`,
   ].join("\n");
 
   if (!ok) {
     throw new AxiError(`auth check failed\n${detail}`, "AUTH_REQUIRED", [
       refreshFailed
-        ? "Re-run `atlassian-axi auth login` to start a fresh OAuth session"
+        ? "Re-run `confluence-axi auth login` to start a fresh OAuth session"
         : "Check the OAuth session — Confluence REST did not return 200",
     ]);
   }
@@ -461,20 +387,10 @@ async function tokenStatus(
   credential: AtlassianCredential,
   tokenSource: string,
 ): Promise<string> {
-  // acli (Jira) half.
-  let acliState: string;
-  if (!(await acliInstalled())) {
-    acliState = "not installed";
-  } else if (await acliLoggedIntoSite(credential.site)) {
-    acliState = "logged in";
-  } else {
-    acliState = "not logged in";
-  }
-
   // Confluence REST half — a cheap authenticated call.
   const rest = await confluencePing(credential);
 
-  const ok = acliState === "logged in" && rest.ok;
+  const ok = rest.ok;
   const detail = [
     "auth:",
     `  status: ${ok ? "ok" : "degraded"}`,
@@ -482,28 +398,18 @@ async function tokenStatus(
     `  site: ${credential.site}`,
     `  email: ${credential.email}`,
     `  token: present (${tokenSource})`,
-    `  acli: ${acliState}`,
     `  confluence: ${rest.ok ? "200 ok" : `${rest.status} ${rest.detail}`}`,
   ].join("\n");
 
   if (!ok) {
-    if (acliState === "not installed") {
-      throw new AxiError(
-        `acli is not installed — see https://developer.atlassian.com/cloud/acli/\n${detail}`,
-        "ACLI_NOT_INSTALLED",
-        ["Install with `brew install acli`, then `acli --version` to verify"],
-      );
-    }
     // "Likely invalid" is only fair when Confluence actually rejected the
     // credential; status 0 (network) and 5xx are not the token's fault.
     const restHint =
       rest.status === 401 || rest.status === 403 || rest.status === 404
-        ? "The token is likely invalid — Confluence answers rejected credentials with 404/403; copy the raw token (no quotes) and re-run `atlassian-axi auth login --token`"
-        : "Confluence REST did not return 200 — check the network and the site host, then re-run `atlassian-axi auth status`";
+        ? "The token is likely invalid — Confluence answers rejected credentials with 404/403; copy the raw token (no quotes) and re-run `confluence-axi auth login --token`"
+        : "Confluence REST did not return 200 — check the network and the site host, then re-run `confluence-axi auth status`";
     throw new AxiError(`auth check failed\n${detail}`, "AUTH_REQUIRED", [
-      acliState !== "logged in"
-        ? "Re-run `atlassian-axi auth login --token` to bootstrap acli"
-        : restHint,
+      restHint,
     ]);
   }
 
@@ -588,22 +494,12 @@ async function authLogout(): Promise<string> {
   const hadOAuth = readOAuthSession() !== null;
   await clearCredential();
 
-  let acliState = "skipped (not installed)";
-  if (await acliInstalled()) {
-    const result = await acliRaw(["jira", "auth", "logout"]);
-    acliState =
-      result.exitCode === 0
-        ? "logged out"
-        : `failed (exit ${result.exitCode}): ${result.stderr.trim() || result.stdout.trim() || "unknown error"}`;
-  }
-
   return renderOutput([
     [
       "auth:",
       `  action: logout`,
       `  credential: cleared`,
       `  oauth: ${hadOAuth ? "cleared" : "none stored"}`,
-      `  acli: ${acliState}`,
     ].join("\n"),
   ]);
 }

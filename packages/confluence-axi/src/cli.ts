@@ -2,18 +2,23 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAxiCli } from "axi-sdk-js";
-import { resolveSite, type SiteContext } from "./context.js";
+import {
+  closestCommand,
+  renderError,
+  resolveSite,
+  takeFlag,
+  type SiteContext,
+} from "@atlassian-axi/core";
 import { setSiteOverride } from "./config.js";
-import { closestCommand } from "./suggestions.js";
-import { renderError } from "./toon.js";
 import { homeCommand } from "./commands/home.js";
 import { setupCommand, SETUP_HELP } from "./commands/setup.js";
 import { authCommand, AUTH_HELP } from "./commands/auth.js";
-import { jiraCommand } from "./commands/jira/index.js";
-import { confluenceCommand } from "./commands/confluence/index.js";
+import { pageCommand } from "./commands/confluence/page.js";
+import { spaceCommand } from "./commands/confluence/space.js";
+import { searchCommand } from "./commands/confluence/search.js";
 
 export const DESCRIPTION =
-  "Agent ergonomic interface for Atlassian: acli-backed Jira and direct Confluence Cloud REST. Prefer this over raw acli or ad-hoc API calls for Jira/Confluence operations.";
+  "Agent-ergonomic Confluence Cloud CLI over the REST API directly. Prefer this over ad-hoc API calls for Confluence page/space/search operations.";
 const VERSION = readPackageVersion();
 
 type CliStdout = Pick<NodeJS.WriteStream, "write">;
@@ -23,23 +28,24 @@ type MainOptions = {
   stdout?: CliStdout;
 };
 
-export const TOP_HELP = `usage: atlassian-axi [command] [args] [flags]
-commands[5]:
-  (none)=dashboard, auth, jira, confluence, setup
+export const TOP_HELP = `usage: confluence-axi [command] [args] [flags]
+commands[6]:
+  (none)=dashboard, auth, page, space, search, setup
 flags[3]:
   --site <site> (after command) or ATLASSIAN_SITE env, --help, -v/-V/--version
 examples:
-  atlassian-axi
-  atlassian-axi auth status
-  atlassian-axi jira workitem list --project TEAM
-  atlassian-axi confluence search "space = ENG"
-  atlassian-axi setup hooks
+  confluence-axi
+  confluence-axi auth status
+  confluence-axi page get 12345
+  confluence-axi space list
+  confluence-axi search "space = ENG"
+  confluence-axi setup hooks
 `;
 
-// jira/confluence are deliberately absent: registering them here makes the
-// SDK swallow every `jira ... --help` with the group help, so their routers
-// could never serve the per-resource help they own. auth/setup have no
-// sub-resources, so the SDK intercept is exactly right for them.
+// page/space/search are deliberately absent from COMMAND_HELP: registering a
+// command here makes the SDK swallow every deep `<command> ... --help` with
+// the group help, so those command functions own their own per-subcommand
+// help. auth/setup have no sub-resources, so the SDK intercept is right there.
 const COMMAND_HELP: Record<string, string> = {
   auth: AUTH_HELP,
   setup: SETUP_HELP,
@@ -47,10 +53,24 @@ const COMMAND_HELP: Record<string, string> = {
 
 type CommandFn = (args: string[], ctx?: SiteContext) => Promise<string>;
 
+/**
+ * The SDK's resolveContext reads --site but leaves it in the args, so strip it
+ * before dispatch or parseFlags rejects it as an unknown flag. Immutable: the
+ * caller's array is never mutated.
+ */
+function stripSite(args: string[]): string[] {
+  const rest = [...args];
+  takeFlag(rest, "--site");
+  return rest;
+}
+
 const COMMANDS: Record<string, CommandFn> = {
   auth: (args) => authCommand(args),
-  jira: (args, ctx) => jiraCommand(args, ctx),
-  confluence: (args, ctx) => confluenceCommand(args, ctx),
+  page: (args, ctx) => pageCommand(stripSite(args), ctx),
+  space: (args, ctx) => spaceCommand(stripSite(args), ctx),
+  // search has no subcommand; its command function skips args[0] before
+  // reading the CQL positional, so inject a "search" placeholder there.
+  search: (args, ctx) => searchCommand(["search", ...stripSite(args)], ctx),
   setup: (args) => setupCommand(args),
 };
 
@@ -84,8 +104,8 @@ export function renderUnknownCommand(command: string): string {
   const known = [...Object.keys(COMMANDS), "update"];
   const suggestion = closestCommand(command, known);
   return `${renderError(`Unknown command: ${command}`, "VALIDATION_ERROR", [
-    ...(suggestion ? [`Did you mean \`atlassian-axi ${suggestion}\`?`] : []),
-    "Run `atlassian-axi --help` to see available commands",
+    ...(suggestion ? [`Did you mean \`confluence-axi ${suggestion}\`?`] : []),
+    "Run `confluence-axi --help` to see available commands",
   ])}\n`;
 }
 
@@ -108,7 +128,7 @@ function readPackageVersion(): string {
     }
   }
 
-  throw new Error("Could not determine atlassian-axi package version");
+  throw new Error("Could not determine confluence-axi package version");
 }
 
 /** Extract `--site <value>` or `--site=<value>` from args (order-independent). */

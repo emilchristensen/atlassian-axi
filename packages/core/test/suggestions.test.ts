@@ -1,144 +1,138 @@
 import { describe, expect, it } from "vitest";
 import {
   closestCommand,
-  getSuggestions,
-  type SuggestionContext,
+  matchSuggestions,
+  type SuggestionEntry,
 } from "../src/suggestions.js";
 
 /**
- * Suggestions parity: every {domain, action, isEmpty} combination a command
- * actually renders must resolve to at least one next-step line — an empty
- * help block is a dead-end for the agent driving the CLI. Keep this list in
- * sync with the getSuggestions() call sites under src/commands/.
+ * These exercise the domain-agnostic ENGINE only. Each CLI package (jira-axi /
+ * confluence-axi) owns and tests its own domain suggestion table; here we drive
+ * `matchSuggestions` with a tiny fake table for a fictional `demo-axi` bin.
  */
-const RENDERED_CONTEXTS: SuggestionContext[] = [
-  { domain: "home", action: "home" },
-
-  // jira workitem
-  { domain: "workitem", action: "list", isEmpty: false },
-  { domain: "workitem", action: "list", isEmpty: true },
-  { domain: "workitem", action: "search", isEmpty: false },
-  { domain: "workitem", action: "search", isEmpty: true },
-  { domain: "workitem", action: "view", id: "TEAM-1" },
-  { domain: "workitem", action: "create", id: "TEAM-1" },
-  { domain: "workitem", action: "edit", id: "TEAM-1" },
-  { domain: "workitem", action: "assign", id: "TEAM-1" },
-  { domain: "workitem", action: "transition", id: "TEAM-1" },
-  { domain: "workitem", action: "comment", id: "TEAM-1" },
-
-  // jira project
-  { domain: "project", action: "list", isEmpty: false },
-  { domain: "project", action: "list", isEmpty: true },
-  { domain: "project", action: "view", id: "TEAM" },
-
-  // jira board
-  { domain: "board", action: "list", isEmpty: false },
-  { domain: "board", action: "list", isEmpty: true },
-  { domain: "board", action: "view", id: 7 },
-  { domain: "board", action: "list-sprints", id: 7, isEmpty: false },
-  { domain: "board", action: "list-sprints", id: 7, isEmpty: true },
-  { domain: "board", action: "list-projects", id: 7 },
-
-  // jira sprint
-  { domain: "sprint", action: "view", id: 42 },
-  { domain: "sprint", action: "list-workitems", id: 42, isEmpty: false },
-  { domain: "sprint", action: "list-workitems", id: 42, isEmpty: true },
-  { domain: "sprint", action: "create", id: 42 },
-  { domain: "sprint", action: "create" },
-  { domain: "sprint", action: "update", id: 42 },
-
-  // jira filter
-  { domain: "filter", action: "list", isEmpty: false },
-  { domain: "filter", action: "list", isEmpty: true },
-  { domain: "filter", action: "search", isEmpty: false },
-  { domain: "filter", action: "search", isEmpty: true },
-  { domain: "filter", action: "view", id: 9 },
-  { domain: "filter", action: "update", id: 9 },
-
-  // jira dashboard
-  { domain: "dashboard", action: "list", isEmpty: false },
-  { domain: "dashboard", action: "list", isEmpty: true },
-
-  // jira field
-  { domain: "field", action: "create", id: "customfield_1" },
-  { domain: "field", action: "update", id: "customfield_1" },
-  { domain: "field", action: "delete", id: "customfield_1" },
-  { domain: "field", action: "restore", id: "customfield_1" },
-
-  // confluence page
-  { domain: "page", action: "get", id: "12345" },
-  { domain: "page", action: "create", id: "12345" },
-  { domain: "page", action: "update", id: "12345" },
-  { domain: "page", action: "delete", id: "12345" },
-  { domain: "page", action: "attachments", id: "12345", isEmpty: false },
-  { domain: "page", action: "attachments", id: "12345", isEmpty: true },
+const DEMO_TABLE: readonly SuggestionEntry[] = [
+  // Empty-state list: gated on isEmpty === true, wins over the generic list
+  // entry below because it comes first.
   {
-    domain: "page",
-    action: "attachments",
-    id: "12345",
-    isEmpty: true,
-    state: "filtered",
+    match: (ctx) =>
+      ctx.domain === "item" && ctx.action === "list" && ctx.isEmpty === true,
+    lines: () => ["Broaden the query: `demo-axi list --all`"],
   },
-  { domain: "page", action: "labels", id: "12345", isEmpty: false },
-  { domain: "page", action: "labels", id: "12345", isEmpty: true },
-  { domain: "page", action: "labels-add", id: "12345", isEmpty: false },
-  { domain: "page", action: "labels-add", id: "12345", isEmpty: true },
-  { domain: "page", action: "labels-remove", id: "12345", isEmpty: false },
-  { domain: "page", action: "labels-remove", id: "12345", isEmpty: true },
-  { domain: "page", action: "children", id: "12345", isEmpty: false },
-  { domain: "page", action: "children", id: "12345", isEmpty: true },
-
-  // confluence space / search
-  { domain: "space", action: "list", isEmpty: false },
-  { domain: "space", action: "list", isEmpty: true },
-  { domain: "confluence-search", action: "search", isEmpty: false },
-  { domain: "confluence-search", action: "search", isEmpty: true },
+  // Generic (non-empty) list.
+  {
+    match: (ctx) => ctx.domain === "item" && ctx.action === "list",
+    lines: () => ["Narrow it down: `demo-axi list --mine`"],
+  },
+  // Id-bearing view: substitutes the entity id.
+  {
+    match: (ctx) => ctx.domain === "item" && ctx.action === "view",
+    lines: (ctx) => [
+      `Edit it: \`demo-axi edit ${ctx.id}\``,
+      "See docs at https://example.test",
+    ],
+  },
+  // A "filtered" empty state gated on the state field.
+  {
+    match: (ctx) =>
+      ctx.domain === "item" &&
+      ctx.action === "search" &&
+      ctx.state === "filtered",
+    lines: () => ["Try `demo-axi search --clear-filters`"],
+  },
 ];
 
-describe("suggestions parity", () => {
-  it.each(
-    RENDERED_CONTEXTS.map((ctx) => [
-      `${ctx.domain}/${ctx.action}${ctx.isEmpty === undefined ? "" : ctx.isEmpty ? " (empty)" : " (non-empty)"}${"id" in ctx ? "" : " (no id)"}`,
-      ctx,
-    ]),
-  )("%s has at least one suggestion", (_name, ctx) => {
-    const lines = getSuggestions(ctx as SuggestionContext);
-    expect(lines.length).toBeGreaterThan(0);
-    for (const line of lines) {
-      expect(line).toMatch(/atlassian-axi|Broaden|Narrow|Try /);
-    }
+const BIN = "demo-axi";
+
+describe("matchSuggestions", () => {
+  it("returns the first matching entry's lines (first-match-wins)", () => {
+    const lines = matchSuggestions(
+      DEMO_TABLE,
+      { domain: "item", action: "list", isEmpty: true },
+      BIN,
+    );
+    expect(lines).toEqual(["Broaden the query: `demo-axi list --all`"]);
+  });
+
+  it("falls through to the generic entry when the empty-state gate fails", () => {
+    const lines = matchSuggestions(
+      DEMO_TABLE,
+      { domain: "item", action: "list", isEmpty: false },
+      BIN,
+    );
+    expect(lines).toEqual(["Narrow it down: `demo-axi list --mine`"]);
+  });
+
+  it("gates on the state field", () => {
+    const matched = matchSuggestions(
+      DEMO_TABLE,
+      { domain: "item", action: "search", state: "filtered" },
+      BIN,
+    );
+    expect(matched).toEqual(["Try `demo-axi search --clear-filters`"]);
+
+    const unmatched = matchSuggestions(
+      DEMO_TABLE,
+      { domain: "item", action: "search" },
+      BIN,
+    );
+    expect(unmatched).toEqual([]);
+  });
+
+  it("returns an empty array when no entry matches", () => {
+    expect(
+      matchSuggestions(DEMO_TABLE, { domain: "nope", action: "nope" }, BIN),
+    ).toEqual([]);
   });
 
   it("substitutes the entity id into id-bearing suggestions", () => {
-    const lines = getSuggestions({
-      domain: "page",
-      action: "children",
-      id: "999",
-      isEmpty: true,
-    });
-    expect(lines[0]).toContain("--parent 999");
+    const lines = matchSuggestions(
+      DEMO_TABLE,
+      { domain: "item", action: "view", id: "ITEM-42" },
+      BIN,
+    );
+    expect(lines[0]).toContain("edit ITEM-42");
   });
 
-  it("appends --site to every command when the site came from a flag", () => {
-    const flagged = getSuggestions({
-      domain: "page",
-      action: "labels",
-      id: "12345",
-      isEmpty: false,
-      site: { site: "other.atlassian.net", source: "flag" },
-    });
-    for (const line of flagged) {
-      expect(line).toContain(" --site other.atlassian.net`");
-    }
+  it("appends --site to command lines mentioning the bin when the site came from a flag", () => {
+    const flagged = matchSuggestions(
+      DEMO_TABLE,
+      {
+        domain: "item",
+        action: "view",
+        id: "ITEM-42",
+        site: { site: "other.atlassian.net", source: "flag" },
+      },
+      BIN,
+    );
+    // Line that mentions the bin gets the flag appended inside the backticks.
+    expect(flagged[0]).toContain("edit ITEM-42 --site other.atlassian.net`");
+    // Line that does NOT mention the bin is left untouched.
+    expect(flagged[1]).toBe("See docs at https://example.test");
+  });
 
-    const fromEnv = getSuggestions({
-      domain: "page",
-      action: "labels",
-      id: "12345",
-      isEmpty: false,
-      site: { site: "other.atlassian.net", source: "env" },
-    });
+  it("does not append --site when the site came from a non-flag source", () => {
+    const fromEnv = matchSuggestions(
+      DEMO_TABLE,
+      {
+        domain: "item",
+        action: "view",
+        id: "ITEM-42",
+        site: { site: "other.atlassian.net", source: "env" },
+      },
+      BIN,
+    );
     for (const line of fromEnv) {
+      expect(line).not.toContain("--site");
+    }
+  });
+
+  it("does not append --site when there is no site context", () => {
+    const plain = matchSuggestions(
+      DEMO_TABLE,
+      { domain: "item", action: "view", id: "ITEM-42" },
+      BIN,
+    );
+    for (const line of plain) {
       expect(line).not.toContain("--site");
     }
   });

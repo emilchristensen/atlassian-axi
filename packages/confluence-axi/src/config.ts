@@ -339,8 +339,8 @@ export function authRequiredError(missing: string[]): AxiError {
     `Not authenticated (missing: ${missing.join(", ")})`,
     "AUTH_REQUIRED",
     [
-      "Run `atlassian-axi auth login` for the OAuth browser flow (interactive terminals)",
-      "Or run `atlassian-axi auth login --token --site <site> --email <email>` and pipe your API token via stdin",
+      "Run `confluence-axi auth login` for the OAuth browser flow (interactive terminals)",
+      "Or run `confluence-axi auth login --token --site <site> --email <email>` and pipe your API token via stdin",
       "Or set ATLASSIAN_SITE / ATLASSIAN_EMAIL / ATLASSIAN_API_TOKEN",
     ],
   );
@@ -547,8 +547,8 @@ export async function requireAuth(): Promise<Exclude<AuthMode, { mode: "none" }>
       `Not authenticated (missing: ${mode.missing.join(", ")})`,
       "AUTH_REQUIRED",
       [
-        "Run `atlassian-axi auth login` for the OAuth browser flow (interactive terminals)",
-        "Or `echo -n \"<token>\" | atlassian-axi auth login --token --site <site> --email <email>` (agents/CI)",
+        "Run `confluence-axi auth login` for the OAuth browser flow (interactive terminals)",
+        "Or `echo -n \"<token>\" | confluence-axi auth login --token --site <site> --email <email>` (agents/CI)",
       ],
     );
   }
@@ -606,7 +606,7 @@ function tokenRequiredError(): AxiError {
     "API token is required: pipe it via stdin (never passed as an argument)",
     "VALIDATION_ERROR",
     [
-      `echo -n "<token>" | atlassian-axi auth login --token --site <site> --email <email>`,
+      `echo -n "<token>" | confluence-axi auth login --token --site <site> --email <email>`,
     ],
   );
 }
@@ -645,7 +645,7 @@ export async function readTokenFromStdin(): Promise<string> {
       "API token contains whitespace or control characters — it looks mangled (quoted, wrapped, or multi-line paste)",
       "VALIDATION_ERROR",
       [
-        "Copy the raw token value and re-pipe it: echo -n \"<token>\" | atlassian-axi auth login",
+        "Copy the raw token value and re-pipe it: echo -n \"<token>\" | confluence-axi auth login",
       ],
     );
   }

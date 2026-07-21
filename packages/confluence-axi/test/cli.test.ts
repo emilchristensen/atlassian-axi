@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main, TOP_HELP } from "../src/cli.js";
-import { setAcliRunner } from "../src/acli.js";
 
 /** Capture everything main() writes to its injected stdout. */
 function capture() {
@@ -15,8 +14,7 @@ function capture() {
 }
 
 // Env keys the dashboard's auth line reads. Cleared + pinned per test so the
-// rendered auth state is deterministic regardless of the host environment
-// (e.g. CI has no acli / no credential, the dev box has acli installed).
+// rendered auth state is deterministic regardless of the host environment.
 const AUTH_ENV_KEYS = [
   "ATLASSIAN_SITE",
   "ATLASSIAN_EMAIL",
@@ -40,17 +38,9 @@ describe("cli help/version contract", () => {
     tmp = mkdtempSync(join(tmpdir(), "axi-cli-"));
     process.env["XDG_CONFIG_HOME"] = tmp;
     process.env["ATLASSIAN_AXI_NO_KEYCHAIN"] = "1";
-    // Pretend acli is installed so the dashboard renders the credential state,
-    // not "acli not installed" — independent of the host having acli on PATH.
-    setAcliRunner(async () => ({
-      stdout: "acli version 1.3.22-stable\n",
-      stderr: "",
-      exitCode: 0,
-    }));
   });
   afterEach(() => {
     process.exitCode = savedExitCode;
-    setAcliRunner(null);
     for (const k of AUTH_ENV_KEYS) {
       if (savedEnv[k] === undefined) delete process.env[k];
       else process.env[k] = savedEnv[k];
@@ -90,7 +80,7 @@ describe("cli help/version contract", () => {
     expect(out).toContain("description:");
     expect(out).toContain("site: not configured");
     expect(out).toContain("auth: not configured");
-    expect(out).toContain("atlassian-axi <command> <subcommand>");
+    expect(out).toContain("confluence-axi <command> <subcommand>");
   });
 
   it("shows the configured site from ATLASSIAN_SITE in the dashboard", async () => {
@@ -103,7 +93,7 @@ describe("cli help/version contract", () => {
   it("prints per-command help for setup --help", async () => {
     const cap = capture();
     await main({ argv: ["setup", "--help"], stdout: cap.stdout });
-    expect(cap.output()).toContain("usage: atlassian-axi setup hooks");
+    expect(cap.output()).toContain("usage: confluence-axi setup hooks");
   });
 
   it("rejects an unknown command with exit code 2", async () => {
@@ -115,10 +105,10 @@ describe("cli help/version contract", () => {
 
   it("suggests the closest command for a top-level typo", async () => {
     const cap = capture();
-    await main({ argv: ["jra"], stdout: cap.stdout });
+    await main({ argv: ["pge"], stdout: cap.stdout });
     const out = cap.output();
-    expect(out).toContain("Unknown command: jra");
-    expect(out).toContain("Did you mean `atlassian-axi jira`?");
+    expect(out).toContain("Unknown command: pge");
+    expect(out).toContain("Did you mean `confluence-axi page`?");
     expect(process.exitCode).toBe(2);
   });
 
@@ -131,30 +121,9 @@ describe("cli help/version contract", () => {
     expect(process.exitCode).toBe(2);
   });
 
-  it("exits 2 on an unknown jira resource", async () => {
+  it("exits 2 on an unknown page subcommand", async () => {
     const cap = capture();
-    await main({ argv: ["jira", "workitm"], stdout: cap.stdout });
-    expect(cap.output()).toContain("Unknown jira resource: workitm");
-    expect(process.exitCode).toBe(2);
-  });
-
-  it("exits 2 on an unknown jira subcommand", async () => {
-    const cap = capture();
-    await main({ argv: ["jira", "workitem", "vieww"], stdout: cap.stdout });
-    expect(cap.output()).toContain("Unknown workitem subcommand: vieww");
-    expect(process.exitCode).toBe(2);
-  });
-
-  it("exits 2 on an unknown confluence resource", async () => {
-    const cap = capture();
-    await main({ argv: ["confluence", "pge"], stdout: cap.stdout });
-    expect(cap.output()).toContain("Unknown confluence resource: pge");
-    expect(process.exitCode).toBe(2);
-  });
-
-  it("exits 2 on an unknown confluence subcommand", async () => {
-    const cap = capture();
-    await main({ argv: ["confluence", "page", "gett"], stdout: cap.stdout });
+    await main({ argv: ["page", "gett"], stdout: cap.stdout });
     expect(cap.output()).toContain("Unknown page subcommand: gett");
     expect(process.exitCode).toBe(2);
   });
@@ -169,92 +138,54 @@ describe("cli help/version contract", () => {
 });
 
 describe("per-resource help routing (2026-07-19)", () => {
-  it("serves workitem help (with flags) for `jira workitem --help`", async () => {
+  it("serves page help (with flags) for `page --help`", async () => {
     const cap = capture();
-    await main({ argv: ["jira", "workitem", "--help"], stdout: cap.stdout });
+    await main({ argv: ["page", "--help"], stdout: cap.stdout });
     const out = cap.output();
-    expect(out).toContain("usage: atlassian-axi jira workitem");
-    expect(out).toContain("--fields");
-  });
-
-  it("serves workitem help for a deep `jira workitem list --help`", async () => {
-    const cap = capture();
-    await main({ argv: ["jira", "workitem", "list", "--help"], stdout: cap.stdout });
-    expect(cap.output()).toContain("usage: atlassian-axi jira workitem");
-  });
-
-  it("serves page help (with flags) for `confluence page --help`", async () => {
-    const cap = capture();
-    await main({ argv: ["confluence", "page", "--help"], stdout: cap.stdout });
-    const out = cap.output();
-    expect(out).toContain("usage: atlassian-axi confluence page");
+    expect(out).toContain("usage: confluence-axi page");
     expect(out).toContain("--body-file");
   });
 
-  it("still serves the jira group help for `jira --help`", async () => {
+  it("serves page help for a bare `page`", async () => {
     const cap = capture();
-    await main({ argv: ["jira", "--help"], stdout: cap.stdout });
-    expect(cap.output()).toContain("resources[7]");
+    await main({ argv: ["page"], stdout: cap.stdout });
+    expect(cap.output()).toContain("usage: confluence-axi page");
   });
 
-  it("serves auth help for bare `auth` (consistent with bare jira)", async () => {
+  it("serves auth help for bare `auth`", async () => {
     const cap = capture();
     await main({ argv: ["auth"], stdout: cap.stdout });
-    expect(cap.output()).toContain("usage: atlassian-axi auth");
+    expect(cap.output()).toContain("usage: confluence-axi auth");
     expect(process.exitCode ?? 0).toBe(0);
   });
 });
 
 describe("resource/subcommand did-you-mean (2026-07-19)", () => {
-  it("suggests workitem for `jira workitm`", async () => {
+  it("suggests get for `page gett`", async () => {
     const cap = capture();
-    await main({ argv: ["jira", "workitm"], stdout: cap.stdout });
-    expect(cap.output()).toContain("Did you mean `workitem`?");
-    expect(process.exitCode).toBe(2);
-  });
-
-  it("suggests view for `jira workitem vieww`", async () => {
-    const cap = capture();
-    await main({ argv: ["jira", "workitem", "vieww"], stdout: cap.stdout });
-    expect(cap.output()).toContain("Did you mean `view`?");
-    expect(process.exitCode).toBe(2);
-  });
-
-  it("suggests page for `confluence pge`", async () => {
-    const cap = capture();
-    await main({ argv: ["confluence", "pge"], stdout: cap.stdout });
-    expect(cap.output()).toContain("Did you mean `page`?");
+    await main({ argv: ["page", "gett"], stdout: cap.stdout });
+    expect(cap.output()).toContain("Did you mean `get`?");
     expect(process.exitCode).toBe(2);
   });
 });
 
 describe("router help table covers every resource (2026-07-19)", () => {
-  const jiraResources = [
-    "workitem",
-    "project",
-    "board",
-    "sprint",
-    "filter",
-    "dashboard",
-    "field",
-  ] as const;
-
-  it.each(jiraResources)("jira %s --help serves that resource's help", async (resource) => {
-    const cap = capture();
-    await main({ argv: ["jira", resource, "--help"], stdout: cap.stdout });
-    expect(cap.output()).toContain(`usage: atlassian-axi jira ${resource}`);
-  });
-
-  const confluenceResources = ["page", "space", "search"] as const;
+  const confluenceResources = ["page", "space"] as const;
 
   it.each(confluenceResources)(
-    "confluence %s --help serves that resource's help",
+    "%s --help serves that resource's help",
     async (resource) => {
       const cap = capture();
-      await main({ argv: ["confluence", resource, "--help"], stdout: cap.stdout });
-      expect(cap.output()).toContain(`usage: atlassian-axi confluence ${resource}`);
+      await main({ argv: [resource, "--help"], stdout: cap.stdout });
+      expect(cap.output()).toContain(`usage: confluence-axi ${resource}`);
     },
   );
+
+  it("search --help serves the search help", async () => {
+    const cap = capture();
+    await main({ argv: ["search", "--help"], stdout: cap.stdout });
+    expect(cap.output()).toContain(`usage: confluence-axi search`);
+  });
 });
 
 describe("--site flag reaches the Confluence transport (2026-07-19)", () => {
@@ -291,7 +222,7 @@ describe("--site flag reaches the Confluence transport (2026-07-19)", () => {
     try {
       const cap = capture();
       await main({
-        argv: ["confluence", "space", "list", "--site", "other.atlassian.net"],
+        argv: ["space", "list", "--site", "other.atlassian.net"],
         stdout: cap.stdout,
       });
       expect(hosts[0]).toBe("other.atlassian.net");

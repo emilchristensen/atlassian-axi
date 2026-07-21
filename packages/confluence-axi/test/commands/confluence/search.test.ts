@@ -7,7 +7,8 @@ import {
   searchCommand,
   SEARCH_HELP,
 } from "../../../src/commands/confluence/search.js";
-import { confluenceCommand } from "../../../src/commands/confluence/index.js";
+import { main } from "../../../src/cli.js";
+import { setSiteOverride } from "../../../src/config.js";
 import { makeConfluenceFake, onPath } from "../../helpers/confluenceFake.js";
 import { FROZEN_NOW, searchPayload } from "../../fixtures/confluence.js";
 
@@ -59,7 +60,7 @@ describe("confluence search", () => {
         "12345",page,Release notes,Engineering,1d ago,Release notes for the July drop with the pagination fix.
         "67890",page,New page,Engineering,2h ago,Fresh page from the CLI.
       help[1]:
-        Run \`atlassian-axi confluence page get <id>\` to read a result"
+        Run \`confluence-axi page get <id>\` to read a result"
     `);
   });
 
@@ -153,18 +154,20 @@ describe("confluence search", () => {
     expect(calls[0].url.searchParams.get("limit")).toBe("5");
   });
 
-  it("routes through the confluence command with --site stripped", async () => {
+  it("routes through the CLI with --site stripped from the CQL", async () => {
     const { fetchImpl, calls } = makeConfluenceFake([
       { match: searchRoute, result: searchPayload },
     ]);
     setConfluenceFetch(fetchImpl);
-    await confluenceCommand([
-      "search",
-      "space = ENG",
-      "--site",
-      "other.atlassian.net",
-    ]);
-    expect(calls[0].url.searchParams.get("cql")).toBe("space = ENG");
+    try {
+      await main({
+        argv: ["search", "space = ENG", "--site", "other.atlassian.net"],
+        stdout: { write: () => true },
+      });
+      expect(calls[0].url.searchParams.get("cql")).toBe("space = ENG");
+    } finally {
+      setSiteOverride(undefined);
+    }
   });
 
   it("suggests broadening the query when there are no hits", async () => {

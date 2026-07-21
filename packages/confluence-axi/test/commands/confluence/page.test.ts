@@ -4,10 +4,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setConfluenceFetch } from "../../../src/confluence.js";
 import { pageCommand, PAGE_HELP } from "../../../src/commands/confluence/page.js";
-import {
-  confluenceCommand,
-  CONFLUENCE_HELP,
-} from "../../../src/commands/confluence/index.js";
+import { main } from "../../../src/cli.js";
+import { setSiteOverride } from "../../../src/config.js";
 import {
   makeConfluenceFake,
   onPath,
@@ -60,20 +58,13 @@ const spacesLookup = onPath("GET", "/wiki/api/v2/spaces");
 const pagesLookup = onPath("GET", "/wiki/api/v2/pages");
 
 // ---------------------------------------------------------------------------
-// router
+// page router
 // ---------------------------------------------------------------------------
 
-describe("confluence router", () => {
-  it("returns CONFLUENCE_HELP for no resource and for --help", async () => {
-    expect(await confluenceCommand([])).toBe(CONFLUENCE_HELP);
-    expect(await confluenceCommand(["--help"])).toBe(CONFLUENCE_HELP);
-  });
-
-  it("throws VALIDATION_ERROR on an unknown resource", async () => {
-    await expect(confluenceCommand(["bogus"])).rejects.toMatchObject({
-      code: "VALIDATION_ERROR",
-      message: expect.stringContaining("Unknown confluence resource: bogus"),
-    });
+describe("page router", () => {
+  it("returns PAGE_HELP for no subcommand and for --help", async () => {
+    expect(await pageCommand([])).toBe(PAGE_HELP);
+    expect(await pageCommand(["--help"])).toBe(PAGE_HELP);
   });
 
   it("throws VALIDATION_ERROR on an unknown page subcommand", async () => {
@@ -83,17 +74,20 @@ describe("confluence router", () => {
     });
   });
 
-  it("treats a leading --help as help even with trailing args", async () => {
-    expect(await confluenceCommand(["--help", "page"])).toBe(CONFLUENCE_HELP);
-  });
-
   it("strips --site before routing so its value is never a positional", async () => {
     const { fetchImpl, calls } = makeConfluenceFake([
       { match: getPage, result: pagePayload },
     ]);
     setConfluenceFetch(fetchImpl);
-    await confluenceCommand(["--site", "other.atlassian.net", "page", "get", "12345"]);
-    expect(calls[0].url.pathname).toBe("/wiki/api/v2/pages/12345");
+    try {
+      await main({
+        argv: ["page", "get", "12345", "--site", "other.atlassian.net"],
+        stdout: { write: () => true },
+      });
+      expect(calls[0].url.pathname).toBe("/wiki/api/v2/pages/12345");
+    } finally {
+      setSiteOverride(undefined);
+    }
   });
 });
 
@@ -120,9 +114,9 @@ describe("page get", () => {
         updated: 1d ago
         body: <p>Release notes for the July drop.</p>
       help[3]:
-        Run \`atlassian-axi confluence page update 12345 --body-file <path>\` to edit it
-        Run \`atlassian-axi confluence page children 12345\` to list its child pages
-        Run \`atlassian-axi confluence search "<CQL>"\` to find related pages"
+        Run \`confluence-axi page update 12345 --body-file <path>\` to edit it
+        Run \`confluence-axi page children 12345\` to list its child pages
+        Run \`confluence-axi search "<CQL>"\` to find related pages"
     `);
   });
 
@@ -283,7 +277,7 @@ describe("page create", () => {
     });
     expect(out).toContain('id: "67890"');
     expect(out).toContain("title: New page");
-    expect(out).toContain("confluence page get 67890");
+    expect(out).toContain("confluence-axi page get 67890");
   });
 
   it("passes --parent through as parentId", async () => {

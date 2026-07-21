@@ -1,6 +1,6 @@
-import { takeBody } from "../../body.js";
+import { takeBody } from "@atlassian-axi/core";
 import { confluenceJson } from "../../confluence.js";
-import type { SiteContext } from "../../context.js";
+import type { SiteContext } from "@atlassian-axi/core";
 import { AxiError } from "../../errors.js";
 import { getSuggestions } from "../../suggestions.js";
 import {
@@ -8,8 +8,8 @@ import {
   renderDetail,
   renderHelp,
   renderOutput,
-} from "../../toon.js";
-import { parseFlags, unknownSubcommandError } from "../shared.js";
+} from "@atlassian-axi/core";
+import { parseFlags, unknownSubcommandError } from "@atlassian-axi/core";
 import { attachmentsPage, childrenPage, labelsPage } from "./page-extras.js";
 import {
   pageDetailSchema,
@@ -20,7 +20,7 @@ import {
   type JsonRecord,
 } from "./shared.js";
 
-export const PAGE_HELP = `usage: atlassian-axi confluence page <subcommand> [flags]
+export const PAGE_HELP = `usage: confluence-axi page <subcommand> [flags]
 subcommands[7]:
   get <id>, create, update <id>, delete <id>, attachments <id>, labels <id>, children <id>
 flags{get}:
@@ -36,11 +36,11 @@ flags{labels}:
 flags{children}:
   --limit <n> (default 30)
 examples:
-  atlassian-axi confluence page get 12345
-  atlassian-axi confluence page create --space ENG --title "Release notes" --body-file notes.html
-  atlassian-axi confluence page update 12345 --body "<p>Updated</p>"
-  atlassian-axi confluence page labels 12345 --add release,july
-  atlassian-axi confluence page children 12345`;
+  confluence-axi page get 12345
+  confluence-axi page create --space ENG --title "Release notes" --body-file notes.html
+  confluence-axi page update 12345 --body "<p>Updated</p>"
+  confluence-axi page labels 12345 --add release,july
+  confluence-axi page children 12345`;
 
 export async function pageCommand(
   args: string[],
@@ -72,7 +72,7 @@ export async function pageCommand(
         "page subcommand",
         sub,
         ["get", "create", "update", "delete", "attachments", "labels", "children"],
-        "atlassian-axi confluence page --help",
+        "confluence-axi page --help",
       );
   }
 }
@@ -168,7 +168,7 @@ async function resolveSpaceId(key: string): Promise<string> {
   }
   throw new AxiError(`Space not found: ${key}`, "NOT_FOUND", [
     "Space keys are case-sensitive (usually uppercase)",
-    "Run `atlassian-axi confluence space list` to see available space keys",
+    "Run `confluence-axi space list` to see available space keys",
   ]);
 }
 
@@ -265,7 +265,7 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
       `Missing required flags: ${missing.join(", ")}`,
       "VALIDATION_ERROR",
       [
-        'Run `atlassian-axi confluence page create --space <KEY> --title "..." --body-file <path>`',
+        'Run `confluence-axi page create --space <KEY> --title "..." --body-file <path>`',
       ],
     );
   }
@@ -317,7 +317,7 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
         "FORBIDDEN",
         [
           "Ask a space admin for create permission in this space",
-          "Run `atlassian-axi confluence space list` to pick another space",
+          "Run `confluence-axi space list` to pick another space",
         ],
       );
     }
@@ -334,7 +334,7 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
         [field("_message", "message")],
       ),
       renderHelp([
-        `Run \`atlassian-axi confluence search "title = \\"${title}\\""\` to find it`,
+        `Run \`confluence-axi search "title = \\"${title}\\""\` to find it`,
       ]),
     ]);
   }
@@ -406,7 +406,7 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
         `This update would remove ${dropped.length} embedded macro${dropped.length > 1 ? "s" : ""} (${dropped.join(", ")}) — e.g. a whiteboard/diagram would disappear`,
         "VALIDATION_ERROR",
         [
-          `Read the current body first (\`atlassian-axi confluence page get ${id} --full\`), keep the \`<ac:structured-macro …>\` block(s) in your new body, and re-run`,
+          `Read the current body first (\`confluence-axi page get ${id} --full\`), keep the \`<ac:structured-macro …>\` block(s) in your new body, and re-run`,
           "Or pass --allow-macro-loss to intentionally drop them",
         ],
       );
@@ -502,7 +502,7 @@ async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
         "FORBIDDEN",
         [
           "Ask a space admin for delete permission in this space",
-          "Run `atlassian-axi auth status` to verify the credential",
+          "Run `confluence-axi auth status` to verify the credential",
         ],
       );
     }

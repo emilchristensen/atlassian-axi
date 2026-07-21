@@ -1,5 +1,5 @@
-import { custom, extract, relativeTime, type FieldDef } from "../../toon.js";
-import { truncateBody } from "../../body.js";
+import { custom, extract, relativeTime, type FieldDef } from "@atlassian-axi/core";
+import { truncateBody } from "@atlassian-axi/core";
 import { AxiError } from "../../errors.js";
 
 /**
@@ -170,7 +170,7 @@ export const searchResultSchema: FieldDef[] = [
     // attachment/comment hit would be a dead-end escape hatch.
     const hint =
       contentOf(item).type === "page"
-        ? "use `confluence page get <id> --full` for the full body"
+        ? "use `confluence-axi page get <id> --full` for the full body"
         : "open the result in Confluence for the full content";
     return truncateBody(stripHighlights(item.excerpt).trim(), 200, {
       fullHint: hint,
@@ -201,8 +201,8 @@ export function requirePageId(
 ): string {
   if (!positional) {
     throw new AxiError("Missing page id", "VALIDATION_ERROR", [
-      `Run \`atlassian-axi confluence page ${sub} <id> ...\``,
-      'Find page ids with `atlassian-axi confluence search "<CQL>"`',
+      `Run \`confluence-axi page ${sub} <id> ...\``,
+      'Find page ids with `confluence-axi search "<CQL>"`',
     ]);
   }
   const extra = args.slice(1).filter((a) => !a.startsWith("--"))[1];
@@ -210,7 +210,7 @@ export function requirePageId(
     throw new AxiError(
       `Unexpected extra argument: ${extra}`,
       "VALIDATION_ERROR",
-      [`Run \`atlassian-axi confluence page ${sub} <id>\` with a single id`],
+      [`Run \`confluence-axi page ${sub} <id>\` with a single id`],
     );
   }
   return positional;

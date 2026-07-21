@@ -63,7 +63,7 @@ export function oauthClientId(): string {
     [
       "Register an Atlassian OAuth 2.0 (3LO) app and set ATLASSIAN_AXI_OAUTH_CLIENT_ID to its client id",
       "Also set ATLASSIAN_AXI_OAUTH_CLIENT_SECRET (or paste the secret when prompted)",
-      "For agents/CI, prefer `atlassian-axi auth login --token` (site + email + API token via stdin) instead of OAuth",
+      "For agents/CI, prefer `confluence-axi auth login --token` (site + email + API token via stdin) instead of OAuth",
     ],
   );
 }
@@ -225,7 +225,7 @@ export async function exchangeAuthorizationCode(options: {
     },
     "AUTH_REQUIRED",
     [
-      "Re-run `atlassian-axi auth login` — the authorization code is single-use and short-lived",
+      "Re-run `confluence-axi auth login` — the authorization code is single-use and short-lived",
       "If it keeps failing, verify the client secret (ATLASSIAN_AXI_OAUTH_CLIENT_SECRET)",
     ],
   );
@@ -246,7 +246,7 @@ export async function refreshAccessToken(options: {
       refresh_token: options.refreshToken,
     },
     "AUTH_REQUIRED",
-    ["Run `atlassian-axi auth login` to re-authenticate (the refresh token expired or was revoked)"],
+    ["Run `confluence-axi auth login` to re-authenticate (the refresh token expired or was revoked)"],
   );
   return tokenSetFrom(parsed, options.refreshToken, "refresh");
 }
@@ -342,7 +342,7 @@ export async function refreshSession(
       "OAuth client secret is not available — cannot refresh the access token",
       "AUTH_REQUIRED",
       [
-        "Set ATLASSIAN_AXI_OAUTH_CLIENT_SECRET, or re-run `atlassian-axi auth login` (it stores the secret)",
+        "Set ATLASSIAN_AXI_OAUTH_CLIENT_SECRET, or re-run `confluence-axi auth login` (it stores the secret)",
       ],
     );
   }
@@ -394,9 +394,9 @@ export interface CallbackServer {
   close(): void;
 }
 
-const CALLBACK_HTML = `<!doctype html><meta charset="utf-8"><title>atlassian-axi</title>
+const CALLBACK_HTML = `<!doctype html><meta charset="utf-8"><title>confluence-axi</title>
 <body style="font-family: system-ui; margin: 4rem auto; max-width: 30rem; text-align: center;">
-<h1>atlassian-axi</h1><p>Login complete — you can close this tab and return to the terminal.</p></body>`;
+<h1>confluence-axi</h1><p>Login complete — you can close this tab and return to the terminal.</p></body>`;
 
 /** Constant-time state comparison (the state is the only CSRF credential). */
 function stateMatches(expected: string, actual: string | null): boolean {
@@ -481,7 +481,7 @@ export function startCallbackServer(options: {
           new AxiError(
             `Atlassian authorization failed: ${description}`,
             errorParam === "access_denied" ? "AUTH_REQUIRED" : "UNKNOWN",
-            ["Re-run `atlassian-axi auth login` and approve the consent screen"],
+            ["Re-run `confluence-axi auth login` and approve the consent screen"],
           ),
           "<p>Authorization failed — return to the terminal.</p>",
         );
@@ -493,7 +493,7 @@ export function startCallbackServer(options: {
           new AxiError(
             "OAuth callback carried no authorization code",
             "UNKNOWN",
-            ["Re-run `atlassian-axi auth login`"],
+            ["Re-run `confluence-axi auth login`"],
           ),
           "<p>Missing authorization code — return to the terminal.</p>",
         );
@@ -508,7 +508,7 @@ export function startCallbackServer(options: {
         new AxiError(
           `Timed out waiting for the browser callback (${Math.round(timeoutMs / 1000)}s)`,
           "UNKNOWN",
-          ["Re-run `atlassian-axi auth login` and complete the consent screen"],
+          ["Re-run `confluence-axi auth login` and complete the consent screen"],
         ),
       );
     }, timeoutMs);

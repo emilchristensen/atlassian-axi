@@ -29,11 +29,12 @@
  * If a live capture ever disagrees, re-capture and update these together with
  * the tolerant accessors in src/commands/confluence/shared.ts.
  *
- * Timestamps are fixed; tests freeze the clock at FROZEN_NOW (shared with the
- * acli fixtures) so relative-time output stays deterministic.
+ * Timestamps are fixed; tests freeze the clock at FROZEN_NOW so relative-time
+ * output stays deterministic.
  */
 
-export { FROZEN_NOW } from "./acli.js";
+/** Frozen clock the tests pin so relative-time output stays deterministic. */
+export const FROZEN_NOW = "2026-07-14T12:00:00.000Z";
 
 /** `GET /wiki/api/v2/spaces?limit=N` — results envelope, no next page. */
 export const spacesPayload = {

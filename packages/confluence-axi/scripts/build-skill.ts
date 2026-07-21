@@ -1,5 +1,5 @@
-// Generates skills/atlassian-axi/SKILL.md from the shared CLI guidance so the
-// installable skill never drifts from what `atlassian-axi` is.
+// Generates skills/confluence-axi/SKILL.md from the shared CLI guidance so the
+// installable skill never drifts from what `confluence-axi` is.
 //
 //   pnpm run build:skill            # write the file
 //   pnpm run build:skill -- --check # fail (exit 1) if the committed file is stale
@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { createSkillMarkdown } from "../src/skill.js";
 
-const target = new URL("../skills/atlassian-axi/SKILL.md", import.meta.url);
+const target = new URL("../skills/confluence-axi/SKILL.md", import.meta.url);
 const expected = createSkillMarkdown();
 const check = process.argv.includes("--check");
 
@@ -21,13 +21,13 @@ if (check) {
   }
   if (actual !== expected) {
     console.error(
-      "skills/atlassian-axi/SKILL.md is out of date. Run `pnpm run build:skill` and commit the result.",
+      "skills/confluence-axi/SKILL.md is out of date. Run `pnpm run build:skill` and commit the result.",
     );
     process.exit(1);
   }
-  console.log("skills/atlassian-axi/SKILL.md is up to date.");
+  console.log("skills/confluence-axi/SKILL.md is up to date.");
 } else {
-  await mkdir(new URL("../skills/atlassian-axi/", import.meta.url), {
+  await mkdir(new URL("../skills/confluence-axi/", import.meta.url), {
     recursive: true,
   });
   await writeFile(target, expected);
