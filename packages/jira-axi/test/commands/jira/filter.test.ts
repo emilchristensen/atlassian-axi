@@ -64,7 +64,9 @@ describe("filter list", () => {
     const out = await filterCommand(["list", "--limit", "2"]);
     // No --limit forwarded to acli — the fetch is unbounded by design.
     expect(calls[0].args).toEqual(["jira", "filter", "list", "--my", "--json"]);
-    expect(out).toContain("count: 3 (showing first 2)");
+    // The slice is client-side, so the count line names the exact --limit
+    // that would reveal everything (issue #42).
+    expect(out).toContain("count: 3 (showing first 2 — raise with --limit 3)");
     expect(out).toContain("Filter 1");
     expect(out).not.toContain("Filter 2");
 
@@ -168,6 +170,44 @@ describe("filter view", () => {
         Run \`jira-axi workitem search "<the filter's JQL>"\` to run it
         Run \`jira-axi filter update 33312 --jql "..."\` to change it"
     `);
+  });
+
+  it("truncates a long description and offers --full", async () => {
+    const longDescription = "d".repeat(700);
+    const { runner } = makeAcliFake([
+      {
+        match: (args) => args[2] === "view",
+        result: { ...filterViewPayload, description: longDescription },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await filterCommand(["view", "33312"]);
+    expect(out).not.toContain(longDescription);
+    expect(out).toContain("d".repeat(500));
+    expect(out).toContain("700 chars total");
+    expect(out).toContain("filter view <ID> --full");
+
+    const full = await filterCommand(["view", "33312", "--full"]);
+    expect(full).toContain(longDescription);
+    expect(full).not.toContain("truncated");
+  });
+
+  it("leaves a short description untouched and renders none when empty", async () => {
+    const { runner } = makeAcliFake([
+      {
+        match: (args) => args[2] === "view",
+        result: { ...filterViewPayload, description: "Short and sweet" },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    expect(await filterCommand(["view", "33312"])).toContain(
+      "description: Short and sweet",
+    );
+    expect(await filterCommand(["view", "33312", "--full"])).toContain(
+      "description: Short and sweet",
+    );
   });
 
   it("requires a numeric filter ID", async () => {
