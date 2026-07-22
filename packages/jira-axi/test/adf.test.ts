@@ -279,6 +279,93 @@ describe("bodyToAdf - passthrough and plain text", () => {
   });
 });
 
+describe("parseInline - link href safety", () => {
+  /** Whether any node in the list carries a link mark. */
+  function hasLinkMark(nodes: AdfNode[]): boolean {
+    return nodes.some((n) => (n.marks ?? []).some((m) => m.type === "link"));
+  }
+
+  it.each(["javascript:alert", "data:text/html,x", "vbscript:msgbox", "file:///etc/passwd"])(
+    "drops a %s link to plain text (no link mark)",
+    (href) => {
+      const nodes = parseInline(`[click](${href})`);
+      expect(hasLinkMark(nodes)).toBe(false);
+    },
+  );
+
+  it("neutralizes a whitespace/control-obfuscated javascript scheme", () => {
+    // Browsers strip tabs/newlines before resolving the scheme, so `java\tscript:`
+    // is javascript: — the guard must too.
+    const nodes = parseInline("[x](java\tscript:alert)");
+    expect(hasLinkMark(nodes)).toBe(false);
+  });
+
+  it.each(["https://e.com", "http://e.com", "mailto:a@b.com", "tel:+15551234"])(
+    "still allows the safe href %s",
+    (href) => {
+      const nodes = parseInline(`[x](${href})`);
+      expect(nodes[0].marks?.[0]).toEqual({ type: "link", attrs: { href } });
+    },
+  );
+
+  it("allows a relative / anchor href (no scheme)", () => {
+    expect(parseInline("[x](/wiki/page)")[0].marks?.[0]).toEqual({
+      type: "link",
+      attrs: { href: "/wiki/page" },
+    });
+  });
+
+  it("treats an empty-href link as literal text", () => {
+    expect(hasLinkMark(parseInline("[label]()"))).toBe(false);
+  });
+});
+
+describe("markdownToAdf - recursion / malformed-input safety", () => {
+  it("does not overflow on a deep list-nesting ladder", () => {
+    // Each line indents two spaces deeper; without a depth cap this recurses
+    // once per level and overflows the stack (confirmed reproducer).
+    const lines = Array.from(
+      { length: 4000 },
+      (_, i) => " ".repeat(i * 2) + "- x",
+    );
+    expect(() => markdownToAdf(lines.join("\n"))).not.toThrow();
+  });
+
+  it("does not overflow on deeply nested inline links", () => {
+    let s = "x";
+    for (let i = 0; i < 3000; i++) s = `[${s}](https://e.com)`;
+    expect(() => parseInline(s)).not.toThrow();
+  });
+
+  it("closes an unterminated code fence at end of input", () => {
+    const doc = markdownToAdf("```ts\ncode without a closing fence");
+    expect(doc.content[0]).toMatchObject({
+      type: "codeBlock",
+      attrs: { language: "ts" },
+    });
+    expect(doc.content[0].content?.[0].text).toBe(
+      "code without a closing fence",
+    );
+  });
+
+  it("produces an empty paragraph for a blank body", () => {
+    expect(markdownToAdf("   \n\n  ").content).toEqual([
+      { type: "paragraph", content: [] },
+    ]);
+  });
+});
+
+describe("bodyToAdf - JSON that is not ADF", () => {
+  it("treats valid JSON that is not an ADF doc as markdown", () => {
+    // {type:"paragraph"} is valid JSON but not {type:"doc"}: it must NOT pass
+    // through as ADF, it is rendered as literal markdown text instead.
+    const out = bodyToAdf('{"type":"paragraph","content":[]}');
+    expect(out.type).toBe("doc");
+    expect(out.content[0].type).toBe("paragraph");
+    expect(out.content[0].content?.[0]).toMatchObject({ type: "text" });
+  });
+});
+
 describe("markdownToAdf - structural integrity", () => {
   it("never emits a text node containing a literal markdown heading marker", () => {
     const doc = markdownToAdf("## Heading\n\n- item");

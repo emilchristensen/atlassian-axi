@@ -110,4 +110,13 @@ describe("acli error mapping (2026-07-19 live phrasings)", () => {
     expect(err.code).toBe("UNKNOWN");
     expect(err.message).toBe("something entirely novel happened");
   });
+
+  it("maps a generic 'malformed'/'bad request' phrasing to VALIDATION_ERROR via the catch-all (no suggestions)", () => {
+    // Distinct from the JQL-parse pattern: the final catch-all carries no
+    // suggestions, so this asserts the generic branch is reached.
+    const err = mapError("✗ Error: malformed input in the request body");
+    expect(err.code).toBe("VALIDATION_ERROR");
+    expect(err.suggestions).toEqual([]);
+    expect(err.message).toBe("malformed input in the request body");
+  });
 });

@@ -11,7 +11,11 @@ import {
   renderOutput,
   type FieldDef,
 } from "@atlassian-axi/core";
-import { parseFlags, type JsonRecord } from "./shared.js";
+import {
+  parseFlags,
+  rejectExtraPositional,
+  type JsonRecord,
+} from "./shared.js";
 
 export const FIELD_HELP = `usage: jira-axi field <subcommand> [flags]
 subcommands[4]:
@@ -157,6 +161,10 @@ async function updateField(args: string[], ctx?: SiteContext): Promise<string> {
     parsed.positional,
     'Run `jira-axi field update customfield_<n> --name "..."`',
   );
+  rejectExtraPositional(
+    args,
+    'This command takes a single field id; pass changes as flags: jira-axi field update customfield_<n> --name "..."',
+  );
 
   const name = parsed.values["--name"];
   const description = parsed.values["--description"];
@@ -196,6 +204,10 @@ async function deleteField(args: string[], ctx?: SiteContext): Promise<string> {
     parsed.positional,
     "Run `jira-axi field delete customfield_<n>`",
   );
+  rejectExtraPositional(
+    args,
+    "This command takes a single field id: jira-axi field delete customfield_<n>",
+  );
 
   // acli field delete has no --json (verified against v1.3.22); success is
   // exit 0, so render our own confirmation instead of parsing output.
@@ -221,6 +233,10 @@ async function restoreField(
   const id = requireFieldId(
     parsed.positional,
     "Run `jira-axi field restore customfield_<n>`",
+  );
+  rejectExtraPositional(
+    args,
+    "This command takes a single field id: jira-axi field restore customfield_<n>",
   );
 
   // acli field restore has no --json (verified against v1.3.22).

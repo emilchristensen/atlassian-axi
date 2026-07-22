@@ -236,3 +236,14 @@ describe("board routing and help", () => {
     });
   });
 });
+
+describe("board extra-positional guard", () => {
+  it("rejects `board view 1013 9999` instead of silently viewing 1013", async () => {
+    const { runner, calls } = makeAcliFake([]);
+    setAcliRunner(runner);
+    await expect(
+      boardCommand(["view", "1013", "9999"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls.filter((c) => c.args[0] !== "--version")).toHaveLength(0);
+  });
+});

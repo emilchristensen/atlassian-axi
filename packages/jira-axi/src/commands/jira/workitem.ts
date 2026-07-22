@@ -21,6 +21,7 @@ import {
   nameOf,
   parseFlags,
   parseLimit,
+  rejectExtraPositional,
   splitFields,
   workitemListSchema,
   workitemViewSchema,
@@ -94,13 +95,34 @@ export async function workitemCommand(
 // Shared plumbing
 // ---------------------------------------------------------------------------
 
-function requireKey(positional: string | undefined, sub: string): string {
+function requireKey(
+  args: string[],
+  positional: string | undefined,
+  sub: string,
+): string {
   if (!positional) {
     throw new AxiError(`Missing work item key`, "VALIDATION_ERROR", [
       `Run \`jira-axi workitem ${sub} <KEY> ...\``,
     ]);
   }
-  return positional.toUpperCase();
+  const key = positional.toUpperCase();
+  // Jira work item keys are PROJECT-NUMBER (e.g. TEAM-1). Reject anything else
+  // up front: a value like `-foo` would otherwise reach acli as a POSITIONAL
+  // and be parsed as a flag (argv, so not shell injection, but a confusing acli
+  // error and a small argument-injection surface), and a non-key like `foo`
+  // would only fail after a needless network round-trip.
+  if (!/^[A-Z][A-Z0-9]*-\d+$/.test(key)) {
+    throw new AxiError(
+      `Invalid work item key: ${JSON.stringify(positional)} (expected PROJECT-NUMBER, e.g. TEAM-1)`,
+      "VALIDATION_ERROR",
+      [`Run \`jira-axi workitem ${sub} <KEY>\``],
+    );
+  }
+  rejectExtraPositional(
+    args,
+    `This command takes a single <KEY>: jira-axi workitem ${sub} <KEY>`,
+  );
+  return key;
 }
 
 // acli view's default field set omits created/updated/priority; request the
@@ -269,6 +291,12 @@ async function searchWorkitems(
       'Run `jira-axi workitem search "<JQL>"`',
     ]);
   }
+  // An unquoted JQL (`workitem search project = TEAM`) would search only its
+  // first token and return wrong results at exit 0 - reject the leftover.
+  rejectExtraPositional(
+    args,
+    'Quote the whole JQL as one argument: jira-axi workitem search "<JQL>"',
+  );
   const limit = parseLimit(parsed.values["--limit"]);
   const fields = splitFields(parsed.values["--fields"]);
   const items = await runSearch(jql, limit, fields);
@@ -289,7 +317,7 @@ async function viewWorkitem(
   });
   if (parsed.help) return WORKITEM_HELP;
 
-  const key = requireKey(parsed.positional, "view");
+  const key = requireKey(args, parsed.positional, "view");
   const full = parsed.bools["--full"];
   const withComments = parsed.bools["--comments"];
   const fields = splitFields(parsed.values["--fields"]);
@@ -507,7 +535,7 @@ async function editWorkitem(
   });
   if (parsed.help) return WORKITEM_HELP;
 
-  const key = requireKey(parsed.positional, "edit");
+  const key = requireKey(args, parsed.positional, "edit");
   const summary = parsed.values["--summary"];
   const assignee = parsed.values["--assignee"];
   const type = parsed.values["--type"];
@@ -568,7 +596,7 @@ async function transitionWorkitem(
   const parsed = parseFlags(args, { values: ["--to"] });
   if (parsed.help) return WORKITEM_HELP;
 
-  const key = requireKey(parsed.positional, "transition");
+  const key = requireKey(args, parsed.positional, "transition");
   const to = parsed.values["--to"];
   if (!to) {
     throw new AxiError("Missing --to <status>", "VALIDATION_ERROR", [
@@ -642,7 +670,7 @@ async function assignWorkitem(
   const parsed = parseFlags(args, { values: ["--assignee"] });
   if (parsed.help) return WORKITEM_HELP;
 
-  const key = requireKey(parsed.positional, "assign");
+  const key = requireKey(args, parsed.positional, "assign");
   const assignee = parsed.values["--assignee"];
   if (!assignee) {
     throw new AxiError("Missing --assignee <email|@me>", "VALIDATION_ERROR", [
@@ -728,7 +756,7 @@ async function commentWorkitem(
       'Use --body "..." for inline comment, or --body-file <path> for markdown from a file',
     ]);
   }
-  const key = requireKey(parsed.positional, "comment");
+  const key = requireKey(args, parsed.positional, "comment");
 
   // Comment bodies are ADF too: convert the markdown and pass it through acli's
   // ADF --body-file path (a bare --body string stores one flat text node).

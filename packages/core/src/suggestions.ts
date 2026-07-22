@@ -47,9 +47,12 @@ function appendSiteFlag(
   const flag = siteFlag(ctx);
   if (!flag) return line;
   const bin = escapeRegExp(binName);
+  // Use a replacement FUNCTION, not a string: a `$`-bearing site value in `flag`
+  // would otherwise be interpreted as a `$1`/`$&` replacement pattern and
+  // corrupt the suggestion line.
   return line.replace(
     new RegExp(`\`([^\`]*\\b${bin}\\b[^\`]*)\``, "g"),
-    `\`$1${flag}\``,
+    (_full, inner: string) => `\`${inner}${flag}\``,
   );
 }
 

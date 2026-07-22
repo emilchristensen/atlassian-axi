@@ -7,6 +7,7 @@ import {
   getAllFlags,
   getPositional,
   requireNumber,
+  takeNumber,
 } from "../src/args.js";
 import { AxiError } from "../src/errors.js";
 
@@ -190,5 +191,35 @@ describe("requireNumber", () => {
       expect(e).toBeInstanceOf(AxiError);
       expect((e as AxiError).code).toBe("VALIDATION_ERROR");
     }
+  });
+
+  it.each(["5abc", "5.9", "0x10", " 5 ", "1e3", "-5"])(
+    "rejects the coercible/non-pure-digit input %j instead of silently truncating it",
+    (raw) => {
+      // parseInt would turn "5abc"->5, "5.9"->5, "0x10"->16; require pure digits.
+      expect(() => requireNumber(raw, "issue")).toThrow(AxiError);
+      expect(() => requireNumber(raw, "issue")).toThrow(/Invalid issue number/);
+    },
+  );
+});
+
+describe("takeNumber", () => {
+  it("returns the first pure-digit token and removes it from args", () => {
+    const args = ["view", "1013", "--full"];
+    expect(takeNumber(args, "board")).toBe(1013);
+    expect(args).toEqual(["view", "--full"]);
+  });
+
+  it("ignores non-pure-digit tokens (never coerces 5abc)", () => {
+    const args = ["5abc", "42"];
+    expect(takeNumber(args, "issue")).toBe(42);
+    expect(args).toEqual(["5abc"]);
+  });
+
+  it("throws VALIDATION_ERROR when no numeric token is present", () => {
+    expect(() => takeNumber(["view", "abc"], "board")).toThrow(AxiError);
+    expect(() => takeNumber(["view", "abc"], "board")).toThrow(
+      "Missing board number",
+    );
   });
 });
