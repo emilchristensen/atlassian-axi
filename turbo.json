@@ -6,7 +6,11 @@
       "outputs": ["dist/**"]
     },
     "build:skill": {
-      "outputs": ["skills/**"]
+      "dependsOn": ["^build"],
+      "outputs": ["skills/**"],
+      // Never replay: `build:skill -- --check` is a drift GUARD, so a cache
+      // hit would report a stale pass. The script is sub-second either way.
+      "cache": false
     },
     "typecheck": {
       "dependsOn": ["^build"]
