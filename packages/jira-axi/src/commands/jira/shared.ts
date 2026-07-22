@@ -150,7 +150,8 @@ export function workitemViewSchema(full: boolean): FieldDef[] {
 }
 
 /**
- * Comment schema: author, body (truncated unless --full). No `created` column:
+ * Comment schema: author, body (truncated at the same 500-char baseline as
+ * the workitem description unless --full). No `created` column:
  * acli's comment list --json carries only {id, author, body, visibility}
  * (verified live against v1.3.22); author arrives as a plain string.
  */
@@ -161,7 +162,7 @@ export function commentSchema(full: boolean): FieldDef[] {
       const text = textOf(item.body).trim();
       return full
         ? text
-        : truncateBody(text, 300, {
+        : truncateBody(text, 500, {
             fullHint: "use `view <KEY> --full --comments` for complete bodies",
           });
     }),
