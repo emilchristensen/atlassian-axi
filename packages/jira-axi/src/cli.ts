@@ -13,8 +13,11 @@ import { filterCommand, FILTER_HELP } from "./commands/jira/filter.js";
 import { dashboardCommand, DASHBOARD_HELP } from "./commands/jira/dashboard.js";
 import { fieldCommand, FIELD_HELP } from "./commands/jira/field.js";
 
+// The SDK prints this verbatim as the home header on every no-arg invocation
+// (the SessionStart hook target), so it stays ONE sentence per the AXI spec.
+// Anything longer belongs in TOP_HELP, which an agent only pays for on --help.
 export const DESCRIPTION =
-  "Agent-ergonomic Jira CLI, backed by Atlassian's acli. Token-efficient TOON output, contextual suggestions, idempotent mutations. Self-contained: auth is delegated to acli's own login, no extra credential setup.";
+  "Agent-ergonomic Jira CLI backed by Atlassian's acli, with token-efficient TOON output and self-contained auth (no extra credential setup).";
 const VERSION = readPackageVersion();
 
 type CliStdout = Pick<NodeJS.WriteStream, "write">;
@@ -29,6 +32,9 @@ commands[9]:
   (none)=dashboard, workitem, project, board, sprint, filter, dashboard, field, setup
 flags[2]:
   --help, -v/-V/--version
+notes[2]:
+  Token-efficient TOON output, contextual suggestions, idempotent mutations.
+  Auth is delegated to acli's own login (\`acli jira auth login\`) - no extra credential setup.
 examples:
   jira-axi
   jira-axi workitem list --project TEAM
