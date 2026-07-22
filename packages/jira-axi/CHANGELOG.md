@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/emilchristensen/atlassian-axi/compare/jira-axi-v0.2.1...jira-axi-v0.2.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* **jira-axi,core:** harden acli transport, ADF conversion, and command inputs ([f8fa3de](https://github.com/emilchristensen/atlassian-axi/commit/f8fa3defd14cc3878a962fb8aefd9c19735fb0c0))
+
 ## [0.2.1](https://github.com/emilchristensen/atlassian-axi/compare/jira-axi-v0.2.0...jira-axi-v0.2.1) (2026-07-22)
 
 
