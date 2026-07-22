@@ -16,6 +16,7 @@ import {
   itemsOf,
   parseFlags,
   parseLimit,
+  rejectExtraPositional,
   requireNumericId,
   totalOf,
   type JsonRecord,
@@ -151,6 +152,7 @@ async function viewBoard(args: string[], ctx?: SiteContext): Promise<string> {
     "Run `jira-axi board view <ID>` (find IDs via `jira board list`)",
     "board ID",
   );
+  rejectExtraPositional(args, "This command takes a single <ID>: jira-axi board view <ID>");
 
   const payload = await acliJson<unknown>([
     "jira",
@@ -192,6 +194,10 @@ async function listSprints(
     parsed.positional,
     "Run `jira-axi board list-sprints <ID>` (find IDs via `jira board list`)",
     "board ID",
+  );
+  rejectExtraPositional(
+    args,
+    "This command takes a single board <ID>: jira-axi board list-sprints <ID>",
   );
   const state = parsed.values["--state"];
   const limit = parseLimit(parsed.values["--limit"]);
@@ -255,6 +261,10 @@ async function listProjects(
     parsed.positional,
     "Run `jira-axi board list-projects <ID>` (find IDs via `jira board list`)",
     "board ID",
+  );
+  rejectExtraPositional(
+    args,
+    "This command takes a single board <ID>: jira-axi board list-projects <ID>",
   );
   const limit = parseLimit(parsed.values["--limit"]);
 

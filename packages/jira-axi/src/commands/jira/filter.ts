@@ -18,6 +18,7 @@ import {
   nameOf,
   parseFlags,
   parseLimit,
+  rejectExtraPositional,
   requireNumericId,
   type JsonRecord,
 } from "./shared.js";
@@ -148,16 +149,10 @@ async function searchFilters(
   }
   // An unquoted multi-word query would silently search only its first word —
   // the same silent-discard bug class the shorthand itself fixed.
-  const extraPositional = args
-    .slice(1)
-    .filter((a) => !a.startsWith("--"))[1];
-  if (extraPositional !== undefined) {
-    throw new AxiError(
-      `Unexpected extra argument: ${extraPositional}`,
-      "VALIDATION_ERROR",
-      ['Quote a multi-word query: `jira-axi filter search "my filters"`'],
-    );
-  }
+  rejectExtraPositional(
+    args,
+    'Quote a multi-word query: `jira-axi filter search "my filters"`',
+  );
   const name = parsed.values["--name"] ?? parsed.positional;
   const owner = parsed.values["--owner"];
   const limit = parseLimit(parsed.values["--limit"]);
@@ -217,6 +212,7 @@ async function viewFilter(args: string[], ctx?: SiteContext): Promise<string> {
     "Run `jira-axi filter view <ID>` (find IDs via `jira filter list` or `jira filter search`)",
     "filter ID",
   );
+  rejectExtraPositional(args, "This command takes a single filter <ID>: jira-axi filter view <ID>");
 
   const item = await fetchFilter(id);
   return renderOutput([
@@ -239,6 +235,10 @@ async function updateFilter(
     parsed.positional,
     'Run `jira-axi filter update <ID> --jql "..."`',
     "filter ID",
+  );
+  rejectExtraPositional(
+    args,
+    'This command takes a single filter <ID>; pass changes as flags: jira-axi filter update <ID> --jql "..."',
   );
 
   const name = parsed.values["--name"];

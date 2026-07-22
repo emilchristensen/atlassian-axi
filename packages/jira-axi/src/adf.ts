@@ -216,6 +216,9 @@ function parseListLine(line: string): ListLine | null {
   };
 }
 
+/** Deepest list nesting we recurse into before flattening (stack-overflow guard). */
+const MAX_LIST_DEPTH = 20;
+
 /**
  * Parse a (possibly nested) list starting at `start` whose items sit at
  * `baseIndent`. Deeper-indented items attach as nested lists to the item above
@@ -225,6 +228,7 @@ function parseList(
   lines: string[],
   start: number,
   baseIndent: number,
+  depth = 0,
 ): { node: AdfNode; next: number } {
   const first = parseListLine(lines[start]) as ListLine;
   const ordered = first.ordered;
@@ -238,8 +242,12 @@ function parseList(
     if (!item) break;
     if (item.indent < baseIndent) break;
 
-    if (item.indent > baseIndent) {
-      const nested = parseList(lines, i, item.indent);
+    // Beyond MAX_LIST_DEPTH, stop recursing on deeper indents and attach the
+    // item at the current level instead. Jira renders nowhere near this depth;
+    // the cap only stops a pathological indent ladder from overflowing the
+    // stack (an uncaught RangeError -> raw crash).
+    if (item.indent > baseIndent && depth < MAX_LIST_DEPTH) {
+      const nested = parseList(lines, i, item.indent, depth + 1);
       if (items.length === 0) {
         items.push({ type: "listItem", content: [nested.node] });
       } else {
@@ -289,9 +297,12 @@ function expandTabs(ws: string): string {
 
 const PUNCT = new Set("\\`*_{}[]()#+-.!>~".split(""));
 
+/** Deepest inline mark/link nesting before the rest is kept as plain text. */
+const MAX_INLINE_DEPTH = 50;
+
 /** Parse inline markdown (marks, code, links) into ADF inline nodes. */
 export function parseInline(text: string): AdfNode[] {
-  return parseInlineWithMarks(text, []);
+  return parseInlineWithMarks(text, [], 0);
 }
 
 function textNode(text: string, marks: AdfMark[]): AdfNode {
@@ -300,7 +311,17 @@ function textNode(text: string, marks: AdfMark[]): AdfNode {
   return node;
 }
 
-function parseInlineWithMarks(text: string, marks: AdfMark[]): AdfNode[] {
+function parseInlineWithMarks(
+  text: string,
+  marks: AdfMark[],
+  depth = 0,
+): AdfNode[] {
+  // Nested marks/links (`[[[...`, `***...`) recurse per level; beyond the cap
+  // keep the remaining slice as plain text so a pathological input degrades
+  // instead of overflowing the stack.
+  if (depth > MAX_INLINE_DEPTH) {
+    return text ? [textNode(text, marks)] : [];
+  }
   const nodes: AdfNode[] = [];
   let buf = "";
   let i = 0;
@@ -344,10 +365,11 @@ function parseInlineWithMarks(text: string, marks: AdfMark[]): AdfNode[] {
       if (link) {
         flush();
         nodes.push(
-          ...parseInlineWithMarks(link.label, [
-            ...marks,
-            { type: "link", attrs: { href: link.href } },
-          ]),
+          ...parseInlineWithMarks(
+            link.label,
+            [...marks, { type: "link", attrs: { href: link.href } }],
+            depth + 1,
+          ),
         );
         i = link.end;
         continue;
@@ -361,10 +383,11 @@ function parseInlineWithMarks(text: string, marks: AdfMark[]): AdfNode[] {
         if (close > i + 2) {
           flush();
           nodes.push(
-            ...parseInlineWithMarks(text.slice(i + 2, close), [
-              ...marks,
-              { type: "strong" },
-            ]),
+            ...parseInlineWithMarks(
+              text.slice(i + 2, close),
+              [...marks, { type: "strong" }],
+              depth + 1,
+            ),
           );
           i = close + 2;
           continue;
@@ -379,10 +402,11 @@ function parseInlineWithMarks(text: string, marks: AdfMark[]): AdfNode[] {
         if (close > i + 1) {
           flush();
           nodes.push(
-            ...parseInlineWithMarks(text.slice(i + 1, close), [
-              ...marks,
-              { type: "em" },
-            ]),
+            ...parseInlineWithMarks(
+              text.slice(i + 1, close),
+              [...marks, { type: "em" }],
+              depth + 1,
+            ),
           );
           i = close + 1;
           continue;
@@ -496,6 +520,26 @@ function matchLink(text: string, start: number): LinkMatch | null {
   const hrefEnd = text.indexOf(")", hrefStart);
   if (hrefEnd === -1) return null;
   const href = text.slice(hrefStart, hrefEnd).trim();
-  if (!href) return null;
+  if (!href || !isSafeHref(href)) return null;
   return { label, href, end: hrefEnd + 1 };
+}
+
+/**
+ * Whether a link href is safe to emit as an ADF link mark. A `javascript:`,
+ * `data:`, `vbscript:` or `file:` href is a script/exfil vector if the ADF is
+ * ever rendered somewhere that trusts it, so those links degrade to plain text
+ * (the visible `[label](href)` is preserved, just not made clickable).
+ *
+ * Control chars and whitespace are stripped before the scheme is read because
+ * browsers ignore them when resolving a scheme (`java\tscript:` is javascript:),
+ * so a naive scheme check would be bypassable.
+ */
+function isSafeHref(href: string): boolean {
+  // Stripping control chars + whitespace is the whole point (browsers do the
+  // same before resolving a scheme), so the control-char class is deliberate.
+  // eslint-disable-next-line no-control-regex
+  const normalized = href.replace(/[\u0000-\u0020]/g, "").toLowerCase();
+  const scheme = /^([a-z][a-z0-9+.-]*):/.exec(normalized);
+  if (!scheme) return true; // relative, anchor, or protocol-relative
+  return ["http", "https", "mailto", "tel", "ftp"].includes(scheme[1]);
 }

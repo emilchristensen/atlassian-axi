@@ -40,8 +40,12 @@ const defaultRunner: AcliRunner = (args, stdin) =>
         });
       },
     );
-    if (stdin !== undefined) {
-      child.stdin?.end(stdin);
+    if (stdin !== undefined && child.stdin) {
+      // If the child exits before draining stdin, the write emits EPIPE on the
+      // stream; without this listener that error is unhandled and crashes the
+      // whole process. The execFile callback already reports the real failure.
+      child.stdin.on("error", () => {});
+      child.stdin.end(stdin);
     }
   });
 
