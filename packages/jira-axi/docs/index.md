@@ -22,7 +22,7 @@ Agents do not need a global install: run any command with `npx -y jira-axi <comm
 - Flags come AFTER the command: `jira-axi workitem list --project TEAM`, never before.
 - Auth is delegated to `acli`. `jira-axi` has no auth command; run `acli jira auth login` once (install acli via `brew install acli`).
 - Work item and comment bodies accept a markdown subset (converted to ADF); raw ADF JSON passes through unchanged.
-- Bodies truncate by default; pass `--full` on `workitem view` for complete bodies.
+- Long free text truncates by default with a size marker; the detail command that renders it takes `--full` (see [commands](./commands.md)).
 - All structured output is TOON-encoded. There is no plain-text or JSON mode.
 - Mutations are non-interactive (`acli --yes`), idempotent, and re-fetch the post-state; re-running a failed mutation is safe.
 - Per-command help is always available: `jira-axi <resource> --help` (e.g. `jira-axi workitem --help`).

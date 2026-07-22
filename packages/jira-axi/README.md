@@ -71,7 +71,7 @@ Per-command help is always available: `jira-axi <resource> --help` (e.g. `jira-a
 ## Output and behavior
 
 All structured output is TOON-encoded and token-efficient; there is no plain-text or JSON mode.
-Bodies truncate by default - pass `--full` on `workitem view` for complete bodies.
+Long free text truncates by default with a size marker - pass `--full` on the detail command that renders it (see [Commands](./docs/commands.md)).
 Mutations run non-interactively (`acli --yes`), are idempotent, and re-fetch the authoritative post-state, so re-running a failed mutation is safe.
 
 ## Docs
