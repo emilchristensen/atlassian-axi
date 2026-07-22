@@ -110,6 +110,23 @@ describe("matchSuggestions", () => {
     expect(flagged[1]).toBe("See docs at https://example.test");
   });
 
+  it("keeps $-sequences in the site value literal (no replacement-pattern injection)", () => {
+    // A `$1`/`$&`-bearing site value would corrupt the suggestion line if the
+    // flag were spliced in as a String.replace replacement string; the
+    // function-based replace keeps it literal.
+    const lines = matchSuggestions(
+      DEMO_TABLE,
+      {
+        domain: "item",
+        action: "view",
+        id: "ITEM-42",
+        site: { site: "a$1$&b.atlassian.net", source: "flag" },
+      },
+      BIN,
+    );
+    expect(lines[0]).toContain("--site a$1$&b.atlassian.net`");
+  });
+
   it("does not append --site when the site came from a non-flag source", () => {
     const fromEnv = matchSuggestions(
       DEMO_TABLE,

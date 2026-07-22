@@ -54,6 +54,20 @@ describe("acli shell-out (injected runner)", () => {
     });
   });
 
+  it("acliJson throws a generic message when a batch FAILURE carries no message", async () => {
+    // The failure has no `message` field, so the join is empty and the guard
+    // must fall back to a generic sentence rather than throwing an empty error.
+    const envelope = JSON.stringify({
+      results: [{ status: "FAILURE", id: "SKPC-43" }],
+      totalCount: 1,
+      successCount: 0,
+    });
+    setAcliRunner(async () => ok(envelope));
+    await expect(
+      acliJson(["jira", "workitem", "transition", "--key", "SKPC-43"]),
+    ).rejects.toMatchObject({ message: "acli reported the operation failed" });
+  });
+
   it("acliJson passes a successful batch envelope through unchanged", async () => {
     const envelope = {
       results: [{ status: "SUCCESS", message: "transitioned", id: "SKPC-43" }],

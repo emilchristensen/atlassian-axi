@@ -19,6 +19,7 @@ import {
   itemsOf,
   parseFlags,
   parseLimit,
+  rejectExtraPositional,
   requireNumericId,
   splitFields,
   totalOf,
@@ -120,6 +121,7 @@ async function viewSprint(args: string[], ctx?: SiteContext): Promise<string> {
     "Run `jira-axi sprint view <ID>` (find IDs via `jira board list-sprints <BOARD_ID>`)",
     "sprint ID",
   );
+  rejectExtraPositional(args, "This command takes a single sprint <ID>: jira-axi sprint view <ID>");
 
   const item = await fetchSprint(id);
   return renderOutput([
@@ -142,6 +144,10 @@ async function listWorkitems(
     parsed.positional,
     "Run `jira-axi sprint list-workitems <ID> --board <BOARD_ID>`",
     "sprint ID",
+  );
+  rejectExtraPositional(
+    args,
+    "Pass the board as --board <ID>, not a positional: jira-axi sprint list-workitems <ID> --board <BOARD_ID>",
   );
   const boardId = requireNumericId(
     parsed.values["--board"],
@@ -298,6 +304,10 @@ async function updateSprint(
     parsed.positional,
     "Run `jira-axi sprint update <ID> --state closed` (find IDs via `jira board list-sprints <BOARD_ID>`)",
     "sprint ID",
+  );
+  rejectExtraPositional(
+    args,
+    "This command takes a single sprint <ID>; pass changes as flags: jira-axi sprint update <ID> --state closed",
   );
 
   const name = parsed.values["--name"];

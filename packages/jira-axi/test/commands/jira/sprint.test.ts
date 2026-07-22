@@ -332,3 +332,16 @@ describe("dateOnly", () => {
     expect(dateOnly(null)).toBeNull();
   });
 });
+
+describe("sprint extra-positional guard", () => {
+  it("rejects a board passed as a positional (list-workitems 5205 1013) instead of dropping it", async () => {
+    // Forgetting --board and writing `list-workitems 5205 1013` would otherwise
+    // silently ignore 1013 and fail obscurely; the guard names the fix.
+    const { runner, calls } = makeAcliFake([]);
+    setAcliRunner(runner);
+    await expect(
+      sprintCommand(["list-workitems", "5205", "1013"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls.filter((c) => c.args[0] !== "--version")).toHaveLength(0);
+  });
+});
