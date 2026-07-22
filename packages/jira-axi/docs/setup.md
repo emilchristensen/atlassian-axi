@@ -19,8 +19,14 @@ Each hook target is `jira-axi` invoked with no arguments, so the dashboard outpu
 
 Why run it: at the start of every agent session the tool advertises its own command surface plus your current Jira context (open work items), so the agent knows the CLI exists and what state it is looking at without being told.
 
+Each target is written independently, so read the reported `status`:
+`status: installed` means every target was written.
+`status: partial` means at least one was not, and a `failures[n]:` block names each one (usually a malformed JSON/TOML config or a permissions problem); the remaining integrations are installed.
+The `integrations:` line always lists what was attempted, not what succeeded - the `failures[n]:` block is what tells you which targets are missing.
+
 **Caveats:**
-- Idempotent - safe to re-run; it installs if missing and repairs if present.
+- Idempotent - safe to re-run; it installs if missing and repairs if present. Fix the file named in a failure and re-run.
+- A partial install still exits 0, so check the `status` line rather than the exit code.
 - Modifies real user config files under `~/.claude`, `~/.codex`, and OpenCode's config directory. This is a real filesystem write, not a dry run.
 
 ### `jira-axi update`
