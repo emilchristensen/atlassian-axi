@@ -10,7 +10,6 @@ import {
   renderHelp,
   renderList,
   renderOutput,
-  truncateBody,
   type FieldDef,
 } from "@atlassian-axi/core";
 import {
@@ -19,6 +18,7 @@ import {
   parseFlags,
   parseLimit,
   rejectExtraPositional,
+  truncatedTextField,
   type JsonRecord,
 } from "./shared.js";
 
@@ -53,15 +53,16 @@ function projectViewSchema(full: boolean): FieldDef[] {
     ...projectListSchema,
     custom("id", (item: JsonRecord) => item.id ?? null),
     custom("lead", (item: JsonRecord) => nameOf(item.lead) ?? "none"),
-    custom("description", (item: JsonRecord) => {
-      const text = typeof item.description === "string" ? item.description : "";
-      if (!text) return "none";
-      return full
-        ? text
-        : truncateBody(text, 500, {
-            fullHint: "use `project view <KEY> --full` for the complete text",
-          });
-    }),
+    truncatedTextField(
+      "description",
+      (item: JsonRecord) =>
+        typeof item.description === "string" ? item.description : "",
+      full,
+      {
+        emptyValue: "none",
+        fullHint: "use `project view <KEY> --full` for the complete text",
+      },
+    ),
   ];
 }
 

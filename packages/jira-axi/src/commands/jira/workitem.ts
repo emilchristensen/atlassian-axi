@@ -385,13 +385,12 @@ async function viewWorkitem(
       "--json",
     ]);
     const comments = itemsOf(payload, "comments", "values");
+    const total = totalOf(payload);
     blocks.push(
       formatCountLine({
         count: comments.length,
         limit: commentLimit,
-        ...(totalOf(payload) !== undefined
-          ? { totalCount: totalOf(payload) }
-          : {}),
+        ...(total !== undefined ? { totalCount: total } : {}),
       }),
     );
     if (comments.length > 0) {

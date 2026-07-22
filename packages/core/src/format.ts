@@ -18,7 +18,16 @@ export interface CountLineOptions {
   totalCount?: number;
   /** Whether the API limit was reached (search-specific). */
   apiLimitHit?: boolean;
-  /** Display limit that further truncates results for output. */
+  /**
+   * Client-side slice size, for callers that fetched the collection UNBOUNDED
+   * and sliced it for output.
+   *
+   * PRECONDITION: `count` must be the true total. The rendered hint promises
+   * that `--limit ${count}` reveals everything, which is only honest when
+   * nothing was left on the server. A server-paged fetch must use `limit`
+   * instead - that branch deliberately refuses to name a number, because the
+   * server may have capped the page below what was asked for.
+   */
   displayLimit?: number;
 }
 

@@ -11,7 +11,6 @@ import {
   renderHelp,
   renderList,
   renderOutput,
-  truncateBody,
   type FieldDef,
 } from "@atlassian-axi/core";
 import {
@@ -21,6 +20,7 @@ import {
   parseLimit,
   rejectExtraPositional,
   requireNumericId,
+  truncatedTextField,
   type JsonRecord,
 } from "./shared.js";
 
@@ -59,15 +59,16 @@ function filterViewSchema(full = false): FieldDef[] {
     ...filterListSchema,
     custom("jql", (item: JsonRecord) => item.jql ?? null),
     custom("favourite", (item: JsonRecord) => (item.favourite ? "yes" : "no")),
-    custom("description", (item: JsonRecord) => {
-      const text = typeof item.description === "string" ? item.description : "";
-      if (!text) return "none";
-      return full
-        ? text
-        : truncateBody(text, 500, {
-            fullHint: "use `filter view <ID> --full` for the complete text",
-          });
-    }),
+    truncatedTextField(
+      "description",
+      (item: JsonRecord) =>
+        typeof item.description === "string" ? item.description : "",
+      full,
+      {
+        emptyValue: "none",
+        fullHint: "use `filter view <ID> --full` for the complete text",
+      },
+    ),
   ];
 }
 
