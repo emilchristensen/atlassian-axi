@@ -29,6 +29,20 @@ export interface ParsedFlags {
  * silently ignored `--formt storage` would otherwise turn its value into the
  * positional and discard the real one (review finding).
  */
+/**
+ * Enumerate a spec's accepted flags for an error's suggestions, so a typo'd
+ * flag is answered inline instead of costing the agent a second `--help`
+ * round-trip. `--help` is always accepted (parseFlags consumes it), so it is
+ * listed even for a command with no flags of its own.
+ */
+function supportedFlagsSuggestions(spec: {
+  values?: string[];
+  bools?: string[];
+}): string[] {
+  const flags = [...(spec.values ?? []), ...(spec.bools ?? []), "--help"];
+  return [`Supported flags: ${flags.join(", ")}`];
+}
+
 export function parseFlags(
   args: string[],
   spec: { values?: string[]; bools?: string[] },
@@ -64,6 +78,7 @@ export function parseFlags(
   const unknown = args.slice(1).find((a) => a.startsWith("--"));
   if (unknown !== undefined && !help) {
     throw new AxiError(`Unknown flag: ${unknown}`, "VALIDATION_ERROR", [
+      ...supportedFlagsSuggestions(spec),
       "Run the command with --help to see the supported flags",
     ]);
   }
