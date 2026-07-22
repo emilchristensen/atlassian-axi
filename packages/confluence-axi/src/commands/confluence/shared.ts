@@ -71,14 +71,27 @@ export function strictBodyValueOf(
 }
 
 /**
+ * Neutralize non-printing control characters in remote-derived strings before
+ * they reach the terminal. TOON escapes C0 controls (incl. ESC/CR/BEL) but
+ * lets the C1 range through, so a page title/label carrying U+009B (8-bit CSI)
+ * or U+0080-U+009F could drive terminals that honour 8-bit controls — a
+ * terminal-escape injection from attacker-influenced Confluence content. Strip
+ * C1 (0x80-0x9F) and DEL (0x7F); C0 is left to TOON's own escaping.
+ */
+export function stripControlChars(text: string): string {
+  return text.replace(/[\u007f-\u009f]/g, "");
+}
+
+/**
  * Strip v1 search highlight markers (`@@@hl@@@...@@@endhl@@@`) and clean the
  * excerpt artifacts v1 ships: undecoded HTML entities and lone surrogate
  * halves (excerpts are truncated mid-codepoint, leaving U+FFFD-rendering
- * garbage — verified live 2026-07-19).
+ * garbage — verified live 2026-07-19). Also strips C1/DEL control chars so a
+ * decorated title/excerpt cannot smuggle a terminal-escape sequence.
  */
 export function stripHighlights(text: unknown): string {
   if (typeof text !== "string") return "";
-  return text
+  return stripControlChars(text)
     .replace(/@@@(?:end)?hl@@@/g, "")
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
@@ -108,7 +121,11 @@ export function pageDetailSchema(
 ): FieldDef[] {
   return [
     custom("id", (item: JsonRecord) => item.id ?? null),
-    custom("title", (item: JsonRecord) => item.title ?? null),
+    // Title/body are attacker-influenced remote content; strip C1/DEL controls
+    // so a crafted title/body cannot inject an 8-bit terminal-escape sequence.
+    custom("title", (item: JsonRecord) =>
+      typeof item.title === "string" ? stripControlChars(item.title) : null,
+    ),
     custom("status", (item: JsonRecord) => item.status ?? null),
     custom("spaceId", (item: JsonRecord) => item.spaceId ?? null),
     custom("parentId", (item: JsonRecord) => item.parentId ?? null),
@@ -117,7 +134,7 @@ export function pageDetailSchema(
       relativeOf((item.version as JsonRecord | undefined)?.createdAt),
     ),
     custom("body", (item: JsonRecord) => {
-      const text = bodyValueOf(item, representation).trim();
+      const text = stripControlChars(bodyValueOf(item, representation).trim());
       return full ? text : truncateBody(text, 800);
     }),
   ];
@@ -211,6 +228,20 @@ export function requirePageId(
       `Unexpected extra argument: ${extra}`,
       "VALIDATION_ERROR",
       [`Run \`confluence-axi page ${sub} <id>\` with a single id`],
+    );
+  }
+  // Confluence page ids are numeric. Enforcing it here stops a crafted id from
+  // being interpolated raw into the REST path (`new URL` normalizes `..`, `#`,
+  // `?`), which would silently retarget a GET/PUT/DELETE at a different
+  // endpoint (e.g. `../folders/999`) or the wrong page (`123#x` → 123).
+  if (!/^\d+$/.test(positional)) {
+    throw new AxiError(
+      `Invalid page id: ${JSON.stringify(positional)}`,
+      "VALIDATION_ERROR",
+      [
+        "A Confluence page id is numeric (e.g. 12345)",
+        'Find page ids with `confluence-axi search "<CQL>"`',
+      ],
     );
   }
   return positional;

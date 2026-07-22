@@ -215,3 +215,37 @@ describe("confluenceJson", () => {
     });
   });
 });
+
+describe("site host validation (Basic-auth credential-exfil guard)", () => {
+  it.each([
+    "victim.atlassian.net@evil.com",
+    "evil.com/wiki",
+    "evil.com?x=1",
+    "evil.com#frag",
+  ])(
+    "refuses to send the API token when the site %j is not a bare host",
+    async (site) => {
+      // A crafted site parses to a different origin host; the account-scoped
+      // API token must never leave for it. No request must be made.
+      process.env["ATLASSIAN_SITE"] = site;
+      const { fetchImpl, calls } = makeConfluenceFake([
+        { match: () => true, result: {} },
+      ]);
+      setConfluenceFetch(fetchImpl);
+      await expect(
+        confluenceJson("/wiki/api/v2/spaces"),
+      ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+      expect(calls).toHaveLength(0);
+    },
+  );
+
+  it("still allows a legitimate bare host with an explicit port", async () => {
+    process.env["ATLASSIAN_SITE"] = "example.atlassian.net:8443";
+    const { fetchImpl, calls } = makeConfluenceFake([
+      { match: () => true, result: { results: [] } },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await confluenceJson("/wiki/api/v2/spaces");
+    expect(calls[0].url.host).toBe("example.atlassian.net:8443");
+  });
+});

@@ -1,4 +1,5 @@
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -7,10 +8,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type KeychainBackend,
+  assertBareHostSite,
   clearCredential,
   configPath,
   readTokenFromStdin,
@@ -226,6 +228,48 @@ describe("config credential resolution", () => {
     await clearCredential();
     expect(existsSync(configPath())).toBe(false);
     expect(keychain.value).toBeNull();
+  });
+
+  it("treats wrong-typed stored fields as not-configured instead of crashing", async () => {
+    // {site: 123} would otherwise make normalizeSite(123).trim() throw a raw
+    // TypeError on EVERY command, including the `auth login` recovery path.
+    const p = configPath();
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(
+      p,
+      JSON.stringify({ site: 123, email: 42, token: {}, oauth: "nope" }),
+    );
+    const resolved = await resolveCredential();
+    expect(resolved.site).toBeUndefined();
+    expect(resolved.email).toBeUndefined();
+    expect(resolved.apiToken).toBeUndefined();
+  });
+});
+
+describe("assertBareHostSite", () => {
+  it.each(["acme.atlassian.net", "acme.atlassian.net:8443", "personal.example.com"])(
+    "accepts the bare host %j",
+    (site) => {
+      expect(() => assertBareHostSite(site)).not.toThrow();
+    },
+  );
+
+  it.each([
+    "victim.atlassian.net@evil.com",
+    "evil.com/wiki",
+    "evil.com?x=1",
+    "evil.com#frag",
+    "user:pass@evil.com",
+    "has space.com",
+  ])("rejects the non-bare host %j with VALIDATION_ERROR", (site) => {
+    let thrown: unknown;
+    try {
+      assertBareHostSite(site);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(AxiError);
+    expect((thrown as AxiError).code).toBe("VALIDATION_ERROR");
   });
 });
 

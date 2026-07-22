@@ -9,6 +9,7 @@
     "url": "git+https://github.com/emilchristensen/atlassian-axi.git",
     "directory": "packages/confluence-axi"
   },
+  "homepage": "https://github.com/emilchristensen/atlassian-axi/tree/main/packages/confluence-axi#readme",
   "keywords": ["atlassian", "confluence", "cli", "agent", "axi", "toon"],
   "bin": {
     "confluence-axi": "dist/bin/confluence-axi.js"
