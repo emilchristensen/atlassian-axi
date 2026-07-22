@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAxiCli } from "axi-sdk-js";
 import {
+  AxiError,
   closestCommand,
   renderError,
   resolveSite,
@@ -131,12 +132,25 @@ function readPackageVersion(): string {
   throw new Error("Could not determine confluence-axi package version");
 }
 
-/** Extract `--site <value>` or `--site=<value>` from args (order-independent). */
+/**
+ * Extract `--site <value>` or `--site=<value>` from args (order-independent).
+ * A `--site` with a missing value or one immediately followed by another flag
+ * is a loud VALIDATION_ERROR — otherwise `--site --limit 5` would silently make
+ * "--limit" the site (request to https://--limit/...) and drop the real flag.
+ * Safe to throw here: bin's top-level `.catch` renders a thrown AxiError from
+ * resolveContext (the SDK awaits resolveContext outside its own try/catch).
+ */
 function parseSiteFlag(args: string[]): string | undefined {
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
-    if (arg === "--site" && index + 1 < args.length) {
-      return args[index + 1];
+    if (arg === "--site") {
+      const value = args[index + 1];
+      if (value === undefined || value.startsWith("--")) {
+        throw new AxiError("--site requires a value", "VALIDATION_ERROR", [
+          "Pass the site host after the flag: --site acme.atlassian.net",
+        ]);
+      }
+      return value;
     }
     if (arg.startsWith("--site=") && arg.length > "--site=".length) {
       return arg.slice("--site=".length);

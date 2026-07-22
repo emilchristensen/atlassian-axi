@@ -1,4 +1,5 @@
 import {
+  assertBareHostSite,
   requestedSite,
   requireAuth,
   type AtlassianCredential,
@@ -52,9 +53,14 @@ export interface ConfluenceRequestOptions {
 
 /** Base URL for the active transport (OAuth gateway vs site-direct). */
 function baseUrl(auth: TransportAuth): string {
-  return auth.kind === "oauth"
-    ? `https://api.atlassian.com/ex/confluence/${auth.session.cloudId}`
-    : `https://${auth.credential.site}`;
+  if (auth.kind === "oauth") {
+    return `https://api.atlassian.com/ex/confluence/${auth.session.cloudId}`;
+  }
+  // The site is attacker-influenceable (--site flag / ATLASSIAN_SITE env /
+  // stored config); refuse anything that is not a bare host before it can
+  // redirect the Basic-auth credential to another origin.
+  assertBareHostSite(auth.credential.site);
+  return `https://${auth.credential.site}`;
 }
 
 function buildUrl(

@@ -9,6 +9,7 @@
     "url": "git+https://github.com/emilchristensen/atlassian-axi.git",
     "directory": "packages/jira-axi"
   },
+  "homepage": "https://github.com/emilchristensen/atlassian-axi/tree/main/packages/jira-axi#readme",
   "keywords": [
     "atlassian",
     "jira",

@@ -98,10 +98,20 @@ function resolveRepresentation(raw: string | undefined): string {
  */
 function droppedMacros(current: string | null, next: string): string[] {
   const names = (xhtml: string): string[] => {
+    // Strip CDATA sections and XML comments first: a macro-name literal inside
+    // a code macro's `<![CDATA[...]]>` sample (or a comment) must not count as
+    // a real macro in `next`, or a genuinely dropped macro would slip the guard
+    // and be silently deleted. Accept both quote styles — Confluence honours
+    // single-quoted `ac:name='toc'`, which a double-quote-only match would
+    // falsely report as dropped and block a valid update.
+    const clean = xhtml
+      .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "")
+      .replace(/<!--[\s\S]*?-->/g, "");
     const out: string[] = [];
-    const re = /<ac:structured-macro\b[^>]*\bac:name="([^"]*)"/g;
+    const re =
+      /<ac:structured-macro\b[^>]*\bac:name=(?:"([^"]*)"|'([^']*)')/g;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(xhtml)) !== null) out.push(m[1] ?? "");
+    while ((m = re.exec(clean)) !== null) out.push(m[1] ?? m[2] ?? "");
     return out;
   };
   if (!current) return [];
@@ -132,14 +142,16 @@ async function fetchPage(
 /**
  * Probe whether a page is still LIVE after an ambiguous DELETE 404.
  * A trashed page still answers GET with 200 + status "trashed" (verified
- * live 2026-07-19), so status decides — only a `current` page
- * counts as existing. Returns false on a clean NOT_FOUND; any other failure
- * rethrows so a network blip is never mistaken for a successful delete.
+ * live 2026-07-19), so status decides — any readable NON-trashed page (current,
+ * archived, draft) still exists, so a permission-masked DELETE 404 on it must
+ * surface as FORBIDDEN, not a false "Already deleted". Only a clean NOT_FOUND
+ * or a trashed status counts as gone. Any other failure rethrows so a network
+ * blip is never mistaken for a successful delete.
  */
 async function pageStillExists(id: string): Promise<boolean> {
   try {
     const page = await fetchPage(id, "storage");
-    return page.status === "current";
+    return page.status !== "trashed";
   } catch (error) {
     if (error instanceof AxiError && error.code === "NOT_FOUND") {
       return false;
@@ -155,6 +167,20 @@ async function pageStillExists(id: string): Promise<boolean> {
  * personal-space keys (`~jdoe`) are legitimately lowercase.
  */
 async function resolveSpaceId(key: string): Promise<string> {
+  // A real space key is a single token. The v2 `keys` filter is a
+  // comma-separated LIST, so a value like "ENG,DOCS" would match both spaces
+  // and `limit:1` would create the page in whichever the server sorts first —
+  // silently the wrong space. Reject commas/whitespace loudly instead.
+  if (/[,\s]/.test(key)) {
+    throw new AxiError(
+      `Invalid space key: ${JSON.stringify(key)}`,
+      "VALIDATION_ERROR",
+      [
+        "A space key is a single token (no commas or spaces), e.g. ENG",
+        "Run `confluence-axi space list` to see space keys",
+      ],
+    );
+  }
   const id = await lookupSpaceId(key);
   if (id !== null) {
     return id;

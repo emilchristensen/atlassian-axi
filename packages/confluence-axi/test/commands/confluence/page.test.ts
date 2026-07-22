@@ -832,4 +832,158 @@ describe("page update macro-loss guard (2026-07-19)", () => {
       pageCommand(["update", "12345", "--body", one]),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
+
+  it("does NOT count a macro-name literal inside CDATA as a kept macro (guard bypass)", async () => {
+    // A real `toc` macro is dropped, but the new body embeds a code macro whose
+    // CDATA sample text mentions `<ac:structured-macro ac:name="toc"/>`. That
+    // literal must not satisfy the count and let the real macro be deleted.
+    const current =
+      '<ac:structured-macro ac:name="toc"/><p>Table of contents above.</p>';
+    const next =
+      '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[<ac:structured-macro ac:name="toc"/>]]></ac:plain-text-body></ac:structured-macro><p>Just a code sample.</p>';
+    const fake = makeConfluenceFake([
+      { match: (c: FetchCall) => c.method === "PUT", result: pagePayload },
+      {
+        match: getPage,
+        result: {
+          ...pagePayload,
+          body: { storage: { representation: "storage", value: current } },
+        },
+      },
+    ]);
+    setConfluenceFetch(fake.fetchImpl);
+    await expect(
+      pageCommand(["update", "12345", "--body", next]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("toc"),
+    });
+    expect(fake.calls.some((c: FetchCall) => c.method === "PUT")).toBe(false);
+  });
+
+  it("accepts a kept macro re-quoted with single quotes (no false macro-loss)", async () => {
+    // Confluence honours `ac:name='toc'`; a double-quote-only matcher would
+    // falsely report it dropped and block a valid update.
+    const current = '<ac:structured-macro ac:name="toc"/><p>Before.</p>';
+    const next = "<ac:structured-macro ac:name='toc'/><p>After.</p>";
+    let put = false;
+    const fake = makeConfluenceFake([
+      { match: (c: FetchCall) => c.method === "PUT", result: pagePayload },
+      {
+        match: getPage,
+        get result() {
+          return {
+            ...pagePayload,
+            body: {
+              storage: {
+                representation: "storage",
+                value: put ? next : current,
+              },
+            },
+          };
+        },
+      },
+    ]);
+    setConfluenceFetch((url, init) => {
+      if (init?.method === "PUT") put = true;
+      return fake.fetchImpl(url, init);
+    });
+    await pageCommand(["update", "12345", "--body", next]);
+    expect(fake.calls.some((c: FetchCall) => c.method === "PUT")).toBe(true);
+  });
+});
+
+describe("page id validation (path-traversal guard)", () => {
+  it.each(["../folders/999", "1/../../admin", "123#x", "12 34", "abc"])(
+    "rejects a non-numeric page id %j without any request",
+    async (id) => {
+      const { fetchImpl, calls } = makeConfluenceFake([]);
+      setConfluenceFetch(fetchImpl);
+      await expect(pageCommand(["get", id])).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+        message: expect.stringContaining("Invalid page id"),
+      });
+      expect(calls).toHaveLength(0);
+    },
+  );
+
+  it("rejects a crafted id on the destructive delete path too", async () => {
+    const { fetchImpl, calls } = makeConfluenceFake([]);
+    setConfluenceFetch(fetchImpl);
+    await expect(
+      pageCommand(["delete", "../folders/999"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe("page delete non-current status (permission-masked 404)", () => {
+  it.each(["archived", "draft"])(
+    "surfaces FORBIDDEN (not a false Already deleted) when a %s page's DELETE 404s",
+    async (status) => {
+      // Pre-read sees a live (non-trashed) page; DELETE 404s (permission mask);
+      // the verify probe re-reads the same non-trashed status — the page still
+      // exists, so this must be FORBIDDEN, never "Already deleted".
+      const nonCurrent = { ...pagePayload, status };
+      const { fetchImpl } = makeConfluenceFake([
+        { match: getPage, result: nonCurrent },
+        {
+          match: (c: FetchCall) => c.method === "DELETE",
+          result: { status: 404, body: {} },
+        },
+      ]);
+      setConfluenceFetch(fetchImpl);
+      await expect(pageCommand(["delete", "12345"])).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: expect.stringContaining("still exists"),
+      });
+    },
+  );
+});
+
+describe("page create space-key validation", () => {
+  it("rejects a comma-containing --space instead of creating in an arbitrary space", async () => {
+    const { fetchImpl, calls } = makeConfluenceFake([]);
+    setConfluenceFetch(fetchImpl);
+    await expect(
+      pageCommand([
+        "create",
+        "--space",
+        "ENG,DOCS",
+        "--title",
+        "T",
+        "--body",
+        "<p>x</p>",
+      ]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("space key"),
+    });
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe("page get remote-content control-char neutralization", () => {
+  it("strips C1/DEL controls from a crafted title and body", async () => {
+    // U+009B is the 8-bit CSI, U+007F is DEL; TOON leaves the C1 range +
+    // DEL through, so strip them upstream. Stripping must leave the real text.
+    const csi = "\u009b";
+    const del = "\u007f";
+    const crafted = {
+      ...pagePayload,
+      title: `Rele${csi}ase`,
+      body: {
+        storage: { representation: "storage", value: `<p>a${csi}b${del}c</p>` },
+      },
+    };
+    const { fetchImpl } = makeConfluenceFake([
+      { match: getPage, result: crafted },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    const out = await pageCommand(["get", "12345", "--full"]);
+    expect(out).not.toContain(csi);
+    expect(out).not.toContain(del);
+    expect(out).toContain("Release");
+    expect(out).toContain("<p>abc</p>");
+  });
 });

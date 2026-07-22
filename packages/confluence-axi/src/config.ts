@@ -196,8 +196,24 @@ function readStoredConfig(): StoredConfig {
     return {};
   }
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf-8")) as StoredConfig;
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const parsed = JSON.parse(readFileSync(path, "utf-8")) as unknown;
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+    // Type-narrow each field: a wrong-typed value (e.g. {"site": 123} from a
+    // hand-edit or partial corruption that still parses) must behave like "not
+    // configured", never reach normalizeSite/sanitizeToken and crash every
+    // command with a raw `.trim is not a function` TypeError — including
+    // `auth login`, the documented recovery path. Mirrors readOAuthSession.
+    const raw = parsed as Record<string, unknown>;
+    const clean: StoredConfig = {};
+    if (typeof raw.site === "string") clean.site = raw.site;
+    if (typeof raw.email === "string") clean.email = raw.email;
+    if (typeof raw.token === "string") clean.token = raw.token;
+    if (raw.oauth && typeof raw.oauth === "object") {
+      clean.oauth = raw.oauth as OAuthSession;
+    }
+    return clean;
   } catch {
     // A corrupt file behaves like "not configured" rather than crashing.
     return {};
@@ -245,6 +261,47 @@ export function normalizeSite(site: string | undefined): string | undefined {
     .replace(/^https?:\/\//i, "")
     .replace(/\/+$/, "");
   return bare === "" ? undefined : bare;
+}
+
+/**
+ * Assert a normalized site is a bare `host[:port]` — no userinfo, path, query,
+ * or fragment — so building `https://{site}` can never redirect the Basic-auth
+ * credential to an attacker-controlled host. Without this, a site of
+ * `victim.atlassian.net@evil.com` parses to origin host `evil.com` and the
+ * account-scoped API token is POSTed to the attacker (the OAuth transport is
+ * already pinned to its cloudId; the API-token transport had no equivalent
+ * guard). Throws VALIDATION_ERROR on anything that is not a bare host.
+ *
+ * Called at request-build time (`baseUrl`, inside a command handler's
+ * try/catch) — deliberately NOT from `normalizeSite`, which the SDK runs inside
+ * `resolveContext` outside any catch (a throw there is an unhandled rejection).
+ */
+export function assertBareHostSite(site: string): void {
+  const invalid = (): AxiError =>
+    new AxiError(
+      `Invalid site: ${JSON.stringify(site)} — expected a bare host like acme.atlassian.net`,
+      "VALIDATION_ERROR",
+      [
+        "Pass only the host (no scheme, path, credentials, or query)",
+        "Run `confluence-axi auth status` to see the configured site",
+      ],
+    );
+  let url: URL;
+  try {
+    url = new URL(`https://${site}`);
+  } catch {
+    throw invalid();
+  }
+  const bareHost =
+    url.username === "" &&
+    url.password === "" &&
+    url.pathname === "/" &&
+    url.search === "" &&
+    url.hash === "" &&
+    url.host === site.toLowerCase();
+  if (!bareHost) {
+    throw invalid();
+  }
 }
 
 /**

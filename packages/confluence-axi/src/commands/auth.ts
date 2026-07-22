@@ -76,8 +76,12 @@ export async function authCommand(args: string[]): Promise<string> {
     case "login":
       return authLogin(rest);
     case "status":
+      rejectExtraArgs("status", rest);
       return authStatus();
     case "logout":
+      // logout is destructive; a stray/typo'd flag (e.g. `--dry-run`) must be a
+      // loud error, never silently accepted while it clears every credential.
+      rejectExtraArgs("logout", rest);
       return authLogout();
     default:
       throw new AxiError(
@@ -85,6 +89,17 @@ export async function authCommand(args: string[]): Promise<string> {
         "VALIDATION_ERROR",
         ["Run `confluence-axi auth <login|status|logout>`"],
       );
+  }
+}
+
+/** Reject any leftover args after a no-argument auth action (status/logout). */
+function rejectExtraArgs(action: string, rest: string[]): void {
+  if (rest.length > 0) {
+    throw new AxiError(
+      `Unexpected arguments after 'auth ${action}': ${rest.join(" ")}`,
+      "VALIDATION_ERROR",
+      [`\`auth ${action}\` takes no arguments`],
+    );
   }
 }
 

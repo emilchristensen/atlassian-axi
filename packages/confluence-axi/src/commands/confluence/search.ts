@@ -32,6 +32,19 @@ export async function searchCommand(
       'Example: `confluence-axi search "space = ENG AND type = page"`',
     ]);
   }
+  // An unquoted multi-token query (`search type=page AND space=ENG`) would
+  // otherwise run the first token as the whole CQL and silently drop the rest,
+  // returning wrong results with exit 0. Reject the leftover positional loudly,
+  // mirroring requirePageId's extra-argument guard (parseFlags already consumed
+  // --limit and its value, so only real query tokens remain here).
+  const extra = args.slice(1).filter((a) => !a.startsWith("--"))[1];
+  if (extra !== undefined) {
+    throw new AxiError(
+      `Unexpected extra argument: ${extra}`,
+      "VALIDATION_ERROR",
+      ['Quote the whole CQL as one argument: confluence-axi search "<CQL>"'],
+    );
+  }
   const limit = parseLimit(parsed.values["--limit"]);
 
   const payload = await confluenceJson<unknown>("/wiki/rest/api/search", {
