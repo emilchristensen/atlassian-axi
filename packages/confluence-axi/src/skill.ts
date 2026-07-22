@@ -38,9 +38,9 @@ commands[6]:
 page:
   get <id> [--full] [--format storage|adf], create --space <KEY> --title <text> --body-file <path> [--parent <id>], update <id> [--title <text>] [--body-file <path>] [--allow-macro-loss], delete <id>, attachments <id>, labels <id> [--add|--remove <name,name,...>], children <id>
 space:
-  list [--limit <n>]
+  list [--limit <n>] [--fields <a,b,c>]
 search:
-  search "<CQL>" [--limit <n>]  (v1 CQL — the v2 API has no search endpoint)
+  search "<CQL>" [--limit <n>] [--fields <a,b,c>]  (v1 CQL — the v2 API has no search endpoint)
 \`\`\`
 
 Run \`npx -y confluence-axi --help\` for global flags, or \`npx -y confluence-axi <command> --help\` for per-command usage.
@@ -53,6 +53,7 @@ Run \`npx -y confluence-axi setup hooks\` to install SessionStart ambient contex
 - \`page get <id> --full\` shows the complete body without truncation; \`--format adf\` returns Atlas Doc Format instead of storage-format XHTML.
 - \`page create/update\` take raw storage-format XHTML bodies (\`--body\` or \`--body-file\`), NOT markdown; \`--format adf\` on \`get\` is read-only.
 - \`page update\` is a FULL-body replace (version bump is automatic; re-running after a conflict is safe). It refuses by default when the new body drops a macro/embed the current page has (e.g. an embedded whiteboard/diagram) — to keep it, \`page get <id> --full\` first and carry the \`<ac:structured-macro …>\` block into your new body; pass --allow-macro-loss only to drop it intentionally.
+- \`--fields <a,b,c>\` on \`search\`/\`space list\` trims or widens the rendered row schema (the id/key column is always kept).
 - \`search\` uses v1 CQL (the v2 API has no search); use it to find page ids to feed \`page get\`.
 - \`page labels <id> --add/--remove\` is idempotent and manages global-prefix labels only: already-present/absent names are reported, and the full post-mutation label set is rendered.
 - \`page attachments <id>\` is read-only (filter with --filename/--media-type); upload attachments in the Confluence UI.

@@ -4,7 +4,14 @@ import { AxiError } from "@atlassian-axi/core";
 
 // Domain-agnostic plumbing lives in commands/shared.ts (also used by the
 // Confluence half); re-exported so jira modules keep one import site.
-export { parseFlags, parseLimit, type ParsedFlags } from "@atlassian-axi/core";
+export {
+  parseFlags,
+  parseLimit,
+  // The --fields split is domain-agnostic and now lives in core so both CLIs
+  // parse the escape hatch identically; re-exported for the existing call sites.
+  splitFields,
+  type ParsedFlags,
+} from "@atlassian-axi/core";
 
 /**
  * Shared tolerant accessors + FieldDef schemas for the acli-backed Jira half.
@@ -293,25 +300,6 @@ export function rejectExtraPositional(args: string[], hint: string): void {
       [hint],
     );
   }
-}
-
-/**
- * Split a user-supplied --fields value. A provided-but-degenerate list
- * (`--fields ,` or empty entries) is a loud error — silently falling back to
- * the default field set would contradict what the caller asked for (review
- * finding; mirrors splitLabelNames on the Confluence half).
- */
-export function splitFields(raw: string | undefined): string[] | undefined {
-  if (raw === undefined) return undefined;
-  const fields = raw.split(",").map((f) => f.trim());
-  if (fields.length === 0 || fields.some((f) => f === "")) {
-    throw new AxiError(
-      `Invalid --fields value: ${JSON.stringify(raw)}`,
-      "VALIDATION_ERROR",
-      ["Pass --fields <a,b,c> (comma-separated, no empty names)"],
-    );
-  }
-  return [...new Set(fields)];
 }
 
 /**

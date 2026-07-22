@@ -88,6 +88,25 @@ export function parseLimit(raw: string | undefined): number {
 }
 
 /**
+ * Split a user-supplied --fields value. A provided-but-degenerate list
+ * (`--fields ,` or empty entries) is a loud error — silently falling back to
+ * the default field set would contradict what the caller asked for. Shared by
+ * both CLIs so the escape hatch parses identically everywhere.
+ */
+export function splitFields(raw: string | undefined): string[] | undefined {
+  if (raw === undefined) return undefined;
+  const fields = raw.split(",").map((f) => f.trim());
+  if (fields.length === 0 || fields.some((f) => f === "")) {
+    throw new AxiError(
+      `Invalid --fields value: ${JSON.stringify(raw)}`,
+      "VALIDATION_ERROR",
+      ["Pass --fields <a,b,c> (comma-separated, no empty names)"],
+    );
+  }
+  return [...new Set(fields)];
+}
+
+/**
  * VALIDATION_ERROR for an unknown resource/subcommand, with a did-you-mean
  * line when the typo is close to a known name (mirrors the SDK's top-level
  * unknown-command ergonomics — sweep finding 2026-07-19).
