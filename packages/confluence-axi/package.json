@@ -1,6 +1,6 @@
 {
   "name": "confluence-axi",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@11.1.1",
   "description": "Agent-ergonomic Confluence Cloud CLI over the REST API directly. Token-efficient TOON output, contextual suggestions, idempotent mutations, OAuth 3LO + API-token auth.",
   "type": "module",
@@ -10,11 +10,23 @@
     "directory": "packages/confluence-axi"
   },
   "homepage": "https://github.com/emilchristensen/atlassian-axi/tree/main/packages/confluence-axi#readme",
-  "keywords": ["atlassian", "confluence", "cli", "agent", "axi", "toon"],
+  "keywords": [
+    "atlassian",
+    "confluence",
+    "cli",
+    "agent",
+    "axi",
+    "toon"
+  ],
   "bin": {
     "confluence-axi": "dist/bin/confluence-axi.js"
   },
-  "files": ["dist", "skills/confluence-axi", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "skills/confluence-axi",
+    "LICENSE",
+    "README.md"
+  ],
   "publishConfig": {
     "access": "public"
   },
