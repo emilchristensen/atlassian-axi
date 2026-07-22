@@ -243,3 +243,14 @@ describe("filter update", () => {
     });
   });
 });
+
+describe("filter extra-positional guard", () => {
+  it("rejects `filter view 33312 extra` instead of silently viewing 33312", async () => {
+    const { runner, calls } = makeAcliFake([]);
+    setAcliRunner(runner);
+    await expect(
+      filterCommand(["view", "33312", "extra"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls.filter((c) => c.args[0] !== "--version")).toHaveLength(0);
+  });
+});

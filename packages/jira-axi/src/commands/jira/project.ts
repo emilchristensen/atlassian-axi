@@ -17,6 +17,7 @@ import {
   nameOf,
   parseFlags,
   parseLimit,
+  rejectExtraPositional,
   type JsonRecord,
 } from "./shared.js";
 
@@ -121,6 +122,7 @@ async function viewProject(
       "Run `jira-axi project view <KEY>`",
     ]);
   }
+  rejectExtraPositional(args, "This command takes a single project <KEY>: jira-axi project view <KEY>");
 
   const payload = await acliJson<unknown>([
     "jira",

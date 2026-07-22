@@ -192,6 +192,20 @@ describe("workitem search", () => {
     expect(jql).toBe("project = TEAM");
     expect(call?.args).toContain("5");
   });
+
+  it("rejects an unquoted multi-word JQL instead of silently searching the first token", async () => {
+    // `workitem search project = TEAM` splits to positionals [project, =, TEAM];
+    // keeping only "project" would return wrong results at exit 0. It must be a
+    // loud VALIDATION_ERROR (mirrors the filter-search guard), with NO acli call.
+    const { runner, calls } = makeAcliFake([
+      { match: isSearch, result: searchPayload },
+    ]);
+    setAcliRunner(runner);
+    await expect(
+      workitemCommand(["search", "project", "=", "TEAM"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls.filter((c) => isSearch(c.args))).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -354,6 +368,31 @@ describe("workitem view", () => {
       code: "VALIDATION_ERROR",
     });
   });
+
+  it.each(["-foo", "foo", "TEAM 1", "TEAM-"])(
+    "rejects a malformed key %j before shelling out (acli flag-injection guard)",
+    async (key) => {
+      const { runner, calls } = makeAcliFake([
+        { match: isView("TEAM-1"), result: viewPayload },
+      ]);
+      setAcliRunner(runner);
+      await expect(workitemCommand(["view", key])).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+      expect(calls.filter((c) => c.args[2] === "view")).toHaveLength(0);
+    },
+  );
+
+  it("rejects a silently-ignored second positional (view TEAM-1 TEAM-2)", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+    await expect(
+      workitemCommand(["view", "TEAM-1", "TEAM-2"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls.filter((c) => c.args[2] === "view")).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -384,6 +423,27 @@ describe("workitem create", () => {
         "x",
       ]),
     ).rejects.toThrow(/--body requires text/);
+  });
+
+  it("reports success without re-fetching when acli returns no detectable key", async () => {
+    // Shape drift: acli returns a payload with no key. The command must still
+    // report success (never crash) and skip the re-fetch view.
+    const { runner, calls } = makeAcliFake([
+      { match: (args) => args[2] === "create", result: { acknowledged: true } },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand([
+      "create",
+      "--project",
+      "TEAM",
+      "--type",
+      "Task",
+      "--summary",
+      "New task",
+    ]);
+    expect(out).toContain("Created (key not detected in acli output)");
+    expect(calls.some((c) => c.args[2] === "view")).toBe(false);
   });
 
   it("creates, then re-fetches and renders the authoritative post-state", async () => {
@@ -568,6 +628,18 @@ describe("workitem transition", () => {
     expect(calls.some((c) => c.args[2] === "transition")).toBe(false);
     expect(out).toContain("message: Already In Progress");
     expect(out).toContain("help[");
+  });
+
+  it("rejects a stray second positional before any mutation (transition TEAM-1 TEAM-2)", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+    await expect(
+      workitemCommand(["transition", "TEAM-1", "TEAM-2", "--to", "Done"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    // Nothing shelled out: the guard runs before the idempotency fetch.
+    expect(calls).toHaveLength(0);
   });
 
   it("transitions and renders the authoritative post-state", async () => {

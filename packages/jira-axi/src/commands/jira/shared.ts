@@ -241,6 +241,24 @@ export function dateOnly(value: unknown): string | null {
 }
 
 /**
+ * Reject a silently-ignored SECOND positional. Every jira-axi subcommand takes
+ * at most one positional (a key/id, or a quoted query). An unquoted multi-word
+ * query - `workitem search project = TEAM` - would otherwise keep only the
+ * first token and return wrong results at exit 0. Mirrors confluence-axi's
+ * requirePageId guard and the filter-search guard.
+ */
+export function rejectExtraPositional(args: string[], hint: string): void {
+  const extra = args.slice(1).filter((a) => !a.startsWith("--"))[1];
+  if (extra !== undefined) {
+    throw new AxiError(
+      `Unexpected extra argument: ${extra}`,
+      "VALIDATION_ERROR",
+      [hint],
+    );
+  }
+}
+
+/**
  * Split a user-supplied --fields value. A provided-but-degenerate list
  * (`--fields ,` or empty entries) is a loud error — silently falling back to
  * the default field set would contradict what the caller asked for (review

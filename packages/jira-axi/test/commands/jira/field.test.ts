@@ -175,3 +175,14 @@ describe("field delete / restore", () => {
     });
   });
 });
+
+describe("field extra-positional guard", () => {
+  it("rejects `field delete customfield_1 extra` instead of silently deleting one", async () => {
+    const { runner, calls } = makeAcliFake([]);
+    setAcliRunner(runner);
+    await expect(
+      fieldCommand(["delete", "customfield_1", "extra"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls.filter((c) => c.args[0] !== "--version")).toHaveLength(0);
+  });
+});

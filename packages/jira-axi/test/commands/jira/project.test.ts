@@ -101,3 +101,14 @@ describe("project view", () => {
     });
   });
 });
+
+describe("project extra-positional guard", () => {
+  it("rejects `project view TEAM extra` instead of silently viewing TEAM", async () => {
+    const { runner, calls } = makeAcliFake([]);
+    setAcliRunner(runner);
+    await expect(
+      projectCommand(["view", "TEAM", "extra"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(calls.filter((c) => c.args[0] !== "--version")).toHaveLength(0);
+  });
+});
