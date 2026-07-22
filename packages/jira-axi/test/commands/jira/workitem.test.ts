@@ -155,6 +155,25 @@ describe("workitem list", () => {
     expect(out).toContain("count: 0");
     expect(out).toContain("to create one");
   });
+
+  it("discloses the injected 30-day window on an empty bare list", async () => {
+    // `count: 0` alone cannot distinguish "nothing exists" from "nothing
+    // updated in 30 days" - the window the caller never typed must be shown.
+    const { runner } = makeAcliFake([{ match: isSearch, result: [] }]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand(["list"]);
+    expect(out).toContain("scope: updated >= -30d (default recency window");
+  });
+
+  it("omits the scope line when the caller supplied the filters", async () => {
+    const { runner } = makeAcliFake([{ match: isSearch, result: [] }]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand(["list", "--project", "TEAM"]);
+    expect(out).toContain("count: 0");
+    expect(out).not.toContain("scope:");
+  });
 });
 
 // ---------------------------------------------------------------------------

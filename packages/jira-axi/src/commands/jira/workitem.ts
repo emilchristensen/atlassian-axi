@@ -187,11 +187,18 @@ function renderSearchResults(
   limit: number,
   fields: string[] | undefined,
   ctx?: SiteContext,
+  emptyScope?: string,
 ): string {
   const schema = fields ? fieldsSchema(fields) : workitemListSchema;
   const blocks: string[] = [
     formatCountLine({ count: items.length, limit }),
   ];
+  // A bare `count: 0` cannot be told apart from "nothing exists" when the CLI
+  // injected a filter the caller never typed - disclose that scope so the
+  // agent does not re-run with a broader query just to find out.
+  if (items.length === 0 && emptyScope) {
+    blocks.push(`scope: ${emptyScope}`);
+  }
   if (items.length > 0) {
     blocks.push(renderList("workitems", items, schema));
   }
@@ -244,8 +251,24 @@ async function listWorkitems(
 
   const jql = jqlFlag ?? buildJql({ project, assignee, status });
   const items = await runSearch(jql, limit, fields);
-  return renderSearchResults("list", items, limit, fields, ctx);
+  const usedDefaultWindow =
+    !jqlFlag && !project && !assignee && !status;
+  return renderSearchResults(
+    "list",
+    items,
+    limit,
+    fields,
+    ctx,
+    usedDefaultWindow
+      ? `${DEFAULT_WINDOW_CLAUSE} (default recency window - pass --jql "<JQL>" or --project <KEY> to widen)`
+      : undefined,
+  );
 }
+
+// acli rejects unbounded JQL ("Unbounded JQL queries are not allowed"), so a
+// bare `list` gets a recency window instead of an unrestricted query.
+const DEFAULT_WINDOW_CLAUSE = "updated >= -30d";
+const DEFAULT_WINDOW_JQL = `${DEFAULT_WINDOW_CLAUSE} ORDER BY updated DESC`;
 
 function buildJql(filters: {
   project?: string;
@@ -267,11 +290,7 @@ function buildJql(filters: {
     clauses.push(`status = ${quoteJql(filters.status)}`);
   }
   const where = clauses.join(" AND ");
-  // acli rejects unbounded JQL ("Unbounded JQL queries are not allowed"), so a
-  // bare `list` gets a recency window instead of an unrestricted query.
-  return where
-    ? `${where} ORDER BY updated DESC`
-    : "updated >= -30d ORDER BY updated DESC";
+  return where ? `${where} ORDER BY updated DESC` : DEFAULT_WINDOW_JQL;
 }
 
 /** Quote a JQL string value; backslashes first, then quotes, per JQL escaping. */
