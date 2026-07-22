@@ -509,4 +509,20 @@ describe("auth dispatch", () => {
       code: "VALIDATION_ERROR",
     });
   });
+
+  it("rejects a stray flag/arg after `logout` without clearing anything", async () => {
+    // logout is destructive; a typo'd flag (e.g. --dry-run) must be a loud
+    // error, never silently accepted while it wipes every credential.
+    await expect(authCommand(["logout", "--dry-run"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unexpected arguments after 'auth logout'"),
+    });
+    expect(config.clearCredential).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stray arg after `status`", async () => {
+    await expect(authCommand(["status", "extra"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
+  });
 });

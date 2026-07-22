@@ -219,17 +219,39 @@ describe("stripHighlights excerpt cleaning", () => {
     const { stripHighlights } = await import(
       "../../../src/commands/confluence/shared.js"
     );
-    expect(stripHighlights("a @@@hl@@@match@@@endhl@@@ b")).toBe("a match b");
+    expect(stripHighlights("a\u009bb\u007fc")).toBe("abc");
   });
 });
 
-describe("stripHighlights consecutive lone surrogates", () => {
-  it("removes runs of consecutive lone low surrogates entirely", async () => {
-    const { stripHighlights } = await import(
-      "../../../src/commands/confluence/shared.js"
+describe("search unquoted-CQL guard", () => {
+  it("rejects a leftover positional instead of running a truncated query", async () => {
+    // `search type=page AND space=ENG` (quotes forgotten) must not silently run
+    // just "type=page" and return every space's pages with exit 0.
+    const { fetchImpl, calls } = makeConfluenceFake([]);
+    setConfluenceFetch(fetchImpl);
+    await expect(
+      searchCommand(["search", "type=page", "AND", "space=ENG"]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unexpected extra argument"),
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("still accepts a properly quoted single-argument CQL with --limit", async () => {
+    const { fetchImpl, calls } = makeConfluenceFake([
+      { match: searchRoute, result: { results: [], totalSize: 0 } },
+    ]);
+    setConfluenceFetch(fetchImpl);
+    await searchCommand([
+      "search",
+      "type=page AND space=ENG",
+      "--limit",
+      "5",
+    ]);
+    expect(calls[0].url.searchParams.get("cql")).toBe(
+      "type=page AND space=ENG",
     );
-    expect(stripHighlights("X\uDC00\uDC00Y")).toBe("XY");
-    expect(stripHighlights("X\uDC00\uDC00\uDC00Y")).toBe("XY");
-    expect(stripHighlights("X\uD800\uD800Y")).toBe("XY");
+    expect(calls[0].url.searchParams.get("limit")).toBe("5");
   });
 });

@@ -233,4 +233,24 @@ describe("--site flag reaches the Confluence transport (2026-07-19)", () => {
       setSiteOverride(undefined);
     }
   });
+
+  it("rejects --site with a missing value instead of swallowing the next flag", async () => {
+    // `--site --limit 5` must not make "--limit" the site (request to
+    // https://--limit/...) and silently drop --limit. resolveContext throws;
+    // bin's top-level .catch renders it (here main() rejects directly).
+    const cap = capture();
+    await expect(
+      main({ argv: ["space", "list", "--site", "--limit", "5"], stdout: cap.stdout }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("--site requires a value"),
+    });
+  });
+
+  it("rejects a trailing --site with no value at all", async () => {
+    const cap = capture();
+    await expect(
+      main({ argv: ["space", "list", "--site"], stdout: cap.stdout }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
 });
