@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/emilchristensen/atlassian-axi/compare/jira-axi-v0.2.0...jira-axi-v0.2.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* **confluence-axi:** harden auth, transport, and command inputs ([a650f55](https://github.com/emilchristensen/atlassian-axi/commit/a650f55db9bb80b59dc3aa247625edc7a0cbe105))
+* **confluence-axi:** harden auth, transport, and command inputs ([cbf154d](https://github.com/emilchristensen/atlassian-axi/commit/cbf154d701fae0539ed987cef2aaeabe3d0c5de9))
+
 ## 0.2.0 (2026-07-21)
 
 
