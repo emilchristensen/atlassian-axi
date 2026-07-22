@@ -98,6 +98,49 @@ describe("homeCommand", () => {
     expect(out).toContain("spaces: 2+");
   });
 
+  it("renders live space ROWS, not just the count (content first)", async () => {
+    // The keys are already fetched and are exactly what `page create --space
+    // <KEY>` / `search "space = KEY"` need — a bare count forces a second call.
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    confluence.confluenceJson.mockResolvedValue({
+      results: [
+        { id: "111", key: "ENG", name: "Engineering", type: "global" },
+        { id: "222", key: "DOCS", name: "Documentation", type: "global" },
+      ],
+      _links: {},
+    });
+    const out = await homeCommand([]);
+    expect(out).toContain("spaces: 2");
+    expect(out).toContain("spaces[2]{key,name,type,id}:");
+    expect(out).toContain("ENG,Engineering,global");
+    expect(out).toContain("DOCS,Documentation,global");
+  });
+
+  it("caps the rendered rows at five while the count still reports the probe", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    confluence.confluenceJson.mockResolvedValue({
+      results: Array.from({ length: 8 }, (_, i) => ({
+        id: String(i),
+        key: `S${i}`,
+        name: `Space ${i}`,
+        type: "global",
+      })),
+      _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
+    });
+    const out = await homeCommand([]);
+    expect(out).toContain("spaces: 8+");
+    expect(out).toContain("spaces[5]{key,name,type,id}:");
+    expect(out).not.toContain("S5,");
+  });
+
+  it("omits the spaces rows when the probe returns nothing", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    confluence.confluenceJson.mockResolvedValue({ results: [], _links: {} });
+    const out = await homeCommand([]);
+    expect(out).toContain("spaces: 0");
+    expect(out).not.toContain("spaces[");
+  });
+
   it("omits the spaces line when unauthenticated or when the REST call fails", async () => {
     // Unauthenticated: no REST call attempted at all.
     const out = await homeCommand([]);
