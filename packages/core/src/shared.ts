@@ -18,6 +18,50 @@ export interface ParsedFlags {
   positional: string | undefined;
 }
 
+/** What a subcommand accepts, as handed to parseFlags. */
+export interface FlagSpec {
+  /** Value flags to consume, e.g. `["--limit"]`. */
+  values?: string[];
+  /** Boolean flags to consume, e.g. `["--full"]`. */
+  bools?: string[];
+  /**
+   * Flags the caller already removed from `args` before calling (takeBody's
+   * body flags, the cli's global `--site`). parseFlags cannot see them, but
+   * the command does accept them, so they still belong in the flag list an
+   * unknown-flag error suggests.
+   */
+  consumed?: string[];
+}
+
+/**
+ * Take a value flag, refusing both a missing value and a value that is itself
+ * a flag. A vanished value must not silently turn a mutation into a read, and
+ * a swallowed sibling flag must not produce a garbage write (`--add --remove`
+ * used to POST a label literally named "--remove"). Shared so hand-rolled
+ * parsers (auth login) get the same guards as parseFlags.
+ */
+export function takeValueFlag(
+  args: string[],
+  flag: string,
+): string | undefined {
+  const present =
+    args.includes(flag) || args.some((a) => a.startsWith(`${flag}=`));
+  const value = takeFlag(args, flag);
+  if (present && value === undefined) {
+    throw new AxiError(`${flag} requires a value`, "VALIDATION_ERROR", [
+      "Run the command with --help to see the supported flags",
+    ]);
+  }
+  if (value !== undefined && value.startsWith("--")) {
+    throw new AxiError(
+      `${flag} requires a value (got the flag ${value} instead)`,
+      "VALIDATION_ERROR",
+      [`Pass an explicit value: ${flag} <value>`],
+    );
+  }
+  return value;
+}
+
 /**
  * Consume a subcommand's known flags from `args` (mutating it), THEN read the
  * first remaining positional. Consuming flag values first is what keeps
@@ -29,46 +73,10 @@ export interface ParsedFlags {
  * silently ignored `--formt storage` would otherwise turn its value into the
  * positional and discard the real one (review finding).
  */
-/**
- * Enumerate a spec's accepted flags for an error's suggestions, so a typo'd
- * flag is answered inline instead of costing the agent a second `--help`
- * round-trip. `--help` is always accepted (parseFlags consumes it), so it is
- * listed even for a command with no flags of its own.
- */
-function supportedFlagsSuggestions(spec: {
-  values?: string[];
-  bools?: string[];
-}): string[] {
-  const flags = [...(spec.values ?? []), ...(spec.bools ?? []), "--help"];
-  return [`Supported flags: ${flags.join(", ")}`];
-}
-
-export function parseFlags(
-  args: string[],
-  spec: { values?: string[]; bools?: string[] },
-): ParsedFlags {
+export function parseFlags(args: string[], spec: FlagSpec): ParsedFlags {
   const values: Record<string, string | undefined> = {};
   for (const flag of spec.values ?? []) {
-    // A value flag with a missing value must not silently vanish (turning a
-    // mutation into a read), and one that swallowed a sibling flag as its
-    // value must not produce a garbage write (`--add --remove` used to POST
-    // a label literally named "--remove") — both are loud errors instead.
-    const present =
-      args.includes(flag) || args.some((a) => a.startsWith(`${flag}=`));
-    const value = takeFlag(args, flag);
-    if (present && value === undefined) {
-      throw new AxiError(`${flag} requires a value`, "VALIDATION_ERROR", [
-        "Run the command with --help to see the supported flags",
-      ]);
-    }
-    if (value !== undefined && value.startsWith("--")) {
-      throw new AxiError(
-        `${flag} requires a value (got the flag ${value} instead)`,
-        "VALIDATION_ERROR",
-        [`Pass an explicit value: ${flag} <value>`],
-      );
-    }
-    values[flag] = value;
+    values[flag] = takeValueFlag(args, flag);
   }
   const bools: Record<string, boolean> = {};
   for (const flag of spec.bools ?? []) {
@@ -84,6 +92,26 @@ export function parseFlags(
   }
   const positional = args.slice(1).find((a) => !a.startsWith("--"));
   return { values, bools, help, positional };
+}
+
+/**
+ * Enumerate a spec's accepted flags for an error's suggestions, so a typo'd
+ * flag is answered inline instead of costing the agent a second `--help`
+ * round-trip. Flags the caller consumed before parseFlags ran are listed too,
+ * or the error would claim a command takes no flags while `--body` is
+ * required. `--help` is always accepted (parseFlags consumes it), so it is
+ * listed even for a command with no flags of its own.
+ */
+function supportedFlagsSuggestions(spec: FlagSpec): string[] {
+  const flags = [
+    ...new Set([
+      ...(spec.values ?? []),
+      ...(spec.bools ?? []),
+      ...(spec.consumed ?? []),
+      "--help",
+    ]),
+  ];
+  return [`Supported flags: ${flags.join(", ")}`];
 }
 
 const DEFAULT_LIMIT = 30;

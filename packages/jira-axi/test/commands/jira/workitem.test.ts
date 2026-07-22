@@ -904,6 +904,22 @@ describe("workitem comment", () => {
     });
   });
 
+  it("lists the body flags it consumed in the unknown-flag error", async () => {
+    // takeBody strips --body/--body-file before parseFlags sees them, so
+    // without the consumed hint the error claimed `comment` takes no flags.
+    setAcliRunner(makeAcliFake([]).runner);
+    try {
+      await workitemCommand(["comment", "TEAM-1", "--bod", "x"]);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      const err = error as { code: string; suggestions: string[] };
+      expect(err.code).toBe("VALIDATION_ERROR");
+      expect(err.suggestions).toContain(
+        "Supported flags: --body, --body-file, --help",
+      );
+    }
+  });
+
   it("creates the comment and confirms with the post-state", async () => {
     const { runner, calls } = makeAcliFake([
       {

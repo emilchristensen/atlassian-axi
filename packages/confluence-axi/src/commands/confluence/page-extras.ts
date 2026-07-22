@@ -4,7 +4,8 @@ import { AxiError } from "../../errors.js";
 import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import { renderHelp, renderList, renderOutput } from "@atlassian-axi/core";
-import { parseFlags, parseLimit } from "@atlassian-axi/core";
+import { parseLimit } from "@atlassian-axi/core";
+import { parseSiteFlags } from "./flags.js";
 import {
   attachmentListSchema,
   childPageListSchema,
@@ -36,7 +37,7 @@ export async function attachmentsPage(
   help: string,
   ctx?: SiteContext,
 ): Promise<string> {
-  const parsed = parseFlags(args, {
+  const parsed = parseSiteFlags(args, {
     values: ["--limit", "--media-type", "--filename"],
   });
   if (parsed.help) return help;
@@ -95,7 +96,7 @@ export async function childrenPage(
   help: string,
   ctx?: SiteContext,
 ): Promise<string> {
-  const parsed = parseFlags(args, { values: ["--limit"] });
+  const parsed = parseSiteFlags(args, { values: ["--limit"] });
   if (parsed.help) return help;
 
   const id = requirePageId(args, parsed.positional, "children");
@@ -139,7 +140,7 @@ export async function labelsPage(
   help: string,
   ctx?: SiteContext,
 ): Promise<string> {
-  const parsed = parseFlags(args, {
+  const parsed = parseSiteFlags(args, {
     values: ["--add", "--remove", "--prefix", "--limit"],
   });
   if (parsed.help) return help;

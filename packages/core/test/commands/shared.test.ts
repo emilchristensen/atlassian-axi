@@ -43,6 +43,20 @@ describe("parseFlags", () => {
     );
   });
 
+  it("lists caller-consumed flags too, so the list is never a lie", () => {
+    // takeBody/stripSite strip their flags before parseFlags runs; the command
+    // still accepts them, so the error must not claim it takes none.
+    let thrown: unknown;
+    try {
+      parseFlags(["add", "--bod", "hello"], { consumed: ["--body"] });
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as AxiError).suggestions).toContain(
+      "Supported flags: --body, --help",
+    );
+  });
+
   it("still returns help when --help accompanies an unknown flag", () => {
     const parsed = parseFlags(["get", "--bogus", "--help"], { values: [] });
     expect(parsed.help).toBe(true);

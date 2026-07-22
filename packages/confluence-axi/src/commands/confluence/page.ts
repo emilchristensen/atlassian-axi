@@ -1,4 +1,4 @@
-import { takeBody } from "@atlassian-axi/core";
+import { BODY_FLAGS, takeBody } from "@atlassian-axi/core";
 import { confluenceJson } from "../../confluence.js";
 import type { SiteContext } from "@atlassian-axi/core";
 import { AxiError } from "../../errors.js";
@@ -9,7 +9,8 @@ import {
   renderHelp,
   renderOutput,
 } from "@atlassian-axi/core";
-import { parseFlags, unknownSubcommandError } from "@atlassian-axi/core";
+import { unknownSubcommandError } from "@atlassian-axi/core";
+import { parseSiteFlags } from "./flags.js";
 import { attachmentsPage, childrenPage, labelsPage } from "./page-extras.js";
 import {
   pageDetailSchema,
@@ -359,7 +360,7 @@ function renderPage(
 // ---------------------------------------------------------------------------
 
 async function getPage(args: string[], ctx?: SiteContext): Promise<string> {
-  const parsed = parseFlags(args, {
+  const parsed = parseSiteFlags(args, {
     values: ["--format"],
     bools: ["--full"],
   });
@@ -387,8 +388,9 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
     label: "page body",
     valueBoundaryFlags: ["--space", "--title", "--parent"],
   });
-  const parsed = parseFlags(args, {
+  const parsed = parseSiteFlags(args, {
     values: ["--space", "--title", "--parent"],
+    consumed: BODY_FLAGS,
   });
   if (parsed.help) return pageHelp("create");
 
@@ -503,9 +505,10 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
     label: "page body",
     valueBoundaryFlags: ["--title"],
   });
-  const parsed = parseFlags(args, {
+  const parsed = parseSiteFlags(args, {
     values: ["--title"],
     bools: ["--allow-macro-loss"],
+    consumed: BODY_FLAGS,
   });
   if (parsed.help) return pageHelp("update");
 
@@ -591,7 +594,7 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
 // ---------------------------------------------------------------------------
 
 async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
-  const parsed = parseFlags(args, {});
+  const parsed = parseSiteFlags(args, {});
   if (parsed.help) return pageHelp("delete");
 
   const id = requirePageId(args, parsed.positional, "delete");

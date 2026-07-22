@@ -1,6 +1,6 @@
 import { acliJson } from "../../acli.js";
 import { writeAdfTempFile } from "../../adf.js";
-import { takeBody } from "@atlassian-axi/core";
+import { BODY_FLAGS, takeBody } from "@atlassian-axi/core";
 import type { SiteContext } from "@atlassian-axi/core";
 import { AxiError } from "@atlassian-axi/core";
 import { unknownSubcommandError } from "@atlassian-axi/core";
@@ -251,8 +251,10 @@ async function listWorkitems(
 
   const jql = jqlFlag ?? buildJql({ project, assignee, status });
   const items = await runSearch(jql, limit, fields);
-  const usedDefaultWindow =
-    !jqlFlag && !project && !assignee && !status;
+  // Derived from the JQL actually built, not from a copy of buildJql's branch
+  // condition: a filter added there later must not leave this claiming the
+  // default window while the caller's own filter was applied.
+  const usedDefaultWindow = !jqlFlag && jql === DEFAULT_WINDOW_JQL;
   return renderSearchResults(
     "list",
     items,
@@ -448,6 +450,7 @@ async function createWorkitem(
   });
   const parsed = parseFlags(args, {
     values: ["--project", "--type", "--summary", "--assignee", "--label"],
+    consumed: BODY_FLAGS,
   });
   if (parsed.help) return WORKITEM_HELP;
 
@@ -575,6 +578,7 @@ async function editWorkitem(
       "--labels",
       "--remove-labels",
     ],
+    consumed: BODY_FLAGS,
   });
   if (parsed.help) return WORKITEM_HELP;
 
@@ -791,7 +795,7 @@ async function commentWorkitem(
 ): Promise<string> {
   // Optional at first so `comment --help` reaches the help path; enforced below.
   const body = takeBody(args, { label: "comment" });
-  const parsed = parseFlags(args, {});
+  const parsed = parseFlags(args, { consumed: BODY_FLAGS });
   if (parsed.help) return WORKITEM_HELP;
 
   if (body === undefined) {

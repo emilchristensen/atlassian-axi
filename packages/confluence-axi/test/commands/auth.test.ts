@@ -555,6 +555,21 @@ describe("auth login (unknown flags/args)", () => {
     expect(config.saveCredential).not.toHaveBeenCalled();
   });
 
+  it("names the flag that swallowed a sibling flag as its value", async () => {
+    // `--site --email me@acme.com` used to set site="--email" and then blame
+    // the leftover email address for the failure.
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+
+    await expect(
+      authCommand(["login", "--token", "--site", "--email", "me@acme.com"]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "--site requires a value (got the flag --email instead)",
+    });
+    expect(config.readTokenFromStdin).not.toHaveBeenCalled();
+    expect(config.saveCredential).not.toHaveBeenCalled();
+  });
+
   it("serves help for `login --help` instead of starting a browser flow", async () => {
     const out = await authCommand(["login", "--help"]);
 
