@@ -271,6 +271,13 @@ describe("page get", () => {
 // create
 // ---------------------------------------------------------------------------
 
+/** The create response with its `id` missing — the shape-drift fallback path. */
+function omitId(payload: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([key]) => key !== "id"),
+  );
+}
+
 describe("page create", () => {
   function createRoutes(lookup: unknown) {
     return [
@@ -345,6 +352,53 @@ describe("page create", () => {
     expect(out).toContain('id: "67890"');
     expect(out).toContain("title: New page");
     expect(out).toContain("confluence-axi page get 67890");
+  });
+
+  it("routes the id-not-detected fallback suggestion through getSuggestions (keeps --site)", async () => {
+    // Shape drift: a successful POST whose response carries no id. The only
+    // follow-up is a title search — and it must carry an explicit --site like
+    // every other create suggestion, or the agent searches the wrong site.
+    const withoutId = omitId(pageCreatedPayload);
+    const { fetchImpl } = makeConfluenceFake([
+      { match: spacesLookup, result: spacesPayload },
+      { match: pagesLookup, result: pagesLookupEmptyPayload },
+      { match: onPath("POST", "/wiki/api/v2/pages"), result: withoutId },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await pageCommand(
+      [
+        "create",
+        "--space",
+        "ENG",
+        "--title",
+        "New page",
+        "--body",
+        "<p>x</p>",
+      ],
+      { site: "other.atlassian.net", source: "flag" },
+    );
+
+    expect(out).toContain("message: Created (id not detected in the response)");
+    expect(out).toContain(
+      'confluence-axi search "title = \\"New page\\"" --site other.atlassian.net',
+    );
+  });
+
+  it("omits --site from the fallback suggestion when the site did not come from a flag", async () => {
+    const withoutId = omitId(pageCreatedPayload);
+    const { fetchImpl } = makeConfluenceFake([
+      { match: spacesLookup, result: spacesPayload },
+      { match: pagesLookup, result: pagesLookupEmptyPayload },
+      { match: onPath("POST", "/wiki/api/v2/pages"), result: withoutId },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await pageCommand(
+      ["create", "--space", "ENG", "--title", "New page", "--body", "<p>x</p>"],
+      { site: "env.atlassian.net", source: "env" },
+    );
+    expect(out).not.toContain("--site");
   });
 
   it("passes --parent through as parentId", async () => {

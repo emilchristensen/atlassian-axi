@@ -474,9 +474,17 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
         { _message: "Created (id not detected in the response)" },
         [field("_message", "message")],
       ),
-      renderHelp([
-        `Run \`confluence-axi search "title = \\"${title}\\""\` to find it`,
-      ]),
+      // Route through getSuggestions like every other path, or this follow-up
+      // silently drops an explicit --site and searches the wrong site.
+      renderHelp(
+        getSuggestions({
+          domain: "page",
+          action: "create",
+          state: "no-id",
+          id: title as string,
+          site: ctx,
+        }),
+      ),
     ]);
   }
 
