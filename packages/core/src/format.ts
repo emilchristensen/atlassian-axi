@@ -4,7 +4,8 @@
  * Standard phrases:
  *   count: N                                — simple count
  *   count: N of T total                     — when total is known
- *   count: N (showing first N)              — when truncated by limit
+ *   count: N (showing first D — raise with --limit N) — client-side slice
+ *   count: N (showing first N — raise with --limit)   — request limit hit
  *   count: N+ (GitHub search API limit reached) — search API limit
  */
 
@@ -40,9 +41,12 @@ export function formatCountLine(opts: CountLineOptions): string {
       : `count: ${count} of ${totalCount} total`;
   }
 
-  // Display limit truncation (e.g. search showing first N of results)
+  // Display limit truncation (e.g. search showing first N of results). The
+  // caller sliced a fully-fetched set client-side, so `count` IS the true
+  // total and raising --limit to it provably reveals everything — name the
+  // remedy, matching the count === limit branch below.
   if (displayLimit !== undefined && count > displayLimit) {
-    return `count: ${count} (showing first ${displayLimit})`;
+    return `count: ${count} (showing first ${displayLimit} — raise with --limit ${count})`;
   }
 
   // Hit the request limit — results may be truncated
