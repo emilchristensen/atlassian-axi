@@ -5,12 +5,14 @@ import { runAxiCli } from "axi-sdk-js";
 import {
   AxiError,
   closestCommand,
+  exitCodeForError,
   renderError,
   resolveSite,
   takeFlag,
   type SiteContext,
 } from "@atlassian-axi/core";
 import { setSiteOverride } from "./config.js";
+import { withSiteFlag } from "./suggestions.js";
 import { homeCommand } from "./commands/home.js";
 import { setupCommand, SETUP_HELP } from "./commands/setup.js";
 import { authCommand, AUTH_HELP } from "./commands/auth.js";
@@ -75,7 +77,33 @@ const COMMANDS: Record<string, CommandFn> = {
   setup: (args) => setupCommand(args),
 };
 
+/**
+ * Render a thrown error in the SDK's TOON error shape, carrying an explicit
+ * `--site` into every suggestion line the way the success path does (the SDK
+ * renders error.suggestions verbatim, so the CLI owns this).
+ */
+export function formatCliError(
+  error: unknown,
+  site?: SiteContext,
+): { output: string; exitCode: number } {
+  if (error instanceof AxiError) {
+    return {
+      output: `${renderError(
+        error.message,
+        error.code,
+        withSiteFlag(error.suggestions ?? [], site),
+      )}\n`,
+      exitCode: exitCodeForError(error),
+    };
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return { output: `${renderError(message, "UNKNOWN")}\n`, exitCode: 1 };
+}
+
 export async function main(options: MainOptions = {}): Promise<void> {
+  // The SDK's formatError hook receives only the error, so the site resolved
+  // for THIS invocation is captured here (same lifetime as setSiteOverride).
+  let site: SiteContext | undefined;
   await runAxiCli<SiteContext | undefined>({
     ...(options.argv ? { argv: options.argv } : {}),
     description: DESCRIPTION,
@@ -91,9 +119,11 @@ export async function main(options: MainOptions = {}): Promise<void> {
       // without this the flag only decorated help lines while every request
       // silently hit the stored site (found live 2026-07-19).
       setSiteOverride(ctx?.source === "flag" ? ctx.site : undefined);
+      site = ctx;
       return ctx;
     },
     renderUnknownCommand,
+    formatError: (error) => formatCliError(error, site),
   });
 }
 

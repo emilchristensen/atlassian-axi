@@ -101,3 +101,38 @@ describe("space list", () => {
     });
   });
 });
+
+describe("space list --fields", () => {
+  it("trims the row schema to the requested fields (key always kept)", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: spacesRoute, result: spacesPayload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await spaceCommand(["list", "--fields", "name"]);
+    expect(out).toContain("spaces[2]{key,name}:");
+    expect(out).toContain("ENG,Engineering");
+    expect(out).not.toContain("global");
+  });
+
+  it("does not duplicate the identity column when it is requested explicitly", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: spacesRoute, result: spacesPayload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await spaceCommand(["list", "--fields", "name,key"]);
+    expect(out).toContain("spaces[2]{key,name}:");
+  });
+
+  it("rejects a degenerate --fields value instead of silently using the defaults", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: spacesRoute, result: spacesPayload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    await expect(spaceCommand(["list", "--fields", "name,"])).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
+  });
+});

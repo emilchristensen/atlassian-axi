@@ -1,18 +1,25 @@
 import {
+  formatCountLine,
   renderHelp,
+  renderList,
   renderOutput,
   type SiteContext,
 } from "@atlassian-axi/core";
 import { resolveAuthMode } from "../config.js";
 import { confluenceJson } from "../confluence.js";
-import { hasNextPage, resultsOf } from "./confluence/shared.js";
+import { getSuggestions } from "../suggestions.js";
+import {
+  resultsOf,
+  spaceListSchema,
+  type JsonRecord,
+} from "./confluence/shared.js";
 
 export const HOME_HELP = "";
 
 /**
  * No-arg dashboard — also the session-hook target (see `setup hooks`). Reports
- * the resolved site (if any), auth state, and a best-effort "spaces" count
- * (Confluence REST).
+ * the resolved site (if any), auth state, and a best-effort spaces block:
+ * the count plus the first few space rows (Confluence REST).
  *
  * Best-effort by contract: this must never throw, because a thrown error would
  * poison the SessionStart ambient block for every agent session.
@@ -35,16 +42,30 @@ export async function homeCommand(
   if (auth.configured) {
     // Best-effort, budget-capped: a slow Confluence API must not stall every
     // agent session start (the transport's own timeout is 15 s).
-    const spacesLine = await spacesCount().catch(() => null);
-    if (spacesLine !== null) {
-      blocks.push(`spaces: ${spacesLine}`);
+    const spaces = await probeSpaces().catch(() => null);
+    if (spaces !== null) {
+      const count = spaces.length;
+      // displayLimit + noLimitFlag: home has no --limit flag, so the count must
+      // never dangle a "raise with --limit" hint. Reports how many the probe
+      // saw with an honest "showing first N" when more than the rows rendered.
+      // Separate `count` key from the `spaces[N]` rows below (one output must
+      // not carry two `spaces`).
+      blocks.push(
+        formatCountLine({ count, displayLimit: SPACES_SHOWN, noLimitFlag: true }),
+      );
+      if (count > 0) {
+        // Content first: the space KEYS are what `page create --space <KEY>`
+        // and `search "space = KEY"` need, and they are already fetched — a
+        // bare count would force a second call for data we hold.
+        blocks.push(
+          renderList("spaces", spaces.slice(0, SPACES_SHOWN), spaceListSchema),
+        );
+      }
     }
   }
 
   blocks.push(
-    renderHelp([
-      "Run `confluence-axi <command> <subcommand>` — commands: auth, page, space, search, setup",
-    ]),
+    renderHelp(getSuggestions({ domain: "home", action: "home", site: ctx })),
   );
 
   return renderOutput(blocks);
@@ -54,13 +75,17 @@ export async function homeCommand(
 // best-effort fetch gets a short leash.
 const SPACES_BUDGET_MS = 2_000;
 const SPACES_PROBE_LIMIT = 25;
+// The ambient block stays small: enough keys to act on, not a full listing
+// (`confluence-axi space list` is the complete view).
+const SPACES_SHOWN = 5;
 
 /**
- * Best-effort spaces count for the dashboard. v2 spaces has no total count, so
- * probe one page and render "N" or "N+" when more exist; null (rendered as no
- * line at all) on any failure.
+ * Best-effort spaces probe for the dashboard: the fetched rows themselves, so
+ * an agent gets addressable space keys instead of a bare number. v2 spaces has
+ * no total count, so the count reports how many the probe window saw. null
+ * (rendered as no block at all) on any failure.
  */
-async function spacesCount(): Promise<string | null> {
+async function probeSpaces(): Promise<JsonRecord[] | null> {
   const payload = await withBudget(
     confluenceJson<unknown>("/wiki/api/v2/spaces", {
       query: { limit: SPACES_PROBE_LIMIT },
@@ -71,8 +96,7 @@ async function spacesCount(): Promise<string | null> {
   if (payload === null) {
     return null;
   }
-  const count = resultsOf(payload).length;
-  return hasNextPage(payload) ? `${count}+` : String(count);
+  return resultsOf(payload);
 }
 
 /** Resolve to `fallback` when `promise` misses the deadline or rejects. */

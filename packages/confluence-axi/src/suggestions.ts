@@ -1,10 +1,36 @@
 import {
+  appendSiteFlagToLines,
   matchSuggestions,
+  type SiteContext,
   type SuggestionContext,
   type SuggestionEntry,
 } from "@atlassian-axi/core";
 
 export type { SuggestionContext };
+
+const BIN = "confluence-axi";
+
+/**
+ * Commands the CLI does NOT strip `--site` for (see COMMANDS in cli.ts), so a
+ * suggested `auth status --site acme` would fail with "unexpected arguments".
+ * Site propagation skips them on every path.
+ */
+const SITE_EXEMPT_COMMANDS = ["auth", "setup"] as const;
+
+/**
+ * Carry an explicit `--site` forward into a block of already-built suggestion
+ * lines. The success path gets this for free via matchSuggestions; this is the
+ * same engine for lines that never went through the table (thrown AxiError
+ * suggestions, rendered by the formatError hook in cli.ts).
+ */
+export function withSiteFlag(
+  lines: readonly string[],
+  site: SiteContext | undefined,
+): string[] {
+  return appendSiteFlagToLines(lines, site, BIN, {
+    exemptCommands: SITE_EXEMPT_COMMANDS,
+  });
+}
 
 /**
  * Contextual next-step suggestions for confluence-axi, keyed by {domain,
@@ -99,6 +125,16 @@ const table: SuggestionEntry[] = [
     ],
   },
 
+  // Confluence page create, response shape drifted (no id in the POST reply):
+  // the only follow-up left is finding the page by the title we just wrote.
+  {
+    match: (c) =>
+      c.domain === "page" && c.action === "create" && c.state === "no-id",
+    lines: (c) => [
+      `Run \`confluence-axi search "title = \\"${c.id ?? ""}\\""\` to find it`,
+    ],
+  },
+
   // Confluence page create / update
   {
     match: (c) =>
@@ -148,5 +184,7 @@ const table: SuggestionEntry[] = [
 ];
 
 export function getSuggestions(ctx: SuggestionContext): string[] {
-  return matchSuggestions(table, ctx, "confluence-axi");
+  return matchSuggestions(table, ctx, BIN, {
+    exemptCommands: SITE_EXEMPT_COMMANDS,
+  });
 }

@@ -255,3 +255,51 @@ describe("search unquoted-CQL guard", () => {
     expect(calls[0].url.searchParams.get("limit")).toBe("5");
   });
 });
+
+describe("confluence search --fields", () => {
+  it("trims the row schema to the requested fields (id always kept)", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: searchRoute, result: searchPayload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await searchCommand(["search", "space = ENG", "--fields", "title"]);
+    expect(out).toContain("results[2]{id,title}:");
+    expect(out).toContain('"12345",Release notes');
+    // The 200-char excerpt is the expensive column an agent trims away.
+    expect(out).not.toContain("Release notes for the July drop");
+  });
+
+  it("widens to a field the default schema does not render", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: searchRoute, result: searchPayload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await searchCommand(["search", "space = ENG", "--fields", "status"]);
+    // v1 hits nest the entity under `content`, so the raw lookup probes there.
+    expect(out).toContain("results[2]{id,status}:");
+    expect(out).toContain('"12345",current');
+  });
+
+  it("renders null for an unknown field name rather than crashing", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: searchRoute, result: searchPayload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    const out = await searchCommand(["search", "space = ENG", "--fields", "nope"]);
+    expect(out).toContain("results[2]{id,nope}:");
+  });
+
+  it("rejects a degenerate --fields value", async () => {
+    const { fetchImpl } = makeConfluenceFake([
+      { match: searchRoute, result: searchPayload },
+    ]);
+    setConfluenceFetch(fetchImpl);
+
+    await expect(
+      searchCommand(["search", "space = ENG", "--fields", ","]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+});

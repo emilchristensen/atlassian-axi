@@ -196,6 +196,54 @@ export const searchResultSchema: FieldDef[] = [
   }),
 ];
 
+/**
+ * Build a list schema from a user-supplied `--fields` list (the minimal-default
+ * escape hatch, mirroring jira-axi). A requested name that matches a default
+ * field reuses that field's tolerant accessor; anything else falls back to a
+ * raw lookup on the record, so an agent can pull a field the default schema
+ * does not render. `identity` is always emitted first — a row the caller cannot
+ * address again is a dead end.
+ */
+export function fieldsSchema(
+  defaults: FieldDef[],
+  fields: string[],
+  identity: string,
+): FieldDef[] {
+  const byName = new Map(
+    defaults.map((def) => [
+      def.as ?? ("key" in def ? def.key : ""),
+      def,
+    ]),
+  );
+  const names = [identity, ...fields.filter((name) => name !== identity)];
+  return names.map(
+    (name) =>
+      byName.get(name) ??
+      custom(name, (item: JsonRecord) => rawFieldOf(item, name)),
+  );
+}
+
+/**
+ * Tolerant raw lookup for a `--fields` name the default schema does not cover.
+ * v1 search hits nest the entity under `content`, so probe there too, and
+ * collapse an object value to the human-addressable key it carries instead of
+ * dumping a nested blob into a TOON row.
+ */
+function rawFieldOf(item: JsonRecord, name: string): unknown {
+  const raw = item?.[name] ?? contentOf(item)[name];
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === "string") return stripControlChars(raw);
+  if (typeof raw === "number" || typeof raw === "boolean") return raw;
+  if (Array.isArray(raw)) return raw.length;
+  const record = raw as JsonRecord;
+  for (const key of ["key", "name", "title", "value", "id"]) {
+    const value = record[key];
+    if (typeof value === "string") return stripControlChars(value);
+    if (typeof value === "number") return value;
+  }
+  return null;
+}
+
 function contentOf(item: JsonRecord): JsonRecord {
   const content = item?.content;
   return content && typeof content === "object" ? (content as JsonRecord) : {};
