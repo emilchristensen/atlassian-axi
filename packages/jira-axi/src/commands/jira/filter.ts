@@ -20,6 +20,7 @@ import {
   parseLimit,
   rejectExtraPositional,
   requireNumericId,
+  truncatedTextField,
   type JsonRecord,
 } from "./shared.js";
 
@@ -30,6 +31,8 @@ flags{list}:
   --favourite (my favourite filters; default is filters I own), --limit <n> (default 30, applied client-side)
 flags{search}:
   --name <substring>, --owner <email>, --limit <n> (default 30)
+flags{view}:
+  --full (complete description without truncation)
 flags{update}:
   --name <text>, --description <text>, --jql <query> (no-op success when nothing changes)
 examples:
@@ -50,12 +53,24 @@ const filterListSchema: FieldDef[] = [
   custom("owner", (item: JsonRecord) => nameOf(item.owner) ?? "unknown"),
 ];
 
-const filterViewSchema: FieldDef[] = [
-  ...filterListSchema,
-  custom("jql", (item: JsonRecord) => item.jql ?? null),
-  custom("favourite", (item: JsonRecord) => (item.favourite ? "yes" : "no")),
-  custom("description", (item: JsonRecord) => item.description || "none"),
-];
+/** Detail schema for `view`/`update`; description truncated unless --full. */
+function filterViewSchema(full = false): FieldDef[] {
+  return [
+    ...filterListSchema,
+    custom("jql", (item: JsonRecord) => item.jql ?? null),
+    custom("favourite", (item: JsonRecord) => (item.favourite ? "yes" : "no")),
+    truncatedTextField(
+      "description",
+      (item: JsonRecord) =>
+        typeof item.description === "string" ? item.description : "",
+      full,
+      {
+        emptyValue: "none",
+        fullHint: "use `filter view <ID> --full` for the complete text",
+      },
+    ),
+  ];
+}
 
 export async function filterCommand(
   args: string[],
@@ -205,8 +220,9 @@ async function fetchFilter(id: string): Promise<JsonRecord> {
 }
 
 async function viewFilter(args: string[], ctx?: SiteContext): Promise<string> {
-  const parsed = parseFlags(args, {});
+  const parsed = parseFlags(args, { bools: ["--full"] });
   if (parsed.help) return FILTER_HELP;
+  const full = parsed.bools["--full"];
   const id = requireNumericId(
     parsed.positional,
     "Run `jira-axi filter view <ID>` (find IDs via `jira filter list` or `jira filter search`)",
@@ -216,7 +232,7 @@ async function viewFilter(args: string[], ctx?: SiteContext): Promise<string> {
 
   const item = await fetchFilter(id);
   return renderOutput([
-    renderDetail("filter", item, filterViewSchema),
+    renderDetail("filter", item, filterViewSchema(full)),
     renderHelp(
       getSuggestions({ domain: "filter", action: "view", id, site: ctx }),
     ),
@@ -260,7 +276,7 @@ async function updateFilter(
   if (unchanged) {
     return renderOutput([
       renderDetail("filter", { ...current, _message: "Already up to date" }, [
-        ...filterViewSchema,
+        ...filterViewSchema(),
         field("_message", "message"),
       ]),
       renderHelp(
@@ -278,7 +294,7 @@ async function updateFilter(
 
   const item = await fetchFilter(id);
   return renderOutput([
-    renderDetail("filter", item, filterViewSchema),
+    renderDetail("filter", item, filterViewSchema()),
     renderHelp(
       getSuggestions({ domain: "filter", action: "update", id, site: ctx }),
     ),

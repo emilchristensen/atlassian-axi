@@ -18,6 +18,7 @@ import {
   parseFlags,
   parseLimit,
   rejectExtraPositional,
+  truncatedTextField,
   type JsonRecord,
 } from "./shared.js";
 
@@ -26,6 +27,8 @@ subcommands[2]:
   list, view <KEY>
 flags{list}:
   --limit <n> (default 30)
+flags{view}:
+  --full (complete description without truncation)
 examples:
   jira-axi project list
   jira-axi project view TEAM`;
@@ -44,11 +47,24 @@ const projectListSchema: FieldDef[] = [
   ),
 ];
 
-const projectViewSchema: FieldDef[] = [
-  ...projectListSchema,
-  custom("id", (item: JsonRecord) => item.id ?? null),
-  custom("lead", (item: JsonRecord) => nameOf(item.lead) ?? "none"),
-];
+/** Detail schema for `view`; description truncated unless --full. */
+function projectViewSchema(full: boolean): FieldDef[] {
+  return [
+    ...projectListSchema,
+    custom("id", (item: JsonRecord) => item.id ?? null),
+    custom("lead", (item: JsonRecord) => nameOf(item.lead) ?? "none"),
+    truncatedTextField(
+      "description",
+      (item: JsonRecord) =>
+        typeof item.description === "string" ? item.description : "",
+      full,
+      {
+        emptyValue: "none",
+        fullHint: "use `project view <KEY> --full` for the complete text",
+      },
+    ),
+  ];
+}
 
 export async function projectCommand(
   args: string[],
@@ -114,8 +130,9 @@ async function viewProject(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const parsed = parseFlags(args, {});
+  const parsed = parseFlags(args, { bools: ["--full"] });
   if (parsed.help) return PROJECT_HELP;
+  const full = parsed.bools["--full"];
   const key = parsed.positional?.toUpperCase();
   if (!key) {
     throw new AxiError("Missing project key", "VALIDATION_ERROR", [
@@ -138,7 +155,7 @@ async function viewProject(
   }
 
   return renderOutput([
-    renderDetail("project", item as JsonRecord, projectViewSchema),
+    renderDetail("project", item as JsonRecord, projectViewSchema(full)),
     renderHelp(
       getSuggestions({ domain: "project", action: "view", id: key, site: ctx }),
     ),

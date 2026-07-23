@@ -56,7 +56,8 @@ Run \`npx -y jira-axi setup hooks\` to install SessionStart ambient context.
 
 - Output is TOON-encoded and token-efficient.
 - Mutations are idempotent and report what changed; re-running a failed mutation is safe (\`transition\` to the current status is a no-op success).
-- \`view <KEY> --full\` shows complete bodies; \`--comments\` includes comments; \`--fields <a,b,c>\` renders only those fields (works on list/search/view).
+- \`view <KEY> --full\` shows complete bodies; \`--comments\` includes comments (count line reports the true total; raise the shown rows with \`--limit <n>\`); \`--fields <a,b,c>\` renders only those fields (works on list/search/view).
+- Long free text is truncated with a size marker and a \`--full\` escape hatch: \`workitem view\` bodies/comments, \`filter view\` and \`project view\` descriptions.
 - \`workitem list\` builds JQL from --project/--assignee/--status; pass --jql or use \`search\` for raw JQL.
 - \`workitem create/edit --body\` and \`comment --body\` accept markdown (headings, lists, inline/block code, bold/italic, links) and store it as real Jira ADF; raw ADF JSON is passed through unchanged.
 - Boards/sprints/filters are ID-addressed: find board IDs via \`board list\`, sprint IDs via \`board list-sprints <BOARD_ID>\`.
