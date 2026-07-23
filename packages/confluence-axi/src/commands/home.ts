@@ -9,7 +9,6 @@ import { resolveAuthMode } from "../config.js";
 import { confluenceJson } from "../confluence.js";
 import { getSuggestions } from "../suggestions.js";
 import {
-  hasNextPage,
   resultsOf,
   spaceListSchema,
   type JsonRecord,
@@ -45,23 +44,19 @@ export async function homeCommand(
     // agent session start (the transport's own timeout is 15 s).
     const spaces = await probeSpaces().catch(() => null);
     if (spaces !== null) {
-      const count = spaces.items.length;
-      // Mirror `space list`: a v2 next-cursor means the probe window was the
-      // binding cap, so render the count as truncated. Separate `count` key
-      // from the `spaces[N]` rows below (one output must not carry two `spaces`).
-      blocks.push(
-        formatCountLine({ count, ...(spaces.hasMore ? { limit: count } : {}) }),
-      );
+      const count = spaces.length;
+      // displayLimit (not limit): home has no --limit flag, so the count must
+      // never dangle a "raise with --limit" hint. Reports how many the probe
+      // saw with an honest "showing first N" when more than the rows rendered.
+      // Separate `count` key from the `spaces[N]` rows below (one output must
+      // not carry two `spaces`).
+      blocks.push(formatCountLine({ count, displayLimit: SPACES_SHOWN }));
       if (count > 0) {
         // Content first: the space KEYS are what `page create --space <KEY>`
         // and `search "space = KEY"` need, and they are already fetched — a
         // bare count would force a second call for data we hold.
         blocks.push(
-          renderList(
-            "spaces",
-            spaces.items.slice(0, SPACES_SHOWN),
-            spaceListSchema,
-          ),
+          renderList("spaces", spaces.slice(0, SPACES_SHOWN), spaceListSchema),
         );
       }
     }
@@ -82,19 +77,13 @@ const SPACES_PROBE_LIMIT = 25;
 // (`confluence-axi space list` is the complete view).
 const SPACES_SHOWN = 5;
 
-interface SpacesProbe {
-  items: JsonRecord[];
-  /** v2 cursor has a next page — more spaces exist beyond the probe window. */
-  hasMore: boolean;
-}
-
 /**
  * Best-effort spaces probe for the dashboard: the fetched rows themselves, so
  * an agent gets addressable space keys instead of a bare number. v2 spaces has
- * no total count, so a next cursor is the only truncation signal. null
+ * no total count, so the count reports how many the probe window saw. null
  * (rendered as no block at all) on any failure.
  */
-async function probeSpaces(): Promise<SpacesProbe | null> {
+async function probeSpaces(): Promise<JsonRecord[] | null> {
   const payload = await withBudget(
     confluenceJson<unknown>("/wiki/api/v2/spaces", {
       query: { limit: SPACES_PROBE_LIMIT },
@@ -105,10 +94,7 @@ async function probeSpaces(): Promise<SpacesProbe | null> {
   if (payload === null) {
     return null;
   }
-  return {
-    items: resultsOf(payload),
-    hasMore: hasNextPage(payload),
-  };
+  return resultsOf(payload);
 }
 
 /** Resolve to `fallback` when `promise` misses the deadline or rejects. */

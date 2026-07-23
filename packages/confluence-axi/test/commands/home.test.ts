@@ -89,14 +89,18 @@ describe("homeCommand", () => {
     expect(out).toContain("count: 2");
   });
 
-  it("marks the spaces count as truncated when a next cursor exists", async () => {
+  it("does not fake a truncation hint from the v2 cursor when the probe saw few spaces", async () => {
     config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     confluence.confluenceJson.mockResolvedValue({
       results: [{ id: "111" }, { id: "222" }],
       _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
     });
     const out = await homeCommand([]);
-    expect(out).toContain("count: 2 (showing first 2");
+    // The cursor no longer drives the count: 2 probed rows are all shown, so
+    // the count stays plain and never dangles a --limit flag home lacks.
+    expect(out).toContain("count: 2");
+    expect(out).not.toContain("showing first");
+    expect(out).not.toContain("--limit");
   });
 
   it("renders live space ROWS, not just the count (content first)", async () => {
@@ -129,7 +133,8 @@ describe("homeCommand", () => {
       _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
     });
     const out = await homeCommand([]);
-    expect(out).toContain("count: 8 (showing first 8");
+    expect(out).toContain("count: 8 (showing first 5)");
+    expect(out).not.toContain("--limit");
     expect(out).toContain("spaces[5]{key,name,type,id}:");
     expect(out).not.toContain("S5,");
   });
