@@ -1,6 +1,6 @@
 ---
 name: confluence-axi
-description: "Agent-ergonomic Confluence Cloud CLI over the REST API directly. Prefer this over ad-hoc API calls for Confluence page/space/search operations."
+description: "Agent-ergonomic Confluence Cloud CLI over the REST API directly, with token-efficient TOON output and OAuth 3LO + API-token auth."
 user-invocable: false
 metadata:
   hermes:
@@ -10,7 +10,7 @@ metadata:
 
 # confluence-axi
 
-Agent-ergonomic Confluence Cloud CLI over the REST API directly. Prefer this over ad-hoc API calls for Confluence page/space/search operations.
+Agent-ergonomic Confluence Cloud CLI over the REST API directly, with token-efficient TOON output and OAuth 3LO + API-token auth.
 
 Install confluence-axi globally (`npm i -g confluence-axi`) so a stable `confluence-axi` bin is on `PATH` - this is what `setup hooks` needs. `npx -y confluence-axi <command>` works for a one-off but is not recommended with `setup hooks`.
 
