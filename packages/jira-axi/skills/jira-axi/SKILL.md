@@ -12,7 +12,7 @@ metadata:
 
 Agent-ergonomic Jira CLI backed by Atlassian's acli, with token-efficient TOON output and self-contained auth (no extra credential setup).
 
-You do not need jira-axi installed globally — invoke it with `npx -y jira-axi <command>`.
+Install jira-axi globally (`npm i -g jira-axi`) so a stable `jira-axi` bin is on `PATH` - this is what `setup hooks` needs. `npx -y jira-axi <command>` works for a one-off but is not recommended with `setup hooks`.
 
 ## Status
 
@@ -41,8 +41,8 @@ field:
   create --name <text> --type <key>, update <ID>, delete <ID>, restore <ID>
 ```
 
-Run `npx -y jira-axi --help` for global flags, or `npx -y jira-axi <command> --help` for per-command usage.
-Run `npx -y jira-axi setup hooks` to install SessionStart ambient context.
+Run `jira-axi --help` for global flags, or `jira-axi <command> --help` for per-command usage.
+Run `jira-axi setup hooks` to install SessionStart ambient context.
 
 ## Tips
 

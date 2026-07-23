@@ -3,7 +3,7 @@
 Agent-ergonomic CLI for Confluence Cloud, calling the Confluence REST API directly.
 Every command emits token-efficient TOON output, mutations are idempotent, and errors carry next-step suggestions.
 
-Agents do not need a global install: run any command with `npx -y confluence-axi <command>`.
+Install it globally (`npm i -g confluence-axi`) so a stable `confluence-axi` bin is on `PATH` - this is what `setup hooks` needs. `npx -y confluence-axi <command>` works for a one-off but is not recommended with `setup hooks`.
 
 ## Read this first
 
