@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { main, TOP_HELP } from "../src/cli.js";
+import { DESCRIPTION, main, TOP_HELP } from "../src/cli.js";
 import { setAcliRunner } from "../src/acli.js";
 
 /** Capture everything main() writes to its injected stdout. */
@@ -68,6 +68,16 @@ describe("cli help/version contract", () => {
     expect(out).toContain("description:");
     expect(out).toContain("acli: installed");
     expect(out).toContain("jira-axi <command> <subcommand>");
+  });
+
+  // The home header is printed on every no-arg invocation (the SessionStart
+  // hook target), so the AXI spec caps it at one sentence; the feature list
+  // lives in TOP_HELP instead.
+  it("keeps the home description to a single sentence", () => {
+    expect(DESCRIPTION.endsWith(".")).toBe(true);
+    expect(DESCRIPTION.slice(0, -1)).not.toMatch(/\.\s/);
+    expect(TOP_HELP).toContain("Token-efficient TOON output");
+    expect(TOP_HELP).toContain("acli jira auth login");
   });
 
   it("prints per-command help for setup --help", async () => {

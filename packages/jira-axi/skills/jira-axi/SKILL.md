@@ -1,6 +1,6 @@
 ---
 name: jira-axi
-description: "Agent-ergonomic Jira CLI, backed by Atlassian's acli. Token-efficient TOON output, contextual suggestions, idempotent mutations. Self-contained: auth is delegated to acli's own login, no extra credential setup."
+description: "Agent-ergonomic Jira CLI backed by Atlassian's acli, with token-efficient TOON output and self-contained auth (no extra credential setup)."
 user-invocable: false
 metadata:
   hermes:
@@ -10,7 +10,7 @@ metadata:
 
 # jira-axi
 
-Agent-ergonomic Jira CLI, backed by Atlassian's acli. Token-efficient TOON output, contextual suggestions, idempotent mutations. Self-contained: auth is delegated to acli's own login, no extra credential setup.
+Agent-ergonomic Jira CLI backed by Atlassian's acli, with token-efficient TOON output and self-contained auth (no extra credential setup).
 
 You do not need jira-axi installed globally — invoke it with `npx -y jira-axi <command>`.
 
