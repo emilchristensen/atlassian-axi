@@ -49,8 +49,10 @@ Mutations are idempotent and re-fetch after applying: `transition --to <status>`
 All structured output is TOON-encoded.
 There is no plain-text or JSON output mode.
 Long free text is truncated by default with a size marker; the detail command that renders it takes `--full` for the complete text. See [commands](./commands.md) for the commands that accept it.
+The truncation baseline is 500 characters (`BODY_TRUNCATE_LENGTH` in `src/commands/jira/shared.ts`), applied uniformly to every free-text field - work item descriptions and comments, filter and project descriptions - so the cut point is predictable rather than per-command.
 
 ## Flags must come after the command
 
 Flags are rejected before the command name.
 Write `jira-axi workitem list --project TEAM`, not `jira-axi --project TEAM workitem list`.
+An unrecognised flag is never silently ignored: it is a loud `VALIDATION_ERROR` (exit 2) whose `help` block enumerates the flags that command does support.

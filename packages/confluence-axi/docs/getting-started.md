@@ -72,6 +72,9 @@ Dashboard (no args) - ambient snapshot of your Confluence context:
 confluence-axi
 ```
 
+The dashboard emits the resolved `site`, the `auth` state, a `count:` line, and the first few `spaces[N]{key,name,type,id}` rows.
+Those space keys are directly usable as `page create --space <KEY>` and `search "space = KEY"`, so a session that already has the dashboard block does not need a follow-up `space list` for them.
+
 Search Confluence with CQL (see [commands](./commands.md)):
 
 ```bash
