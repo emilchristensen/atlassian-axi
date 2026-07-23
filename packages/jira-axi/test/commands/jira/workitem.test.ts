@@ -155,6 +155,25 @@ describe("workitem list", () => {
     expect(out).toContain("count: 0");
     expect(out).toContain("to create one");
   });
+
+  it("discloses the injected 30-day window on an empty bare list", async () => {
+    // `count: 0` alone cannot distinguish "nothing exists" from "nothing
+    // updated in 30 days" - the window the caller never typed must be shown.
+    const { runner } = makeAcliFake([{ match: isSearch, result: [] }]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand(["list"]);
+    expect(out).toContain("scope: updated >= -30d (default recency window");
+  });
+
+  it("omits the scope line when the caller supplied the filters", async () => {
+    const { runner } = makeAcliFake([{ match: isSearch, result: [] }]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand(["list", "--project", "TEAM"]);
+    expect(out).toContain("count: 0");
+    expect(out).not.toContain("scope:");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -883,6 +902,22 @@ describe("workitem comment", () => {
     await expect(workitemCommand(["comment", "TEAM-1"])).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
     });
+  });
+
+  it("lists the body flags it consumed in the unknown-flag error", async () => {
+    // takeBody strips --body/--body-file before parseFlags sees them, so
+    // without the consumed hint the error claimed `comment` takes no flags.
+    setAcliRunner(makeAcliFake([]).runner);
+    try {
+      await workitemCommand(["comment", "TEAM-1", "--bod", "x"]);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      const err = error as { code: string; suggestions: string[] };
+      expect(err.code).toBe("VALIDATION_ERROR");
+      expect(err.suggestions).toContain(
+        "Supported flags: --body, --body-file, --help",
+      );
+    }
   });
 
   it("creates the comment and confirms with the post-state", async () => {

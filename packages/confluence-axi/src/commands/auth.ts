@@ -1,4 +1,4 @@
-import { takeBoolFlag, takeFlag } from "@atlassian-axi/core";
+import { takeBoolFlag, takeValueFlag } from "@atlassian-axi/core";
 import {
   type AtlassianCredential,
   type OAuthSession,
@@ -108,15 +108,46 @@ function rejectExtraArgs(action: string, rest: string[]): void {
 // ---------------------------------------------------------------------------
 
 async function authLogin(args: string[]): Promise<string> {
+  // `auth login --help` must serve help, not start a browser flow.
+  if (takeBoolFlag(args, "--help")) {
+    return AUTH_HELP;
+  }
   if (takeBoolFlag(args, "--token")) {
     return tokenLogin(args);
   }
   return oauthLogin(args);
 }
 
+/**
+ * Reject whatever `auth login` did not consume. Without this a typo'd
+ * `--tokn` is dropped, falls through to the OAuth path and (in an agent/CI
+ * shell) surfaces the misleading "needs an interactive terminal" error, and a
+ * dropped `--emial` logs in under a stale resolved email - both silent, where
+ * `auth status`/`logout` and the shared parseFlags fail loud on exit 2.
+ */
+function rejectLeftoverLoginArgs(args: string[], validFlags: string[]): void {
+  if (args.length === 0) return;
+  throw new AxiError(
+    `Unexpected arguments after 'auth login': ${args.join(" ")}`,
+    "VALIDATION_ERROR",
+    [
+      `Supported flags: ${validFlags.join(", ")}`,
+      "Run `confluence-axi auth --help` for usage",
+    ],
+  );
+}
+
 // --- OAuth (3LO) browser flow -----------------------------------------------
 
 async function oauthLogin(args: string[]): Promise<string> {
+  // takeValueFlag, not takeFlag: `--site --email me@acme.com` must name --site
+  // as the flag missing its value rather than silently taking "--email" as the
+  // site and blaming the leftover email for the failure.
+  const siteFlag = normalizeSite(takeValueFlag(args, "--site"));
+  // Before the TTY check, so a mistyped `--tokn` is named as the real problem
+  // instead of being reported as a missing interactive terminal.
+  rejectLeftoverLoginArgs(args, ["--token", "--site", "--email (with --token)"]);
+
   // Fail fast for agents/CI before any listener/browser/prompt work: a
   // headless invocation must never hang waiting on a browser.
   if (!isInteractiveTTY()) {
@@ -130,7 +161,6 @@ async function oauthLogin(args: string[]): Promise<string> {
     );
   }
 
-  const siteFlag = normalizeSite(takeFlag(args, "--site"));
   const clientId = oauthClientId();
   const existingSession = readOAuthSession();
   const resolvedSecret = resolveOAuthClientSecret(existingSession);
@@ -247,8 +277,10 @@ async function pickResource(
 // --- API-token flow (agents/CI) ---------------------------------------------
 
 async function tokenLogin(args: string[]): Promise<string> {
-  const siteFlag = takeFlag(args, "--site");
-  const emailFlag = takeFlag(args, "--email");
+  const siteFlag = takeValueFlag(args, "--site");
+  const emailFlag = takeValueFlag(args, "--email");
+  // Before stdin is read, so a typo'd flag never consumes the piped token.
+  rejectLeftoverLoginArgs(args, ["--token", "--site", "--email"]);
 
   // Flags win, then fall back to any already-resolved (env/stored) values so a
   // re-login only needs to supply what changed.

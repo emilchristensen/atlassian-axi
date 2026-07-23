@@ -9,6 +9,7 @@ Consult this before attempting an operation that may silently fail, no-op, or re
 acli has no `workitem list` subcommand; the CLI builds JQL and calls `workitem search`.
 acli rejects unbounded JQL, so a bare `workitem list` with no filters applies an `updated >= -30d` window.
 To go wider, pass explicit `--jql` or use `workitem search "<JQL>"` with a bounded query.
+An empty result under this default window discloses it in a `scope:` line, so `count: 0` is not mistaken for "no work items exist".
 
 ## `search --fields` whitelist rejects some fields
 

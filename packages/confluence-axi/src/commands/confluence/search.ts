@@ -4,7 +4,8 @@ import { AxiError } from "../../errors.js";
 import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import { renderHelp, renderList, renderOutput } from "@atlassian-axi/core";
-import { parseFlags, parseLimit, splitFields } from "@atlassian-axi/core";
+import { parseLimit, splitFields } from "@atlassian-axi/core";
+import { parseSiteFlags } from "./flags.js";
 import {
   fieldsSchema,
   resultsOf,
@@ -27,7 +28,7 @@ export async function searchCommand(
   args: string[],
   ctx?: SiteContext,
 ): Promise<string> {
-  const parsed = parseFlags(args, { values: ["--limit", "--fields"] });
+  const parsed = parseSiteFlags(args, { values: ["--limit", "--fields"] });
   if (parsed.help) return SEARCH_HELP;
 
   // The cli wrapper keeps "search" itself at args[0], so the CQL query is the

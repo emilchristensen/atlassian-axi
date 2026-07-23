@@ -1,6 +1,6 @@
 import { acliJson } from "../../acli.js";
 import { writeAdfTempFile } from "../../adf.js";
-import { takeBody } from "@atlassian-axi/core";
+import { BODY_FLAGS, takeBody } from "@atlassian-axi/core";
 import type { SiteContext } from "@atlassian-axi/core";
 import { AxiError } from "@atlassian-axi/core";
 import { unknownSubcommandError } from "@atlassian-axi/core";
@@ -187,11 +187,18 @@ function renderSearchResults(
   limit: number,
   fields: string[] | undefined,
   ctx?: SiteContext,
+  emptyScope?: string,
 ): string {
   const schema = fields ? fieldsSchema(fields) : workitemListSchema;
   const blocks: string[] = [
     formatCountLine({ count: items.length, limit }),
   ];
+  // A bare `count: 0` cannot be told apart from "nothing exists" when the CLI
+  // injected a filter the caller never typed - disclose that scope so the
+  // agent does not re-run with a broader query just to find out.
+  if (items.length === 0 && emptyScope) {
+    blocks.push(`scope: ${emptyScope}`);
+  }
   if (items.length > 0) {
     blocks.push(renderList("workitems", items, schema));
   }
@@ -244,8 +251,26 @@ async function listWorkitems(
 
   const jql = jqlFlag ?? buildJql({ project, assignee, status });
   const items = await runSearch(jql, limit, fields);
-  return renderSearchResults("list", items, limit, fields, ctx);
+  // Derived from the JQL actually built, not from a copy of buildJql's branch
+  // condition: a filter added there later must not leave this claiming the
+  // default window while the caller's own filter was applied.
+  const usedDefaultWindow = !jqlFlag && jql === DEFAULT_WINDOW_JQL;
+  return renderSearchResults(
+    "list",
+    items,
+    limit,
+    fields,
+    ctx,
+    usedDefaultWindow
+      ? `${DEFAULT_WINDOW_CLAUSE} (default recency window - pass --jql "<JQL>" or --project <KEY> to widen)`
+      : undefined,
+  );
 }
+
+// acli rejects unbounded JQL ("Unbounded JQL queries are not allowed"), so a
+// bare `list` gets a recency window instead of an unrestricted query.
+const DEFAULT_WINDOW_CLAUSE = "updated >= -30d";
+const DEFAULT_WINDOW_JQL = `${DEFAULT_WINDOW_CLAUSE} ORDER BY updated DESC`;
 
 function buildJql(filters: {
   project?: string;
@@ -267,11 +292,7 @@ function buildJql(filters: {
     clauses.push(`status = ${quoteJql(filters.status)}`);
   }
   const where = clauses.join(" AND ");
-  // acli rejects unbounded JQL ("Unbounded JQL queries are not allowed"), so a
-  // bare `list` gets a recency window instead of an unrestricted query.
-  return where
-    ? `${where} ORDER BY updated DESC`
-    : "updated >= -30d ORDER BY updated DESC";
+  return where ? `${where} ORDER BY updated DESC` : DEFAULT_WINDOW_JQL;
 }
 
 /** Quote a JQL string value; backslashes first, then quotes, per JQL escaping. */
@@ -429,6 +450,7 @@ async function createWorkitem(
   });
   const parsed = parseFlags(args, {
     values: ["--project", "--type", "--summary", "--assignee", "--label"],
+    consumed: BODY_FLAGS,
   });
   if (parsed.help) return WORKITEM_HELP;
 
@@ -556,6 +578,7 @@ async function editWorkitem(
       "--labels",
       "--remove-labels",
     ],
+    consumed: BODY_FLAGS,
   });
   if (parsed.help) return WORKITEM_HELP;
 
@@ -772,7 +795,7 @@ async function commentWorkitem(
 ): Promise<string> {
   // Optional at first so `comment --help` reaches the help path; enforced below.
   const body = takeBody(args, { label: "comment" });
-  const parsed = parseFlags(args, {});
+  const parsed = parseFlags(args, { consumed: BODY_FLAGS });
   if (parsed.help) return WORKITEM_HELP;
 
   if (body === undefined) {

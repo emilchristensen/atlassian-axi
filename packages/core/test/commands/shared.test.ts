@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AxiError } from "../../src/errors.js";
 import { parseFlags, parseLimit } from "../../src/shared.js";
 
 describe("parseFlags", () => {
@@ -21,6 +22,39 @@ describe("parseFlags", () => {
         values: ["--format"],
       }),
     ).toThrowError(/Unknown flag: --formt/);
+  });
+
+  it("lists the accepted flags in the unknown-flag error", () => {
+    // Saves the agent a second `--help` round-trip to learn the real name.
+    let thrown: unknown;
+    try {
+      parseFlags(["get", "--formt", "storage", "12345"], {
+        values: ["--format"],
+        bools: ["--full"],
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(AxiError);
+    const err = thrown as AxiError;
+    expect(err.code).toBe("VALIDATION_ERROR");
+    expect(err.suggestions).toContain(
+      "Supported flags: --format, --full, --help",
+    );
+  });
+
+  it("lists caller-consumed flags too, so the list is never a lie", () => {
+    // takeBody/stripSite strip their flags before parseFlags runs; the command
+    // still accepts them, so the error must not claim it takes none.
+    let thrown: unknown;
+    try {
+      parseFlags(["add", "--bod", "hello"], { consumed: ["--body"] });
+    } catch (error) {
+      thrown = error;
+    }
+    expect((thrown as AxiError).suggestions).toContain(
+      "Supported flags: --body, --help",
+    );
   });
 
   it("still returns help when --help accompanies an unknown flag", () => {

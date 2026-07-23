@@ -4,11 +4,11 @@ import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import { renderHelp, renderList, renderOutput } from "@atlassian-axi/core";
 import {
-  parseFlags,
   parseLimit,
   splitFields,
   unknownSubcommandError,
 } from "@atlassian-axi/core";
+import { parseSiteFlags } from "./flags.js";
 import {
   fieldsSchema,
   hasNextPage,
@@ -51,7 +51,7 @@ export async function spaceCommand(
 }
 
 async function listSpaces(args: string[], ctx?: SiteContext): Promise<string> {
-  const parsed = parseFlags(args, { values: ["--limit", "--fields"] });
+  const parsed = parseSiteFlags(args, { values: ["--limit", "--fields"] });
   if (parsed.help) return SPACE_HELP;
   const limit = parseLimit(parsed.values["--limit"]);
   const fields = splitFields(parsed.values["--fields"]);
