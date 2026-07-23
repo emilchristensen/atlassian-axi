@@ -46,7 +46,11 @@ pnpm run build       # turbo -> tsc (core) + tsup (clis)
 pnpm run typecheck
 pnpm test            # turbo -> vitest per package
 pnpm run lint
+pnpm run build:skill # regenerates each packages/<pkg>/skills/<pkg>/SKILL.md from src/skill.ts
 ```
+
+`SKILL.md` is generated - never hand-edit it. Change `src/skill.ts` and re-run `build:skill`.
+`pnpm run build:skill -- --check` fails on drift instead of writing, and CI runs it, so a hand-edit or a forgotten regeneration is caught there.
 
 Per-package work: `pnpm --filter jira-axi <script>` / `pnpm --filter confluence-axi <script>`.
 
