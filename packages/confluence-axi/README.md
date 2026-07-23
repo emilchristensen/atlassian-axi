@@ -52,7 +52,7 @@ confluence-axi setup hooks
 confluence-axi update [--check]
 ```
 
-Flags come AFTER the command. Per-command help: `confluence-axi <command> --help` (and deeper: `confluence-axi page --help`).
+Flags come AFTER the command. Per-command help: `confluence-axi <command> --help`, scoped to the subcommand when you name one (`confluence-axi page get --help`).
 
 ## Output and idempotency
 

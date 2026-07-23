@@ -24,3 +24,8 @@ jobs:
       - run: pnpm run build
       - run: pnpm run typecheck
       - run: pnpm test
+
+      # SKILL.md is a published artifact generated from src/skill.ts. Fail the
+      # build when a committed copy has drifted, so agents never receive stale
+      # command docs. Fix by running `pnpm run build:skill` and committing.
+      - run: pnpm run build:skill -- --check

@@ -24,7 +24,7 @@ Agents do not need a global install: run any command with `npx -y confluence-axi
 - Confluence page bodies are raw storage-format XHTML (or Atlas Doc Format via `--format adf`); markdown is NOT converted.
 - `confluence-axi page update` is a full-body replace guarded against dropping embedded macros/whiteboards. It cannot create or edit diagrams/whiteboards, only preserve them.
 - Bodies truncate by default; pass `--full` on `page get`.
-- Per-command help is always available: `confluence-axi <command> --help` (and deeper: `confluence-axi page --help`).
+- Per-command help is always available and scoped to the subcommand you name: `confluence-axi page get --help` (see [commands](./commands.md)).
 
 ## Sunset note
 

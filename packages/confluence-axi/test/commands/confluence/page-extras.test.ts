@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setConfluenceFetch } from "../../../src/confluence.js";
 import {
   pageCommand,
-  PAGE_HELP,
+  pageHelp,
 } from "../../../src/commands/confluence/page.js";
 import {
   makeConfluenceFake,
@@ -155,7 +155,9 @@ describe("page attachments", () => {
     await expect(
       pageCommand(["attachments", "12345", "--media", "png"]),
     ).rejects.toThrow(/Unknown flag: --media/);
-    expect(await pageCommand(["attachments", "--help"])).toBe(PAGE_HELP);
+    expect(await pageCommand(["attachments", "--help"])).toBe(
+      pageHelp("attachments"),
+    );
     expect(calls).toHaveLength(0);
   });
 });

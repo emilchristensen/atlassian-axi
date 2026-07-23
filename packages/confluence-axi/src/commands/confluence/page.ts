@@ -20,27 +20,142 @@ import {
   type JsonRecord,
 } from "./shared.js";
 
-export const PAGE_HELP = `usage: confluence-axi page <subcommand> [flags]
-subcommands[7]:
-  get <id>, create, update <id>, delete <id>, attachments <id>, labels <id>, children <id>
-flags{get}:
-  --full (complete body without truncation), --format <storage|adf> (default storage)
-flags{create}:
-  --space <KEY> (required), --title <text> (required), --body <text> or --body-file <path> (storage format; required), --parent <id>
-flags{update}:
-  --title <text>, --body <text> or --body-file <path> (storage format; at least one required; version bump is automatic), --allow-macro-loss (permit dropping an embedded macro/whiteboard the current body still has; blocked by default)
-flags{attachments}:
-  --limit <n> (default 30), --media-type <type>, --filename <name>
-flags{labels}:
-  (no flags = list) --add <name,name,...> or --remove <name,name,...> (idempotent; exclusive; mutations manage GLOBAL-prefix labels only), --prefix <my|team|global|system> (list only), --limit <n> (list only, default 30)
-flags{children}:
-  --limit <n> (default 30)
-examples:
-  confluence-axi page get 12345
-  confluence-axi page create --space ENG --title "Release notes" --body-file notes.html
-  confluence-axi page update 12345 --body "<p>Updated</p>"
-  confluence-axi page labels 12345 --add release,july
-  confluence-axi page children 12345`;
+/**
+ * Per-subcommand help content. Single source of truth for both the
+ * whole-resource `page --help` doc and the subcommand-scoped `page <sub>
+ * --help` doc, so the two can never drift apart.
+ */
+type PageSubcommandDoc = {
+  /** Argument shape as it appears after `confluence-axi page`. */
+  readonly usage: string;
+  readonly summary: string;
+  /** One entry per flag; rendered comma-joined on a single line. */
+  readonly flags: readonly string[];
+  readonly examples: readonly string[];
+};
+
+const PAGE_SUBCOMMAND_DOCS = {
+  get: {
+    usage: "get <id>",
+    summary: "Read one page by id, body included.",
+    flags: [
+      "--full (complete body without truncation)",
+      "--format <storage|adf> (default storage)",
+    ],
+    examples: ["confluence-axi page get 12345"],
+  },
+  create: {
+    usage: "create",
+    summary: "Create a page in a space (idempotent on space + title).",
+    flags: [
+      "--space <KEY> (required)",
+      "--title <text> (required)",
+      "--body <text> or --body-file <path> (storage format; required)",
+      "--parent <id>",
+    ],
+    examples: [
+      'confluence-axi page create --space ENG --title "Release notes" --body-file notes.html',
+    ],
+  },
+  update: {
+    usage: "update <id>",
+    summary: "Replace a page title and/or body (full-body replace).",
+    flags: [
+      "--title <text>",
+      "--body <text> or --body-file <path> (storage format; at least one required; version bump is automatic)",
+      "--allow-macro-loss (permit dropping an embedded macro/whiteboard the current body still has; blocked by default)",
+    ],
+    examples: ['confluence-axi page update 12345 --body "<p>Updated</p>"'],
+  },
+  delete: {
+    usage: "delete <id>",
+    summary: "Delete a page (idempotent; already-trashed counts as deleted).",
+    flags: [],
+    examples: ["confluence-axi page delete 12345"],
+  },
+  attachments: {
+    usage: "attachments <id>",
+    summary: "List a page's attachments (read-only).",
+    flags: [
+      "--limit <n> (default 30)",
+      "--media-type <type>",
+      "--filename <name>",
+    ],
+    examples: ["confluence-axi page attachments 12345"],
+  },
+  labels: {
+    usage: "labels <id>",
+    summary: "List, add, or remove a page's labels.",
+    flags: [
+      "(no flags = list) --add <name,name,...> or --remove <name,name,...> (idempotent; exclusive; mutations manage GLOBAL-prefix labels only)",
+      "--prefix <my|team|global|system> (list only)",
+      "--limit <n> (list only, default 30)",
+    ],
+    examples: ["confluence-axi page labels 12345 --add release,july"],
+  },
+  children: {
+    usage: "children <id>",
+    summary: "List a page's direct child pages.",
+    flags: ["--limit <n> (default 30)"],
+    examples: ["confluence-axi page children 12345"],
+  },
+} as const satisfies Record<string, PageSubcommandDoc>;
+
+export type PageSubcommand = keyof typeof PAGE_SUBCOMMAND_DOCS;
+
+const PAGE_SUBCOMMANDS = Object.keys(PAGE_SUBCOMMAND_DOCS) as PageSubcommand[];
+
+/** `flags[n]:` block, or nothing at all when the subcommand takes no flags. */
+function flagsBlock(flags: readonly string[], label: string): string[] {
+  if (flags.length === 0) return [];
+  return [`flags${label}[${flags.length}]:`, `  ${flags.join(", ")}`];
+}
+
+function buildPageHelp(): string {
+  const lines = [
+    "usage: confluence-axi page <subcommand> [flags]",
+    `subcommands[${PAGE_SUBCOMMANDS.length}]:`,
+    `  ${PAGE_SUBCOMMANDS.map((name) => PAGE_SUBCOMMAND_DOCS[name].usage).join(", ")}`,
+  ];
+  for (const name of PAGE_SUBCOMMANDS) {
+    lines.push(...flagsBlock(PAGE_SUBCOMMAND_DOCS[name].flags, `{${name}}`));
+  }
+  lines.push("examples:");
+  for (const name of PAGE_SUBCOMMANDS) {
+    for (const example of PAGE_SUBCOMMAND_DOCS[name].examples) {
+      lines.push(`  ${example}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/** Whole-resource help, served for bare `confluence-axi page --help`. */
+export const PAGE_HELP = buildPageHelp();
+
+/**
+ * Help for one subcommand, served for `confluence-axi page <sub> --help`.
+ * Falls back to the whole-resource doc for an unknown or absent subcommand so
+ * a caller never gets an empty reference.
+ */
+export function pageHelp(sub?: string): string {
+  const doc = sub === undefined ? undefined : lookupDoc(sub);
+  if (!doc) return PAGE_HELP;
+  return [
+    `usage: confluence-axi page ${doc.usage}${doc.flags.length > 0 ? " [flags]" : ""}`,
+    doc.summary,
+    ...flagsBlock(doc.flags, ""),
+    "examples:",
+    ...doc.examples.map((example) => `  ${example}`),
+    "help[1]:",
+    `  Run \`confluence-axi page --help\` for all ${PAGE_SUBCOMMANDS.length} page subcommands`,
+  ].join("\n");
+}
+
+function lookupDoc(sub: string): PageSubcommandDoc | undefined {
+  return Object.prototype.hasOwnProperty.call(PAGE_SUBCOMMAND_DOCS, sub)
+    ? PAGE_SUBCOMMAND_DOCS[sub as PageSubcommand]
+    : undefined;
+}
 
 export async function pageCommand(
   args: string[],
@@ -62,16 +177,16 @@ export async function pageCommand(
     case "delete":
       return deletePage(args, ctx);
     case "attachments":
-      return attachmentsPage(args, PAGE_HELP, ctx);
+      return attachmentsPage(args, pageHelp("attachments"), ctx);
     case "labels":
-      return labelsPage(args, PAGE_HELP, ctx);
+      return labelsPage(args, pageHelp("labels"), ctx);
     case "children":
-      return childrenPage(args, PAGE_HELP, ctx);
+      return childrenPage(args, pageHelp("children"), ctx);
     default:
       throw unknownSubcommandError(
         "page subcommand",
         sub,
-        ["get", "create", "update", "delete", "attachments", "labels", "children"],
+        [...PAGE_SUBCOMMANDS],
         "confluence-axi page --help",
       );
   }
@@ -248,7 +363,7 @@ async function getPage(args: string[], ctx?: SiteContext): Promise<string> {
     values: ["--format"],
     bools: ["--full"],
   });
-  if (parsed.help) return PAGE_HELP;
+  if (parsed.help) return pageHelp("get");
 
   const id = requirePageId(args, parsed.positional, "get");
   const representation = resolveRepresentation(parsed.values["--format"]);
@@ -275,7 +390,7 @@ async function createPage(args: string[], ctx?: SiteContext): Promise<string> {
   const parsed = parseFlags(args, {
     values: ["--space", "--title", "--parent"],
   });
-  if (parsed.help) return PAGE_HELP;
+  if (parsed.help) return pageHelp("create");
 
   const space = parsed.values["--space"];
   const title = parsed.values["--title"];
@@ -384,7 +499,7 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
     values: ["--title"],
     bools: ["--allow-macro-loss"],
   });
-  if (parsed.help) return PAGE_HELP;
+  if (parsed.help) return pageHelp("update");
 
   const id = requirePageId(args, parsed.positional, "update");
   const title = parsed.values["--title"];
@@ -469,7 +584,7 @@ async function updatePage(args: string[], ctx?: SiteContext): Promise<string> {
 
 async function deletePage(args: string[], ctx?: SiteContext): Promise<string> {
   const parsed = parseFlags(args, {});
-  if (parsed.help) return PAGE_HELP;
+  if (parsed.help) return pageHelp("delete");
 
   const id = requirePageId(args, parsed.positional, "delete");
 
