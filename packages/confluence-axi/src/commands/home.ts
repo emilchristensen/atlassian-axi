@@ -45,12 +45,14 @@ export async function homeCommand(
     const spaces = await probeSpaces().catch(() => null);
     if (spaces !== null) {
       const count = spaces.length;
-      // displayLimit (not limit): home has no --limit flag, so the count must
+      // displayLimit + noLimitFlag: home has no --limit flag, so the count must
       // never dangle a "raise with --limit" hint. Reports how many the probe
       // saw with an honest "showing first N" when more than the rows rendered.
       // Separate `count` key from the `spaces[N]` rows below (one output must
       // not carry two `spaces`).
-      blocks.push(formatCountLine({ count, displayLimit: SPACES_SHOWN }));
+      blocks.push(
+        formatCountLine({ count, displayLimit: SPACES_SHOWN, noLimitFlag: true }),
+      );
       if (count > 0) {
         // Content first: the space KEYS are what `page create --space <KEY>`
         // and `search "space = KEY"` need, and they are already fetched — a
