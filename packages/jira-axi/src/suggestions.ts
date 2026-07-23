@@ -65,10 +65,20 @@ const table: SuggestionEntry[] = [
     ],
   },
 
-  // Workitem edit / assign
+  // Workitem edit. Unlike its sibling mutations, edit's confirmation already
+  // renders the full detail view, so suggesting a bare `view` would be
+  // circular — point at what the confirmation does NOT show instead.
   {
-    match: (c) =>
-      c.domain === "workitem" && (c.action === "edit" || c.action === "assign"),
+    match: (c) => c.domain === "workitem" && c.action === "edit",
+    lines: (c) => [
+      `Run \`jira-axi workitem view ${c.id} --comments\` to see the discussion`,
+      `Run \`jira-axi workitem transition ${c.id} --to <status>\` to change status`,
+    ],
+  },
+
+  // Workitem assign
+  {
+    match: (c) => c.domain === "workitem" && c.action === "assign",
     lines: (c) => [
       `Run \`jira-axi workitem view ${c.id}\` to see the updated work item`,
     ],

@@ -673,6 +673,27 @@ describe("workitem edit", () => {
     expect(out).toContain("help[");
   });
 
+  // edit's confirmation already IS the full detail view, so a bare
+  // `view <KEY>` follow-up would re-render the same thing (issue #43).
+  it("suggests non-circular next steps, not a bare view", async () => {
+    const { runner } = makeAcliFake([
+      { match: (args) => args[2] === "edit", result: {} },
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand([
+      "edit",
+      "TEAM-1",
+      "--summary",
+      "Sharper summary",
+    ]);
+
+    expect(out).not.toContain("workitem view TEAM-1` to see the updated");
+    expect(out).toContain("workitem view TEAM-1 --comments");
+    expect(out).toContain("workitem transition TEAM-1 --to <status>");
+  });
+
   it("converts a markdown --body to ADF via --description-file", async () => {
     const { runner, calls } = makeAcliFake([
       { match: (args) => args[2] === "edit", result: {} },
