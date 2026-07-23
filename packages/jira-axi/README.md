@@ -10,12 +10,15 @@ Self-contained: auth is delegated to `acli`'s own login, so there is no extra cr
 
 ## Install
 
-No global install is needed.
-Run any command through `npx`:
+Install globally so a stable `jira-axi` bin lands on your `PATH` (recommended):
 
 ```bash
-npx -y jira-axi <command>
+npm i -g jira-axi
 ```
+
+A global install is what `setup hooks` needs: the SessionStart hooks it writes call a bare `jira-axi` command with no args, which only resolves when the bin is on `PATH`.
+
+For a one-off command you can run `npx -y jira-axi <command>` without installing, but that is NOT recommended when you use `setup hooks` - `npx` does not give the hooks a stable command to call.
 
 ## Prerequisites
 
@@ -37,16 +40,16 @@ If `acli` is not installed or not logged in, `jira-axi` commands error with a ne
 acli jira auth login
 
 # ambient dashboard (no args): your open work items + acli status
-npx -y jira-axi
+jira-axi
 
 # list work items on a project
-npx -y jira-axi workitem list --project TEAM
+jira-axi workitem list --project TEAM
 
 # view one item with comments
-npx -y jira-axi workitem view TEAM-1 --comments
+jira-axi workitem view TEAM-1 --comments
 
 # create a work item (mutations re-fetch and render the result)
-npx -y jira-axi workitem create --project TEAM --type Task --summary "Fix login"
+jira-axi workitem create --project TEAM --type Task --summary "Fix login"
 ```
 
 Flags MUST come after the command: `jira-axi workitem list --project TEAM`, never `jira-axi --project TEAM workitem list`.
