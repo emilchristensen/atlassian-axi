@@ -26,6 +26,8 @@ Passing markdown to `--body`/`--body-file` stores it literally as text and is us
 
 ## page
 
+Help is subcommand-scoped: `confluence-axi page --help` documents all seven subcommands, while `confluence-axi page <subcommand> --help` returns a reference for that subcommand only.
+
 ### `confluence-axi page get <id>`
 
 Fetch a single page by numeric id.

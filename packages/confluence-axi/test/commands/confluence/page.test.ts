@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setConfluenceFetch } from "../../../src/confluence.js";
-import { pageCommand, PAGE_HELP } from "../../../src/commands/confluence/page.js";
+import {
+  pageCommand,
+  pageHelp,
+  PAGE_HELP,
+} from "../../../src/commands/confluence/page.js";
 import { main } from "../../../src/cli.js";
 import { setSiteOverride } from "../../../src/config.js";
 import {
@@ -65,6 +69,69 @@ describe("page router", () => {
   it("returns PAGE_HELP for no subcommand and for --help", async () => {
     expect(await pageCommand([])).toBe(PAGE_HELP);
     expect(await pageCommand(["--help"])).toBe(PAGE_HELP);
+  });
+
+  it("serves subcommand-SCOPED help for `page <sub> --help`", async () => {
+    const { fetchImpl, calls } = makeConfluenceFake([]);
+    setConfluenceFetch(fetchImpl);
+    for (const sub of ["get", "create", "update", "delete"]) {
+      const out = await pageCommand([sub, "--help"]);
+      expect(out).toBe(pageHelp(sub));
+      // Scoped, not the whole-resource dump.
+      expect(out).not.toBe(PAGE_HELP);
+      expect(out).toContain(`usage: confluence-axi page ${sub}`);
+      expect(out).not.toContain("subcommands[7]:");
+      // Every scoped doc points back at the full reference.
+      expect(out).toContain("Run `confluence-axi page --help`");
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it("gives each subcommand a DISTINCT scoped help doc", async () => {
+    const subs = [
+      "get",
+      "create",
+      "update",
+      "delete",
+      "attachments",
+      "labels",
+      "children",
+    ];
+    const docs = subs.map((sub) => pageHelp(sub));
+    expect(new Set(docs).size).toBe(subs.length);
+  });
+
+  it("scopes flags to the subcommand asked about", async () => {
+    const get = pageHelp("get");
+    expect(get).toContain("--full");
+    // create/update-only flags must not leak into `page get --help`.
+    expect(get).not.toContain("--allow-macro-loss");
+    expect(get).not.toContain("--space");
+    expect(pageHelp("update")).toContain("--allow-macro-loss");
+    // delete takes no flags, so it gets no flags block at all.
+    expect(pageHelp("delete")).not.toContain("flags[");
+  });
+
+  it("falls back to the whole-resource doc for an unknown subcommand", () => {
+    expect(pageHelp("bogus")).toBe(PAGE_HELP);
+    expect(pageHelp()).toBe(PAGE_HELP);
+    // Prototype keys must not resolve to a doc.
+    expect(pageHelp("toString")).toBe(PAGE_HELP);
+  });
+
+  it("keeps the whole-resource doc complete", () => {
+    expect(PAGE_HELP).toContain("subcommands[7]:");
+    for (const sub of [
+      "get",
+      "create",
+      "update",
+      "delete",
+      "attachments",
+      "labels",
+      "children",
+    ]) {
+      expect(PAGE_HELP).toContain(sub);
+    }
   });
 
   it("throws VALIDATION_ERROR on an unknown page subcommand", async () => {
@@ -195,7 +262,7 @@ describe("page get", () => {
   it("returns help for get --help without hitting the API", async () => {
     const { fetchImpl, calls } = makeConfluenceFake([]);
     setConfluenceFetch(fetchImpl);
-    expect(await pageCommand(["get", "--help"])).toBe(PAGE_HELP);
+    expect(await pageCommand(["get", "--help"])).toBe(pageHelp("get"));
     expect(calls).toHaveLength(0);
   });
 });
@@ -478,7 +545,7 @@ describe("page create", () => {
       "--body",
       "--help",
     ]);
-    expect(out).not.toBe(PAGE_HELP);
+    expect(out).not.toBe(pageHelp("create"));
     expect(calls.some((c: FetchCall) => c.method === "POST")).toBe(true);
   });
 });
