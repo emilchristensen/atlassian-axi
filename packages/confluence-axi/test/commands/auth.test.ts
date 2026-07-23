@@ -503,6 +503,81 @@ describe("auth logout", () => {
   });
 });
 
+describe("auth login (unknown flags/args)", () => {
+  it("rejects a typo'd --token instead of falling through to the OAuth path", async () => {
+    // `--tokn` used to be dropped silently and surface the misleading
+    // "needs an interactive terminal" OAuth error in an agent/CI shell.
+    config.isInteractiveTTY.mockReturnValue(false);
+
+    await expect(
+      authCommand(["login", "--tokn", "--site", "acme.atlassian.net"]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Unexpected arguments after 'auth login'"),
+    });
+    expect(oauth.startCallbackServer).not.toHaveBeenCalled();
+  });
+
+  it("rejects a typo'd --email before reading the token from stdin", async () => {
+    // A dropped --emial used to log in under the stale resolved email.
+    config.resolveCredential.mockResolvedValue({
+      site: "old.atlassian.net",
+      email: "old@acme.com",
+      sources: {},
+    });
+
+    try {
+      await authCommand(["login", "--token", "--emial", "me@acme.com"]);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      const err = error as { code: string; suggestions: string[] };
+      expect(err.code).toBe("VALIDATION_ERROR");
+      expect(err.suggestions.join(" ")).toContain("--email");
+    }
+    expect(config.readTokenFromStdin).not.toHaveBeenCalled();
+    expect(config.saveCredential).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stray positional after `login --token`", async () => {
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+
+    await expect(
+      authCommand([
+        "login",
+        "--token",
+        "foo",
+        "--site",
+        "acme.atlassian.net",
+        "--email",
+        "me@acme.com",
+      ]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(config.saveCredential).not.toHaveBeenCalled();
+  });
+
+  it("names the flag that swallowed a sibling flag as its value", async () => {
+    // `--site --email me@acme.com` used to set site="--email" and then blame
+    // the leftover email address for the failure.
+    config.resolveCredential.mockResolvedValue({ sources: {} });
+
+    await expect(
+      authCommand(["login", "--token", "--site", "--email", "me@acme.com"]),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "--site requires a value (got the flag --email instead)",
+    });
+    expect(config.readTokenFromStdin).not.toHaveBeenCalled();
+    expect(config.saveCredential).not.toHaveBeenCalled();
+  });
+
+  it("serves help for `login --help` instead of starting a browser flow", async () => {
+    const out = await authCommand(["login", "--help"]);
+
+    expect(out).toContain("usage: confluence-axi auth");
+    expect(oauth.startCallbackServer).not.toHaveBeenCalled();
+  });
+});
+
 describe("auth dispatch", () => {
   it("rejects an unknown action", async () => {
     await expect(authCommand(["bogus"])).rejects.toMatchObject({

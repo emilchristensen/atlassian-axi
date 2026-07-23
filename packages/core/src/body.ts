@@ -27,6 +27,16 @@ interface TruncateBodyOptions {
   originalHint?: string;
 }
 
+const DEFAULT_INLINE_FLAGS = ["--body"];
+const DEFAULT_FILE_FLAGS = ["--body-file"];
+
+/**
+ * The flags takeBody consumes by default. A command taking a body strips them
+ * before parseFlags runs, so it must pass these as the parseFlags `consumed`
+ * hint or its unknown-flag error omits the very flags it requires.
+ */
+export const BODY_FLAGS = [...DEFAULT_INLINE_FLAGS, ...DEFAULT_FILE_FLAGS];
+
 function defaultSuggestions(label: string): string[] {
   return [
     `Use --body "..." for inline ${label}, or --body-file <path> for markdown from a file`,
@@ -137,8 +147,8 @@ export function takeBody(
   args: string[],
   options: TakeBodyOptions = {},
 ): string | undefined {
-  const inlineFlags = options.inlineFlags ?? ["--body"];
-  const fileFlags = options.fileFlags ?? ["--body-file"];
+  const inlineFlags = options.inlineFlags ?? DEFAULT_INLINE_FLAGS;
+  const fileFlags = options.fileFlags ?? DEFAULT_FILE_FLAGS;
   const valueBoundaryFlags = [
     ...new Set([
       ...inlineFlags,
