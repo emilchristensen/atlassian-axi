@@ -28,9 +28,9 @@ export type SuggestionEntry = {
  * When the site came from an explicit --site flag, follow-up commands must
  * carry it too (flags go after the command per the SDK contract).
  */
-function siteFlag(ctx: SuggestionContext): string {
-  if (ctx.site && ctx.site.source === "flag") {
-    return ` --site ${ctx.site.site}`;
+function siteFlag(site: SiteContext | undefined): string {
+  if (site && site.source === "flag") {
+    return ` --site ${site.site}`;
   }
   return "";
 }
@@ -39,21 +39,62 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function appendSiteFlag(
+/** Options shared by every --site propagation path (success and error). */
+export interface SiteFlagOptions {
+  /**
+   * Commands that do NOT accept `--site` (e.g. confluence-axi's `auth`/`setup`,
+   * which the CLI never strips the flag for). Appending it there would hand the
+   * agent a command that fails with "unexpected arguments".
+   */
+  exemptCommands?: readonly string[];
+}
+
+/**
+ * Append ` --site <site>` to every backticked command line that mentions the
+ * bin, when the site came from an explicit flag. Exported so BOTH the
+ * success path (matchSuggestions) and the error path (a CLI's formatError
+ * hook) share one implementation.
+ */
+export function appendSiteFlag(
   line: string,
-  ctx: SuggestionContext,
+  site: SiteContext | undefined,
   binName: string,
+  options: SiteFlagOptions = {},
 ): string {
-  const flag = siteFlag(ctx);
+  const flag = siteFlag(site);
   if (!flag) return line;
   const bin = escapeRegExp(binName);
+  const exempt = options.exemptCommands ?? [];
   // Use a replacement FUNCTION, not a string: a `$`-bearing site value in `flag`
   // would otherwise be interpreted as a `$1`/`$&` replacement pattern and
   // corrupt the suggestion line.
   return line.replace(
     new RegExp(`\`([^\`]*\\b${bin}\\b[^\`]*)\``, "g"),
-    (_full, inner: string) => `\`${inner}${flag}\``,
+    (full: string, inner: string) =>
+      isExempt(inner, binName, exempt) ? full : `\`${inner}${flag}\``,
   );
+}
+
+/** Whether a backticked command targets a command that rejects --site. */
+function isExempt(
+  inner: string,
+  binName: string,
+  exempt: readonly string[],
+): boolean {
+  const tokens = inner.trim().split(/\s+/);
+  const binIndex = tokens.indexOf(binName);
+  const command = binIndex >= 0 ? tokens[binIndex + 1] : undefined;
+  return command !== undefined && exempt.includes(command);
+}
+
+/** Append the --site flag to a whole block of suggestion lines. */
+export function appendSiteFlagToLines(
+  lines: readonly string[],
+  site: SiteContext | undefined,
+  binName: string,
+  options: SiteFlagOptions = {},
+): string[] {
+  return lines.map((line) => appendSiteFlag(line, site, binName, options));
 }
 
 /**
@@ -65,10 +106,11 @@ export function matchSuggestions(
   table: readonly SuggestionEntry[],
   ctx: SuggestionContext,
   binName: string,
+  options: SiteFlagOptions = {},
 ): string[] {
   for (const entry of table) {
     if (entry.match(ctx)) {
-      return entry.lines(ctx).map((line) => appendSiteFlag(line, ctx, binName));
+      return appendSiteFlagToLines(entry.lines(ctx), ctx.site, binName, options);
     }
   }
   return [];

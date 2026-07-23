@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendSiteFlag,
+  appendSiteFlagToLines,
   closestCommand,
   matchSuggestions,
   type SuggestionEntry,
@@ -152,6 +154,51 @@ describe("matchSuggestions", () => {
     for (const line of plain) {
       expect(line).not.toContain("--site");
     }
+  });
+});
+
+describe("appendSiteFlag", () => {
+  const FLAG_SITE = { site: "other.atlassian.net", source: "flag" } as const;
+
+  it("appends the flag inside the backticks of a bin-mentioning command", () => {
+    expect(appendSiteFlag("Run `demo-axi list`", FLAG_SITE, BIN)).toBe(
+      "Run `demo-axi list --site other.atlassian.net`",
+    );
+  });
+
+  it("leaves exempt commands alone (they reject --site)", () => {
+    // A suggested `demo-axi auth status --site x` would fail with "unexpected
+    // arguments" — the CLI never strips --site for those commands.
+    const line = appendSiteFlag("Run `demo-axi auth status`", FLAG_SITE, BIN, {
+      exemptCommands: ["auth"],
+    });
+    expect(line).toBe("Run `demo-axi auth status`");
+  });
+
+  it("still flags a non-exempt command in the same line set", () => {
+    const lines = appendSiteFlagToLines(
+      ["Run `demo-axi auth status`", "Run `demo-axi list`"],
+      FLAG_SITE,
+      BIN,
+      { exemptCommands: ["auth"] },
+    );
+    expect(lines).toEqual([
+      "Run `demo-axi auth status`",
+      "Run `demo-axi list --site other.atlassian.net`",
+    ]);
+  });
+
+  it("does nothing without a flag-sourced site", () => {
+    expect(appendSiteFlag("Run `demo-axi list`", undefined, BIN)).toBe(
+      "Run `demo-axi list`",
+    );
+    expect(
+      appendSiteFlag(
+        "Run `demo-axi list`",
+        { site: "env.atlassian.net", source: "env" },
+        BIN,
+      ),
+    ).toBe("Run `demo-axi list`");
   });
 });
 

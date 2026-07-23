@@ -5,6 +5,7 @@
  *   count: N                                — simple count
  *   count: N of T total                     — when total is known
  *   count: N (showing first D — raise with --limit N) — client-side slice
+ *   count: N (showing first D)              — client-side slice, no --limit flag
  *   count: N (showing first N — raise with --limit)   — request limit hit
  *   count: N+ (GitHub search API limit reached) — search API limit
  */
@@ -29,10 +30,18 @@ export interface CountLineOptions {
    * server may have capped the page below what was asked for.
    */
   displayLimit?: number;
+  /**
+   * Suppress the "raise with --limit N" remedy on a `displayLimit` slice, for
+   * surfaces that have NO --limit flag to raise (e.g. the no-arg home block).
+   * The slice is still reported honestly ("showing first D"); it just never
+   * dangles a flag the caller cannot accept.
+   */
+  noLimitFlag?: boolean;
 }
 
 export function formatCountLine(opts: CountLineOptions): string {
-  const { count, limit, totalCount, apiLimitHit, displayLimit } = opts;
+  const { count, limit, totalCount, apiLimitHit, displayLimit, noLimitFlag } =
+    opts;
 
   // API limit hit (search)
   if (apiLimitHit) {
@@ -55,7 +64,9 @@ export function formatCountLine(opts: CountLineOptions): string {
   // total and raising --limit to it provably reveals everything — name the
   // remedy, matching the count === limit branch below.
   if (displayLimit !== undefined && count > displayLimit) {
-    return `count: ${count} (showing first ${displayLimit} — raise with --limit ${count})`;
+    return noLimitFlag
+      ? `count: ${count} (showing first ${displayLimit})`
+      : `count: ${count} (showing first ${displayLimit} — raise with --limit ${count})`;
   }
 
   // Hit the request limit — results may be truncated

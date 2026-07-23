@@ -165,13 +165,16 @@ List spaces.
 
 **Flags:**
 - `--limit <n>` - max results. Default 30.
+- `--fields <a,b,c>` - render only these fields (default `key,name,type,id`); `key` is always included first.
 
 ```bash
 confluence-axi space list --limit 50
+confluence-axi space list --fields name
 ```
 
 **Caveats:**
 - Cursor-paginated with no total count.
+- A `--fields` name the default schema does not render falls back to a tolerant raw lookup on the record; an unknown field renders `null` rather than erroring.
 
 ## search
 
@@ -181,13 +184,16 @@ CQL search across Confluence (v1 REST; the v2 API has no search endpoint).
 
 **Flags:**
 - `--limit <n>` - max results. Default 30.
+- `--fields <a,b,c>` - render only these fields (default `id,type,title,space,modified,excerpt`); `id` is always included first.
 
 ```bash
 confluence-axi search "space = ENG AND type = page"
 confluence-axi search "title ~ 'release notes'" --limit 5
+confluence-axi search "space = ENG" --fields title
 confluence-axi search "text ~ 'pagination' AND lastmodified >= now('-30d')"
 ```
 
 **Caveats:**
 - The query is CQL, not JQL and not a plain keyword string.
 - Highlight markers Confluence adds around matched title/excerpt text are stripped from output.
+- A `--fields` name the default schema does not render falls back to a tolerant raw lookup (probing the v1 search `content` nesting); an unknown field renders `null` rather than erroring.

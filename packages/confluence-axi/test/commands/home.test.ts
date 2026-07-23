@@ -72,7 +72,8 @@ describe("homeCommand", () => {
       await vi.advanceTimersByTimeAsync(2_100);
       const out = await pending;
       expect(out).toContain("auth: ok");
-      expect(out).not.toContain("spaces:");
+      expect(out).not.toContain("count:");
+      expect(out).not.toContain("spaces[");
     } finally {
       vi.useRealTimers();
     }
@@ -85,23 +86,72 @@ describe("homeCommand", () => {
       _links: {},
     });
     const out = await homeCommand([]);
-    expect(out).toContain("spaces: 2");
+    expect(out).toContain("count: 2");
   });
 
-  it("marks the spaces count as truncated when a next cursor exists", async () => {
+  it("does not fake a truncation hint from the v2 cursor when the probe saw few spaces", async () => {
     config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     confluence.confluenceJson.mockResolvedValue({
       results: [{ id: "111" }, { id: "222" }],
       _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
     });
     const out = await homeCommand([]);
-    expect(out).toContain("spaces: 2+");
+    // The cursor no longer drives the count: 2 probed rows are all shown, so
+    // the count stays plain and never dangles a --limit flag home lacks.
+    expect(out).toContain("count: 2");
+    expect(out).not.toContain("showing first");
+    expect(out).not.toContain("--limit");
+  });
+
+  it("renders live space ROWS, not just the count (content first)", async () => {
+    // The keys are already fetched and are exactly what `page create --space
+    // <KEY>` / `search "space = KEY"` need — a bare count forces a second call.
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    confluence.confluenceJson.mockResolvedValue({
+      results: [
+        { id: "111", key: "ENG", name: "Engineering", type: "global" },
+        { id: "222", key: "DOCS", name: "Documentation", type: "global" },
+      ],
+      _links: {},
+    });
+    const out = await homeCommand([]);
+    expect(out).toContain("count: 2");
+    expect(out).toContain("spaces[2]{key,name,type,id}:");
+    expect(out).toContain("ENG,Engineering,global");
+    expect(out).toContain("DOCS,Documentation,global");
+  });
+
+  it("caps the rendered rows at five while the count still reports the probe", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    confluence.confluenceJson.mockResolvedValue({
+      results: Array.from({ length: 8 }, (_, i) => ({
+        id: String(i),
+        key: `S${i}`,
+        name: `Space ${i}`,
+        type: "global",
+      })),
+      _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
+    });
+    const out = await homeCommand([]);
+    expect(out).toContain("count: 8 (showing first 5)");
+    expect(out).not.toContain("--limit");
+    expect(out).toContain("spaces[5]{key,name,type,id}:");
+    expect(out).not.toContain("S5,");
+  });
+
+  it("omits the spaces rows when the probe returns nothing", async () => {
+    config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
+    confluence.confluenceJson.mockResolvedValue({ results: [], _links: {} });
+    const out = await homeCommand([]);
+    expect(out).toContain("count: 0");
+    expect(out).not.toContain("spaces[");
   });
 
   it("omits the spaces line when unauthenticated or when the REST call fails", async () => {
     // Unauthenticated: no REST call attempted at all.
     const out = await homeCommand([]);
-    expect(out).not.toContain("spaces:");
+    expect(out).not.toContain("count:");
+    expect(out).not.toContain("spaces[");
     expect(confluence.confluenceJson).not.toHaveBeenCalled();
 
     // Authenticated but the REST call blows up: line degrades away silently.
@@ -109,7 +159,8 @@ describe("homeCommand", () => {
     confluence.confluenceJson.mockRejectedValue(new Error("network down"));
     const degraded = await homeCommand([]);
     expect(degraded).toContain("auth: ok");
-    expect(degraded).not.toContain("spaces:");
+    expect(degraded).not.toContain("count:");
+    expect(degraded).not.toContain("spaces[");
   });
 
   it("advertises the flattened confluence-axi commands", async () => {

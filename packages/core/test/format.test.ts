@@ -39,6 +39,14 @@ describe('formatCountLine', () => {
     expect(formatCountLine({ count: 20, displayLimit: 30 })).toBe('count: 20');
   });
 
+  it('omits the --limit remedy on a displayLimit slice when the surface has no --limit flag', () => {
+    // Flagless surfaces (the no-arg home block) still report the slice honestly
+    // but must never dangle a --limit flag the caller cannot accept.
+    expect(
+      formatCountLine({ count: 8, displayLimit: 5, noLimitFlag: true }),
+    ).toBe('count: 8 (showing first 5)');
+  });
+
   it('handles zero count', () => {
     expect(formatCountLine({ count: 0 })).toBe('count: 0');
   });

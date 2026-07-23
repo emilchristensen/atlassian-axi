@@ -45,8 +45,8 @@ confluence-axi page delete <id>
 confluence-axi page attachments <id> [--limit <n>] [--media-type <type>] [--filename <name>]
 confluence-axi page labels <id> [--add a,b | --remove a,b] [--prefix my|team|global|system] [--limit <n>]
 confluence-axi page children <id> [--limit <n>]
-confluence-axi space list [--limit <n>]
-confluence-axi search "<CQL>" [--limit <n>]
+confluence-axi space list [--limit <n>] [--fields <a,b,c>]
+confluence-axi search "<CQL>" [--limit <n>] [--fields <a,b,c>]
 confluence-axi auth login | login --token | status | logout
 confluence-axi setup hooks
 confluence-axi update [--check]

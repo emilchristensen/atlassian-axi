@@ -254,3 +254,76 @@ describe("--site flag reaches the Confluence transport (2026-07-19)", () => {
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 });
+
+describe("error-path suggestions carry --site (2026-07-22)", () => {
+  const savedExitCode = process.exitCode;
+  let savedEnv: Record<string, string | undefined>;
+  let tmp: string;
+
+  beforeEach(() => {
+    process.exitCode = undefined;
+    savedEnv = Object.fromEntries(AUTH_ENV_KEYS.map((k) => [k, process.env[k]]));
+    tmp = mkdtempSync(join(tmpdir(), "axi-errsite-"));
+    process.env["XDG_CONFIG_HOME"] = tmp;
+    process.env["ATLASSIAN_AXI_NO_KEYCHAIN"] = "1";
+    process.env["ATLASSIAN_SITE"] = "stored.atlassian.net";
+    process.env["ATLASSIAN_EMAIL"] = "me@acme.com";
+    process.env["ATLASSIAN_API_TOKEN"] = "tok";
+  });
+  afterEach(async () => {
+    process.exitCode = savedExitCode;
+    const { setConfluenceFetch } = await import("../src/confluence.js");
+    setConfluenceFetch(null);
+    const { setSiteOverride } = await import("../src/config.js");
+    setSiteOverride(undefined);
+    for (const k of AUTH_ENV_KEYS) {
+      if (savedEnv[k] === undefined) delete process.env[k];
+      else process.env[k] = savedEnv[k];
+    }
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  async function runNotFound(argv: string[]): Promise<string> {
+    const { setConfluenceFetch } = await import("../src/confluence.js");
+    setConfluenceFetch(async () => new Response("{}", { status: 404 }));
+    const cap = capture();
+    await main({ argv, stdout: cap.stdout });
+    return cap.output();
+  }
+
+  it("carries an explicit --site into a thrown error's suggestions", async () => {
+    // A 404's fix is `search "<CQL>"` — following it without --site would
+    // silently search the DEFAULT site instead of the one just targeted.
+    const out = await runNotFound([
+      "page",
+      "get",
+      "999999",
+      "--site",
+      "other.atlassian.net",
+    ]);
+    expect(out).toContain("NOT_FOUND");
+    expect(out).toContain(
+      'confluence-axi search "<CQL>" --site other.atlassian.net',
+    );
+  });
+
+  it("leaves site-independent auth suggestions untouched", async () => {
+    // `auth status` takes no arguments; appending --site would hand the agent
+    // a command that fails with "unexpected arguments".
+    const out = await runNotFound([
+      "page",
+      "get",
+      "999999",
+      "--site",
+      "other.atlassian.net",
+    ]);
+    expect(out).toContain("confluence-axi auth status");
+    expect(out).not.toContain("auth status --site");
+  });
+
+  it("adds no --site when the site came from the environment", async () => {
+    const out = await runNotFound(["page", "get", "999999"]);
+    expect(out).toContain("NOT_FOUND");
+    expect(out).not.toContain("--site");
+  });
+});

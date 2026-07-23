@@ -3,17 +3,29 @@ import type { SiteContext } from "@atlassian-axi/core";
 import { formatCountLine } from "@atlassian-axi/core";
 import { getSuggestions } from "../../suggestions.js";
 import { renderHelp, renderList, renderOutput } from "@atlassian-axi/core";
-import { parseFlags, parseLimit, unknownSubcommandError } from "@atlassian-axi/core";
-import { hasNextPage, resultsOf, spaceListSchema } from "./shared.js";
+import {
+  parseFlags,
+  parseLimit,
+  splitFields,
+  unknownSubcommandError,
+} from "@atlassian-axi/core";
+import {
+  fieldsSchema,
+  hasNextPage,
+  resultsOf,
+  spaceListSchema,
+} from "./shared.js";
 
 export const SPACE_HELP = `usage: confluence-axi space <subcommand> [flags]
 subcommands[1]:
   list
 flags{list}:
   --limit <n> (default 30)
+  --fields <a,b,c> (default key,name,type,id; key always included)
 examples:
   confluence-axi space list
-  confluence-axi space list --limit 50`;
+  confluence-axi space list --limit 50
+  confluence-axi space list --fields name`;
 
 export async function spaceCommand(
   args: string[],
@@ -39,9 +51,10 @@ export async function spaceCommand(
 }
 
 async function listSpaces(args: string[], ctx?: SiteContext): Promise<string> {
-  const parsed = parseFlags(args, { values: ["--limit"] });
+  const parsed = parseFlags(args, { values: ["--limit", "--fields"] });
   if (parsed.help) return SPACE_HELP;
   const limit = parseLimit(parsed.values["--limit"]);
+  const fields = splitFields(parsed.values["--fields"]);
 
   const payload = await confluenceJson<unknown>("/wiki/api/v2/spaces", {
     query: { limit },
@@ -56,7 +69,13 @@ async function listSpaces(args: string[], ctx?: SiteContext): Promise<string> {
     }),
   ];
   if (items.length > 0) {
-    blocks.push(renderList("spaces", items, spaceListSchema));
+    blocks.push(
+      renderList(
+        "spaces",
+        items,
+        fields ? fieldsSchema(spaceListSchema, fields, "key") : spaceListSchema,
+      ),
+    );
   }
   blocks.push(
     renderHelp(
