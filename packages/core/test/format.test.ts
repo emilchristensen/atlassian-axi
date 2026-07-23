@@ -24,7 +24,7 @@ describe('formatCountLine', () => {
   });
 
   it('returns count with API limit note for search', () => {
-    expect(formatCountLine({ count: 1000, apiLimitHit: true })).toBe('count: 1000+ (GitHub search API limit reached)');
+    expect(formatCountLine({ count: 1000, apiLimitHit: true })).toBe('count: 1000+ (search API limit reached)');
   });
 
   it('names the --limit remedy when displayLimit truncates results', () => {
