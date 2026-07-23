@@ -255,14 +255,98 @@ describe("workitem view", () => {
     expect(out).toContain("Plain-text comments also occur.");
   });
 
-  it("does not truncate comment bodies with --full --comments", async () => {
-    const longBody = "x".repeat(400);
+  it("bounds the comment fetch and reports the server-side total (issue #29)", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+      {
+        match: (args) => args[2] === "comment" && args[3] === "list",
+        result: commentListPayload,
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand(["view", "TEAM-1", "--comments"]);
+    const commentCall = calls.find(
+      (c) => c.args[2] === "comment" && c.args[3] === "list",
+    );
+    // Without an explicit --limit, acli's default 50-row page truncated silently.
+    expect(commentCall?.args).toContain("--limit");
+    expect(commentCall?.args).toContain("30");
+    expect(out).toContain("count: 2 of 2 total");
+  });
+
+  it("names the --limit remedy when comments are truncated", async () => {
+    const { runner, calls } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+      {
+        match: (args) => args[2] === "comment" && args[3] === "list",
+        result: {
+          comments: Array.from({ length: 2 }, (_, i) => ({
+            author: "Jane Doe",
+            body: `Comment ${i}`,
+            id: String(i),
+          })),
+          total: 200,
+        },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand([
+      "view",
+      "TEAM-1",
+      "--comments",
+      "--limit",
+      "2",
+    ]);
+    const commentCall = calls.find(
+      (c) => c.args[2] === "comment" && c.args[3] === "list",
+    );
+    expect(commentCall?.args).toContain("2");
+    expect(out).toContain("count: 2 of 200 total (use --limit 200 for all)");
+  });
+
+  it("rejects --limit without --comments instead of silently ignoring it", async () => {
+    const { runner } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+    ]);
+    setAcliRunner(runner);
+
+    await expect(
+      workitemCommand(["view", "TEAM-1", "--limit", "5"]),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("still reports a count line when a work item has no comments", async () => {
+    const { runner } = makeAcliFake([
+      { match: isView("TEAM-1"), result: viewPayload },
+      {
+        match: (args) => args[2] === "comment" && args[3] === "list",
+        result: { comments: [], total: 0 },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await workitemCommand(["view", "TEAM-1", "--comments"]);
+    expect(out).toContain("count: 0 of 0 total");
+    expect(out).toContain("comments: none");
+  });
+
+  it("truncates comment bodies at the 500-char AXI floor, not before", async () => {
+    // 400 chars is below the floor and must survive verbatim; 700 is above it.
+    const underFloor = "y".repeat(400);
+    const longBody = "x".repeat(700);
     const { runner } = makeAcliFake([
       { match: isView("TEAM-1"), result: viewPayload },
       {
         match: (args) => args[2] === "comment" && args[3] === "list",
         result: {
           comments: [
+            {
+              author: { displayName: "Jane Doe" },
+              body: underFloor,
+              created: "2026-07-13T12:00:00.000+0000",
+            },
             {
               author: { displayName: "Jane Doe" },
               body: longBody,
@@ -276,7 +360,11 @@ describe("workitem view", () => {
 
     const truncated = await workitemCommand(["view", "TEAM-1", "--comments"]);
     expect(truncated).toContain("truncated");
+    expect(truncated).toContain("700 chars total");
     expect(truncated).not.toContain(longBody);
+    // The cut is at 500, so the first 500 chars are still rendered.
+    expect(truncated).toContain("x".repeat(500));
+    expect(truncated).toContain(underFloor);
 
     const full = await workitemCommand([
       "view",

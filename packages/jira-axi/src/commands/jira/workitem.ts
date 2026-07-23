@@ -23,6 +23,7 @@ import {
   parseLimit,
   rejectExtraPositional,
   splitFields,
+  totalOf,
   workitemListSchema,
   workitemViewSchema,
   type JsonRecord,
@@ -34,7 +35,7 @@ subcommands[8]:
 flags{list}:
   --jql <query> (verbatim; exclusive with the filters below), --project <KEY>, --assignee <email|@me>, --status <name>, --limit <n> (default 30), --fields <a,b,c> (no filters => updated >= -30d window; acli rejects unbounded JQL)
 flags{view}:
-  --comments, --full (complete bodies without truncation), --fields <a,b,c> (render only these fields; key is always included)
+  --comments, --limit <n> (comments shown, default 30; requires --comments), --full (complete bodies without truncation), --fields <a,b,c> (render only these fields; key is always included)
 flags{create}:
   --project <KEY> (required), --type <name> (required), --summary <text> (required), --body <text> or --body-file <path> (markdown description, stored as ADF), --assignee <email|@me>, --label <a,b>
 flags{edit}:
@@ -312,7 +313,7 @@ async function viewWorkitem(
   ctx?: SiteContext,
 ): Promise<string> {
   const parsed = parseFlags(args, {
-    values: ["--fields"],
+    values: ["--fields", "--limit"],
     bools: ["--full", "--comments"],
   });
   if (parsed.help) return WORKITEM_HELP;
@@ -320,6 +321,15 @@ async function viewWorkitem(
   const key = requireKey(args, parsed.positional, "view");
   const full = parsed.bools["--full"];
   const withComments = parsed.bools["--comments"];
+  // `view` has exactly one collection (comments), so --limit governs it.
+  const commentLimit = parseLimit(parsed.values["--limit"]);
+  if (parsed.values["--limit"] !== undefined && !withComments) {
+    throw new AxiError(
+      "--limit only applies to the comments list (pass --comments)",
+      "VALIDATION_ERROR",
+      ["Run `jira-axi workitem view <KEY> --comments --limit <n>`"],
+    );
+  }
   const fields = splitFields(parsed.values["--fields"]);
 
   // --full governs body truncation in the DEFAULT schema; a --fields render
@@ -359,6 +369,10 @@ async function viewWorkitem(
   }
 
   if (withComments) {
+    // acli's comment list defaults to a 50-row page and its envelope carries
+    // the true `total`; without an explicit --limit and a count line the
+    // truncation was silent (an issue with 200 comments rendered 50 rows with
+    // no signal that 150 more existed).
     const payload = await acliJson<unknown>([
       "jira",
       "workitem",
@@ -366,9 +380,19 @@ async function viewWorkitem(
       "list",
       "--key",
       key,
+      "--limit",
+      String(commentLimit),
       "--json",
     ]);
     const comments = itemsOf(payload, "comments", "values");
+    const total = totalOf(payload);
+    blocks.push(
+      formatCountLine({
+        count: comments.length,
+        limit: commentLimit,
+        ...(total !== undefined ? { totalCount: total } : {}),
+      }),
+    );
     if (comments.length > 0) {
       blocks.push(renderList("comments", comments, commentSchema(full)));
     } else {

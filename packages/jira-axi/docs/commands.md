@@ -47,16 +47,19 @@ Show one work item.
 
 **Flags:**
 - `--comments` include comments.
+- `--limit <n>` number of comments shown (default 30); requires `--comments`.
 - `--full` complete bodies without truncation.
 - `--fields <a,b,c>` render only these fields; `key` is always included.
 
 ```bash
-jira-axi workitem view TEAM-1 --comments
+jira-axi workitem view TEAM-1 --comments --limit 100
 ```
 
 **Caveats:**
 - The default render omits created/updated/priority unless requested; the CLI requests the full detail set by default.
 - `--fields` with `--full` throws `VALIDATION_ERROR` (a `--fields` render is never truncated).
+- `--limit` without `--comments` throws `VALIDATION_ERROR` rather than being ignored.
+- The comments sub-list always prints a `count:` line (even at zero), reporting the true total so a shortened page is never silent.
 - Fields acli did not return are reported in a `note:` line, so a null row is not mistaken for an empty value.
 - `--comments` is lossy: acli flattens comment ADF upstream (drops list items, strips marks). See [limitations](./limitations.md). The stored comment ADF is intact in the Jira UI.
 
@@ -172,9 +175,15 @@ jira-axi project list
 
 Show one project.
 
+**Flags:**
+- `--full` complete description without truncation.
+
 ```bash
 jira-axi project view TEAM
 ```
+
+**Caveats:**
+- The description is truncated with a size marker unless `--full` is passed.
 
 ## board
 
@@ -306,6 +315,7 @@ jira-axi filter list
 
 **Caveats:**
 - The upstream API requires exactly one of my/favourite; the CLI defaults to owned (`--my`) and `--favourite` switches to favourites.
+- The slice is client-side, so the `count:` line is the true total and names the exact `--limit` value that reveals every filter.
 
 ### `jira-axi filter search`
 
@@ -324,9 +334,15 @@ jira-axi filter search --name backlog
 
 Show one filter.
 
+**Flags:**
+- `--full` complete description without truncation.
+
 ```bash
 jira-axi filter view 33312
 ```
+
+**Caveats:**
+- The description is truncated with a size marker unless `--full` is passed. `filter update` has no `--full` and always renders the truncated form.
 
 ### `jira-axi filter update <ID>`
 

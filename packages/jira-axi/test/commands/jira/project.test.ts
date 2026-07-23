@@ -83,7 +83,45 @@ describe("project view", () => {
     expect(out).toContain("name: Team Project");
     expect(out).toContain("type: software");
     expect(out).toContain("lead: Jane Doe");
+    // The payload carries a description; omitting it entirely made it
+    // unreachable through the CLI (issue #37).
+    expect(out).toContain("description: Main delivery project");
     expect(out).toContain("workitem list --project TEAM");
+  });
+
+  it("truncates a long description and offers --full", async () => {
+    const longDescription = "d".repeat(700);
+    const { runner } = makeAcliFake([
+      {
+        match: (args) => args[2] === "view",
+        result: { ...projectViewPayload, description: longDescription },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    const out = await projectCommand(["view", "TEAM"]);
+    expect(out).not.toContain(longDescription);
+    expect(out).toContain("d".repeat(500));
+    expect(out).toContain("700 chars total");
+    expect(out).toContain("project view <KEY> --full");
+
+    const full = await projectCommand(["view", "TEAM", "--full"]);
+    expect(full).toContain(longDescription);
+    expect(full).not.toContain("truncated");
+  });
+
+  it("renders `none` when the project has no description", async () => {
+    const { runner } = makeAcliFake([
+      {
+        match: (args) => args[2] === "view",
+        result: { ...projectViewPayload, description: "" },
+      },
+    ]);
+    setAcliRunner(runner);
+
+    expect(await projectCommand(["view", "TEAM"])).toContain(
+      "description: none",
+    );
   });
 
   it("requires a project key", async () => {

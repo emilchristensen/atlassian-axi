@@ -27,8 +27,12 @@ describe('formatCountLine', () => {
     expect(formatCountLine({ count: 1000, apiLimitHit: true })).toBe('count: 1000+ (GitHub search API limit reached)');
   });
 
-  it('returns showing first N when displayLimit truncates results', () => {
-    expect(formatCountLine({ count: 50, displayLimit: 30 })).toBe('count: 50 (showing first 30)');
+  it('names the --limit remedy when displayLimit truncates results', () => {
+    // The caller sliced a fully-fetched set, so count IS the true total and
+    // raising --limit to it provably reveals everything (issue #42).
+    expect(formatCountLine({ count: 50, displayLimit: 30 })).toBe(
+      'count: 50 (showing first 30 — raise with --limit 50)',
+    );
   });
 
   it('returns simple count when displayLimit is not exceeded', () => {

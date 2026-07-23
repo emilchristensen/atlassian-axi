@@ -47,7 +47,7 @@ Mutations are idempotent and re-fetch after applying: `transition --to <status>`
 
 All structured output is TOON-encoded.
 There is no plain-text or JSON output mode.
-Bodies are truncated by default; pass `--full` (on `workitem view`) for complete bodies.
+Long free text is truncated by default with a size marker; the detail command that renders it takes `--full` for the complete text. See [commands](./commands.md) for the commands that accept it.
 
 ## Flags must come after the command
 

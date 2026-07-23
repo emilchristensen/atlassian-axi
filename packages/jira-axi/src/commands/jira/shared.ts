@@ -84,6 +84,43 @@ function walkAdf(node: JsonRecord, parts: string[]): void {
   }
 }
 
+/**
+ * Baseline truncation length for every free-text field in this CLI (workitem
+ * body, comment body, filter/project description). One constant so the
+ * truncation stays uniform, per the AXI 500-1500 floor.
+ */
+export const BODY_TRUNCATE_LENGTH = 500;
+
+interface TruncatedTextFieldOptions {
+  /** Command-specific escape hatch named in the truncation marker. */
+  fullHint?: string;
+  /** Placeholder for a blank field, where the call site renders one. */
+  emptyValue?: string;
+}
+
+/**
+ * Build the one truncated free-text FieldDef every body/description column
+ * uses. Truncation is engine-owned (`truncateBody`); call sites supply only
+ * how to read their text and how their own --full flag is spelled.
+ */
+export function truncatedTextField(
+  name: string,
+  getText: (item: JsonRecord) => string,
+  full: boolean,
+  options: TruncatedTextFieldOptions = {},
+): FieldDef {
+  return custom(name, (item: JsonRecord) => {
+    const text = getText(item);
+    if (!text && options.emptyValue !== undefined) return options.emptyValue;
+    if (full) return text;
+    return truncateBody(
+      text,
+      BODY_TRUNCATE_LENGTH,
+      options.fullHint !== undefined ? { fullHint: options.fullHint } : {},
+    );
+  });
+}
+
 /** Short status enum keeps list output token-lean; unknown statuses lowercase. */
 export function shortStatus(item: JsonRecord): string {
   const name = nameOf(fieldOf(item, "status"));
@@ -142,29 +179,29 @@ export function workitemViewSchema(full: boolean): FieldDef[] {
     custom("updated", (item: JsonRecord) =>
       relativeOf(item, "updated"),
     ),
-    custom("body", (item: JsonRecord) => {
-      const text = textOf(fieldOf(item, "description")).trim();
-      return full ? text : truncateBody(text, 500);
-    }),
+    truncatedTextField(
+      "body",
+      (item: JsonRecord) => textOf(fieldOf(item, "description")).trim(),
+      full,
+    ),
   ];
 }
 
 /**
- * Comment schema: author, body (truncated unless --full). No `created` column:
+ * Comment schema: author, body (truncated at the same 500-char baseline as
+ * the workitem description unless --full). No `created` column:
  * acli's comment list --json carries only {id, author, body, visibility}
  * (verified live against v1.3.22); author arrives as a plain string.
  */
 export function commentSchema(full: boolean): FieldDef[] {
   return [
     custom("author", (item: JsonRecord) => nameOf(item.author) ?? "unknown"),
-    custom("body", (item: JsonRecord) => {
-      const text = textOf(item.body).trim();
-      return full
-        ? text
-        : truncateBody(text, 300, {
-            fullHint: "use `view <KEY> --full --comments` for complete bodies",
-          });
-    }),
+    truncatedTextField(
+      "body",
+      (item: JsonRecord) => textOf(item.body).trim(),
+      full,
+      { fullHint: "use `view <KEY> --full --comments` for complete bodies" },
+    ),
   ];
 }
 
