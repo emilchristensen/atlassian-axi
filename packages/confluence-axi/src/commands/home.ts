@@ -1,4 +1,5 @@
 import {
+  formatCountLine,
   renderHelp,
   renderList,
   renderOutput,
@@ -6,6 +7,7 @@ import {
 } from "@atlassian-axi/core";
 import { resolveAuthMode } from "../config.js";
 import { confluenceJson } from "../confluence.js";
+import { getSuggestions } from "../suggestions.js";
 import {
   hasNextPage,
   resultsOf,
@@ -43,8 +45,14 @@ export async function homeCommand(
     // agent session start (the transport's own timeout is 15 s).
     const spaces = await probeSpaces().catch(() => null);
     if (spaces !== null) {
-      blocks.push(`spaces: ${spaces.count}`);
-      if (spaces.items.length > 0) {
+      const count = spaces.items.length;
+      // Mirror `space list`: a v2 next-cursor means the probe window was the
+      // binding cap, so render the count as truncated. Separate `count` key
+      // from the `spaces[N]` rows below (one output must not carry two `spaces`).
+      blocks.push(
+        formatCountLine({ count, ...(spaces.hasMore ? { limit: count } : {}) }),
+      );
+      if (count > 0) {
         // Content first: the space KEYS are what `page create --space <KEY>`
         // and `search "space = KEY"` need, and they are already fetched — a
         // bare count would force a second call for data we hold.
@@ -60,9 +68,7 @@ export async function homeCommand(
   }
 
   blocks.push(
-    renderHelp([
-      "Run `confluence-axi <command> <subcommand>` — commands: auth, page, space, search, setup",
-    ]),
+    renderHelp(getSuggestions({ domain: "home", action: "home", site: ctx })),
   );
 
   return renderOutput(blocks);
@@ -77,16 +83,16 @@ const SPACES_PROBE_LIMIT = 25;
 const SPACES_SHOWN = 5;
 
 interface SpacesProbe {
-  /** "N" or "N+" when the v2 cursor says more exist. */
-  count: string;
   items: JsonRecord[];
+  /** v2 cursor has a next page — more spaces exist beyond the probe window. */
+  hasMore: boolean;
 }
 
 /**
- * Best-effort spaces probe for the dashboard: the count line plus the first
- * rows themselves, so an agent gets addressable space keys instead of a bare
- * number. v2 spaces has no total count, hence the "N+" form. null (rendered as
- * no block at all) on any failure.
+ * Best-effort spaces probe for the dashboard: the fetched rows themselves, so
+ * an agent gets addressable space keys instead of a bare number. v2 spaces has
+ * no total count, so a next cursor is the only truncation signal. null
+ * (rendered as no block at all) on any failure.
  */
 async function probeSpaces(): Promise<SpacesProbe | null> {
   const payload = await withBudget(
@@ -99,10 +105,9 @@ async function probeSpaces(): Promise<SpacesProbe | null> {
   if (payload === null) {
     return null;
   }
-  const items = resultsOf(payload);
   return {
-    count: hasNextPage(payload) ? `${items.length}+` : String(items.length),
-    items,
+    items: resultsOf(payload),
+    hasMore: hasNextPage(payload),
   };
 }
 

@@ -72,7 +72,8 @@ describe("homeCommand", () => {
       await vi.advanceTimersByTimeAsync(2_100);
       const out = await pending;
       expect(out).toContain("auth: ok");
-      expect(out).not.toContain("spaces:");
+      expect(out).not.toContain("count:");
+      expect(out).not.toContain("spaces[");
     } finally {
       vi.useRealTimers();
     }
@@ -85,7 +86,7 @@ describe("homeCommand", () => {
       _links: {},
     });
     const out = await homeCommand([]);
-    expect(out).toContain("spaces: 2");
+    expect(out).toContain("count: 2");
   });
 
   it("marks the spaces count as truncated when a next cursor exists", async () => {
@@ -95,7 +96,7 @@ describe("homeCommand", () => {
       _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
     });
     const out = await homeCommand([]);
-    expect(out).toContain("spaces: 2+");
+    expect(out).toContain("count: 2 (showing first 2");
   });
 
   it("renders live space ROWS, not just the count (content first)", async () => {
@@ -110,7 +111,7 @@ describe("homeCommand", () => {
       _links: {},
     });
     const out = await homeCommand([]);
-    expect(out).toContain("spaces: 2");
+    expect(out).toContain("count: 2");
     expect(out).toContain("spaces[2]{key,name,type,id}:");
     expect(out).toContain("ENG,Engineering,global");
     expect(out).toContain("DOCS,Documentation,global");
@@ -128,7 +129,7 @@ describe("homeCommand", () => {
       _links: { next: "/wiki/api/v2/spaces?cursor=abc" },
     });
     const out = await homeCommand([]);
-    expect(out).toContain("spaces: 8+");
+    expect(out).toContain("count: 8 (showing first 8");
     expect(out).toContain("spaces[5]{key,name,type,id}:");
     expect(out).not.toContain("S5,");
   });
@@ -137,14 +138,15 @@ describe("homeCommand", () => {
     config.resolveAuthMode.mockResolvedValue(FULL_CREDENTIAL);
     confluence.confluenceJson.mockResolvedValue({ results: [], _links: {} });
     const out = await homeCommand([]);
-    expect(out).toContain("spaces: 0");
+    expect(out).toContain("count: 0");
     expect(out).not.toContain("spaces[");
   });
 
   it("omits the spaces line when unauthenticated or when the REST call fails", async () => {
     // Unauthenticated: no REST call attempted at all.
     const out = await homeCommand([]);
-    expect(out).not.toContain("spaces:");
+    expect(out).not.toContain("count:");
+    expect(out).not.toContain("spaces[");
     expect(confluence.confluenceJson).not.toHaveBeenCalled();
 
     // Authenticated but the REST call blows up: line degrades away silently.
@@ -152,7 +154,8 @@ describe("homeCommand", () => {
     confluence.confluenceJson.mockRejectedValue(new Error("network down"));
     const degraded = await homeCommand([]);
     expect(degraded).toContain("auth: ok");
-    expect(degraded).not.toContain("spaces:");
+    expect(degraded).not.toContain("count:");
+    expect(degraded).not.toContain("spaces[");
   });
 
   it("advertises the flattened confluence-axi commands", async () => {
