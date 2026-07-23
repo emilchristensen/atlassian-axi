@@ -11,10 +11,17 @@ Agent-ergonomic Atlassian CLIs, split into two focused, independently published 
 | [`jira-axi`](./packages/jira-axi) | Jira CLI backed by Atlassian's [`acli`](https://developer.atlassian.com/cloud/acli/). Commands: `workitem`, `project`, `board`, `sprint`, `filter`, `dashboard`, `field`. | None of its own - delegates entirely to acli's own `acli jira auth login`. Self-contained, no credential setup. |
 | [`confluence-axi`](./packages/confluence-axi) | Confluence Cloud CLI over the REST API directly. Commands: `page`, `space`, `search`. | OAuth 3LO (bring your own app) or API token. |
 
+Install globally so each bin is on `PATH` (recommended - `setup hooks` needs a stable, resolvable command):
+
 ```
-npx -y jira-axi workitem list --project TEAM
-npx -y confluence-axi search "space = ENG AND type = page"
+npm i -g jira-axi
+npm i -g confluence-axi
+
+jira-axi workitem list --project TEAM
+confluence-axi search "space = ENG AND type = page"
 ```
+
+For a one-off command you can run `npx -y jira-axi <command>` without installing, but that is NOT recommended when you use `setup hooks`: the SessionStart hooks target a bare bin on `PATH`, which `npx` does not provide.
 
 Commands are flattened per CLI: `jira-axi workitem list` (not `jira-axi jira workitem list`), `confluence-axi page get <id>`.
 

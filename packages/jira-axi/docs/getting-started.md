@@ -7,12 +7,15 @@ For exhaustive flags see [commands](./commands.md) and [limitations](./limitatio
 
 ## Install
 
-No global install is needed.
-Run any command through `npx`:
+Install globally so a stable `jira-axi` bin lands on your `PATH` (recommended):
 
 ```bash
-npx -y jira-axi <command>
+npm i -g jira-axi
 ```
+
+A global install is what `setup hooks` needs: the SessionStart hooks it writes call a bare `jira-axi` command with no args, which only resolves when the bin is on `PATH`.
+
+For a one-off command you can run `npx -y jira-axi <command>` without installing, but that is NOT recommended when you use `setup hooks` - `npx` does not give the hooks a stable command to call.
 
 ## Prerequisites
 

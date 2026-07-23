@@ -20,7 +20,7 @@ metadata:
 
 ${DESCRIPTION}
 
-You do not need confluence-axi installed globally — invoke it with \`npx -y confluence-axi <command>\`.
+Install confluence-axi globally (\`npm i -g confluence-axi\`) so a stable \`confluence-axi\` bin is on \`PATH\` - this is what \`setup hooks\` needs. \`npx -y confluence-axi <command>\` works for a one-off but is not recommended with \`setup hooks\`.
 
 ## Status
 
@@ -43,8 +43,8 @@ search:
   search "<CQL>" [--limit <n>] [--fields <a,b,c>]  (v1 CQL — the v2 API has no search endpoint)
 \`\`\`
 
-Run \`npx -y confluence-axi --help\` for global flags, or \`npx -y confluence-axi <command> --help\` for per-command usage.
-Run \`npx -y confluence-axi setup hooks\` to install SessionStart ambient context.
+Run \`confluence-axi --help\` for global flags, or \`confluence-axi <command> --help\` for per-command usage.
+Run \`confluence-axi setup hooks\` to install SessionStart ambient context.
 
 ## Tips
 
