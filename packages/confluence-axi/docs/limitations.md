@@ -55,6 +55,9 @@ A v2 GET on a trashed page returns 200 with `status: "trashed"`, and DELETE on i
 In OAuth mode the transport refuses an override differing from the pinned session cloudId, so `--site` only retargets in API-token mode there.
 Atlassian API tokens are account-scoped, so one token reaches every instance the account can access.
 
+An explicit `--site` also carries into the follow-up command lines the CLI suggests, on the success path and the error path alike, so a suggested command stays pointed at the same instance you targeted.
+The exception is `auth` and `setup`: they own their own site handling, so their suggested lines are left alone rather than handed a `--site` those subcommands would reject.
+
 The OAuth (browser) flow requires an interactive TTY and fails fast with VALIDATION_ERROR when stdin/stdout is not a terminal.
 For agents and CI, use `auth login --token` (token read from stdin only, never as an argument).
 There is no shipped OAuth app; register your own (see [auth](./auth.md#registering-your-own-oauth-app)).
@@ -69,3 +72,4 @@ Bodies are truncated by default; pass `--full` (on `page get`) for the complete 
 
 Flags are rejected before the command name.
 Write `confluence-axi search "space = ENG" --limit 5`, not `confluence-axi --limit 5 search "space = ENG"`.
+An unrecognised flag is never silently ignored: it is a loud `VALIDATION_ERROR` (exit 2) whose `help` block enumerates the flags that command does support.

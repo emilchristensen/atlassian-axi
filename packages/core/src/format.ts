@@ -7,7 +7,7 @@
  *   count: N (showing first D — raise with --limit N) — client-side slice
  *   count: N (showing first D)              — client-side slice, no --limit flag
  *   count: N (showing first N — raise with --limit)   — request limit hit
- *   count: N+ (GitHub search API limit reached) — search API limit
+ *   count: N+ (search API limit reached) — search API limit
  */
 
 export interface CountLineOptions {
@@ -45,7 +45,7 @@ export function formatCountLine(opts: CountLineOptions): string {
 
   // API limit hit (search)
   if (apiLimitHit) {
-    return `count: ${count}+ (GitHub search API limit reached)`;
+    return `count: ${count}+ (search API limit reached)`;
   }
 
   // Total count known from GraphQL or API — when the REQUESTED limit was the

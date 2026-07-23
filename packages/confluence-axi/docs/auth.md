@@ -64,6 +64,7 @@ confluence-axi auth login
 - The callback is pinned to `http://localhost:8765/callback`; port 8765 must be free during login.
 - Client secret resolution: `ATLASSIAN_AXI_OAUTH_CLIENT_SECRET` env, otherwise prompted once (hidden, on stderr) and stored in the `0600` config.
 - When you have access to more than one site and do not pass `--site`, it lists your accessible sites and prompts you to pick one.
+- `auth login` fails loud on anything it does not consume: any leftover flag or argument is a `VALIDATION_ERROR` (exit 2) listing the supported flags. A typo'd `--tokn` is rejected outright instead of silently falling through to the OAuth path (which, in an agent or CI shell, would surface the misleading "needs an interactive terminal" error), and a typo'd `--emial` cannot quietly log you in under a stale resolved email.
 
 ## `confluence-axi auth login --token`
 
