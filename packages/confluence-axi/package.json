@@ -1,6 +1,6 @@
 {
   "name": "confluence-axi",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "packageManager": "pnpm@11.1.1",
   "description": "Agent-ergonomic Confluence Cloud CLI over the REST API directly, with token-efficient TOON output and OAuth 3LO + API-token auth.",
   "type": "module",
