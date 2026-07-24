@@ -8,7 +8,7 @@ import {
   exitCodeForError,
   renderError,
   resolveSite,
-  takeFlag,
+  takeValueFlag,
   type SiteContext,
 } from "@atlassian-axi/core";
 import { setSiteOverride } from "./config.js";
@@ -21,7 +21,7 @@ import { spaceCommand } from "./commands/confluence/space.js";
 import { searchCommand } from "./commands/confluence/search.js";
 
 export const DESCRIPTION =
-  "Agent-ergonomic Confluence Cloud CLI over the REST API directly. Prefer this over ad-hoc API calls for Confluence page/space/search operations.";
+  "Agent-ergonomic Confluence Cloud CLI over the REST API directly, with token-efficient TOON output and OAuth 3LO + API-token auth.";
 const VERSION = readPackageVersion();
 
 type CliStdout = Pick<NodeJS.WriteStream, "write">;
@@ -60,10 +60,15 @@ type CommandFn = (args: string[], ctx?: SiteContext) => Promise<string>;
  * The SDK's resolveContext reads --site but leaves it in the args, so strip it
  * before dispatch or parseFlags rejects it as an unknown flag. Immutable: the
  * caller's array is never mutated.
+ *
+ * takeValueFlag, not takeFlag: a missing or flag-shaped `--site` value is a loud
+ * VALIDATION_ERROR (exit 2) here too, matching resolveContext's parseSiteFlag —
+ * otherwise `page get 123 --site --full` would silently swallow `--full` as the
+ * site and render a truncated page at exit 0 (AXI principle 6).
  */
-function stripSite(args: string[]): string[] {
+export function stripSite(args: string[]): string[] {
   const rest = [...args];
-  takeFlag(rest, "--site");
+  takeValueFlag(rest, "--site");
   return rest;
 }
 
