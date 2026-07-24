@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/emilchristensen/atlassian-axi/compare/jira-axi-v1.0.1...jira-axi-v1.0.2) (2026-07-24)
+
+
+### Bug Fixes
+
+* **confluence-axi:** fail loud on malformed --site; sync package descriptions ([#60](https://github.com/emilchristensen/atlassian-axi/issues/60)) ([eb4c583](https://github.com/emilchristensen/atlassian-axi/commit/eb4c5837de7801cdb3cb877dbe1c89597473da0d))
+
 ## [1.0.1](https://github.com/emilchristensen/atlassian-axi/compare/jira-axi-v1.0.0...jira-axi-v1.0.1) (2026-07-23)
 
 
