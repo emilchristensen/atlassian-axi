@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { main, TOP_HELP } from "../src/cli.js";
+import { main, stripSite, TOP_HELP } from "../src/cli.js";
 
 /** Capture everything main() writes to its injected stdout. */
 function capture() {
@@ -134,6 +134,42 @@ describe("cli help/version contract", () => {
     // A leading flag is rejected before command routing.
     expect(cap.output().toLowerCase()).toContain("flag");
     expect(process.exitCode).toBe(2);
+  });
+});
+
+describe("stripSite fails loud on a malformed --site (2026-07-23)", () => {
+  // Dispatch-time guard, mirroring resolveContext's parseSiteFlag. stripSite
+  // used takeFlag, which silently spliced a flag-shaped or missing value; the
+  // `--site=--full` form in particular slipped past parseSiteFlag (no guard on
+  // the `=` variant) and reached the transport as a request to https://--full/.
+  it("rejects --site followed by another flag", () => {
+    expect(() => stripSite(["get", "123", "--site", "--full"])).toThrow(
+      /--site requires a value/,
+    );
+  });
+
+  it("rejects a trailing --site with no value", () => {
+    expect(() => stripSite(["get", "123", "--site"])).toThrow(
+      /--site requires a value/,
+    );
+  });
+
+  it("rejects the --site=<flag> form (missed by parseSiteFlag)", () => {
+    expect(() => stripSite(["get", "123", "--site=--full"])).toThrow(
+      /--site requires a value/,
+    );
+  });
+
+  it("strips a well-formed --site and leaves the rest, without mutating input", () => {
+    const argv = ["get", "123", "--site", "acme.atlassian.net", "--full"];
+    expect(stripSite(argv)).toEqual(["get", "123", "--full"]);
+    expect(argv).toEqual([
+      "get",
+      "123",
+      "--site",
+      "acme.atlassian.net",
+      "--full",
+    ]);
   });
 });
 
