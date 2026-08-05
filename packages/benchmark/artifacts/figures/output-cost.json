@@ -85,7 +85,7 @@
       "surface": "acli",
       "command": "acli jira workitem search --jql project = TEAM AND summary ~ \"scratch\" ORDER BY key ASC",
       "exitCode": 0,
-      "tokens": 716,
+      "tokens": 702,
       "provenance": "measured"
     },
     {

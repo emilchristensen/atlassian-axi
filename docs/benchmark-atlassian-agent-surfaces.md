@@ -82,7 +82,7 @@ Per-operation output size (measured; tokens of the redacted output committed und
 |---|---|---|---|
 | J1 view work item | 193 | 68 | not-measured - surface not drivable |
 | J2 read comments | 236 | 282 | not-measured |
-| J3 JQL search (4 results) | 157 | 716 | not-measured |
+| J3 JQL search (4 results) | 157 | 702 | not-measured |
 
 acli wins J1: its default view omits created/updated/priority and prints no follow-up suggestions.
 jira-axi's J1 output includes those fields plus 4 suggested next commands.

@@ -56,13 +56,17 @@ Redaction refuses to run when the file is missing, so a capture can never slip t
 Tracked source keeps only generic patterns (local paths, Atlassian account ids) and the placeholder replacement names.
 
 The file is a JSON object with a `substitutions` array, applied in order after the generic tracked patterns.
-Each entry compiles to `new RegExp(pattern, flags ?? "g")`:
+Each entry compiles to `new RegExp(pattern, flags ?? "g")`.
+The special entry `{ "wrappedDomainFragment": true }` cleans up a suffix of `emailDomain` stranded alone in a hard-wrapped acli table cell; place it after the email and domain entries.
 
 ```json
 {
+  "emailDomain": "corp-domain.com",
   "substitutions": [
     { "pattern": "real-site\\.atlassian\\.net", "replacement": "example.atlassian.net" },
     { "pattern": "real\\.person(?:@[a-z.]*)?", "flags": "gi", "replacement": "user@example.com" },
+    { "pattern": "@?corp-domain\\.com", "flags": "gi", "replacement": "example.com" },
+    { "wrappedDomainFragment": true },
     { "pattern": "\\bRealClientName\\b", "replacement": "CLIENTA" }
   ]
 }

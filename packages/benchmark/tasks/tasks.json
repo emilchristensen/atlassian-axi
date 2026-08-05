@@ -1,5 +1,5 @@
 {
-  "note": "Representative task set. kind=read tasks run live (read-only). kind=write-probe tasks target guaranteed-nonexistent items (NOPE-99999, page id 99999999999, space NOPESPACE) so they can never mutate the live site; they capture each surface's error/validation behaviour. kind=unsupported-probe runs a command the surface does not have, to capture the measured error proving the gap.",
+  "note": "Representative task set. kind=read tasks run live (read-only). kind=write-probe tasks target guaranteed-nonexistent items (NOPE-99999, page id 99999999999, space NOPESPACE) so they can never mutate the live site; they capture each surface's error/validation behaviour. Tasks whose acli command is null carry acliGapProbe: the harness runs that nonexistent acli command and records the CLI's own error as the measured proof of the gap.",
   "site": "example.atlassian.net (redacted; a live corporate Confluence/Jira Cloud site)",
   "tasks": [
     {

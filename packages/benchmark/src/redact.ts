@@ -5,10 +5,9 @@
 //
 // The identifying patterns themselves (site host, user identities, client and
 // space names) are deliberately not tracked: they load from the untracked
-// packages/benchmark/redact.local.json - a JSON object holding an ordered
-// "substitutions" array of { pattern, flags?, replacement } entries, each
-// compiled with new RegExp(pattern, flags ?? "g") - so tracked source
-// carries only generic machinery and placeholder names.
+// packages/benchmark/redact.local.json, so tracked source carries only
+// generic machinery and placeholder names. See README.md ("Redaction config")
+// for the file shape.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BENCHMARK_ROOT } from "./paths.js";
@@ -19,9 +18,36 @@ interface PatternEntry {
   readonly replacement: string;
 }
 
+interface WrappedDomainFragmentEntry {
+  readonly wrappedDomainFragment: true;
+}
+
+type LocalEntry = PatternEntry | WrappedDomainFragmentEntry;
+
+interface LocalConfig {
+  readonly emailDomain?: string;
+  readonly substitutions?: readonly LocalEntry[];
+}
+
 const CONFIG_PATH = join(BENCHMARK_ROOT, "redact.local.json");
 
-function compileEntry(entry: PatternEntry): readonly [RegExp, string] {
+// acli's table renderer hard-wraps cells, which can strand a suffix of the
+// email domain alone in a table cell on the continuation line; match every
+// such suffix only when it is the sole token of a cell.
+function wrappedDomainFragmentInCell(domain: string): RegExp {
+  const suffixes = Array.from({ length: domain.indexOf(".com") - 1 }, (_, i) =>
+    domain.slice(i + 1).replace(/\./g, "\\."),
+  );
+  return new RegExp(`(│\\s*)(?:${suffixes.join("|")})(?=\\s*│)`, "g");
+}
+
+function compileEntry(entry: LocalEntry, emailDomain: string | undefined): readonly [RegExp, string] {
+  if ("wrappedDomainFragment" in entry) {
+    if (typeof emailDomain !== "string" || !emailDomain.includes(".com")) {
+      throw new Error(`redact: a "wrappedDomainFragment" entry needs a ".com" string "emailDomain" in ${CONFIG_PATH}`);
+    }
+    return [wrappedDomainFragmentInCell(emailDomain), "$1"];
+  }
   if (typeof entry.pattern !== "string" || typeof entry.replacement !== "string") {
     throw new Error(`redact: every substitution in ${CONFIG_PATH} needs string "pattern" and "replacement"`);
   }
@@ -34,14 +60,14 @@ function loadLocalSubstitutions(): ReadonlyArray<readonly [RegExp, string]> {
     raw = readFileSync(CONFIG_PATH, "utf8");
   } catch {
     throw new Error(
-      `redact: missing ${CONFIG_PATH}; this untracked file holds the real identifier patterns and redaction refuses to run without it`,
+      `redact: missing ${CONFIG_PATH}; this untracked file holds the real identifier patterns (see packages/benchmark/README.md) and redaction refuses to run without it`,
     );
   }
-  const config = JSON.parse(raw) as { substitutions?: readonly PatternEntry[] };
+  const config = JSON.parse(raw) as LocalConfig;
   if (!Array.isArray(config.substitutions)) {
     throw new Error(`redact: ${CONFIG_PATH} must contain a "substitutions" array`);
   }
-  return config.substitutions.map(compileEntry);
+  return config.substitutions.map((entry) => compileEntry(entry, config.emailDomain));
 }
 
 // Generic patterns only - nothing here identifies the site or its users.
