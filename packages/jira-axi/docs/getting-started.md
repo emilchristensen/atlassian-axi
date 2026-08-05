@@ -7,15 +7,31 @@ For exhaustive flags see [commands](./commands.md) and [limitations](./limitatio
 
 ## Install
 
-Install globally so a stable `jira-axi` bin lands on your `PATH` (recommended):
+`npx` is the default and needs no install:
+
+```bash
+npx -y jira-axi@latest workitem list --project TEAM
+```
+
+The `@latest` pin ensures you always run the newest published version.
+
+### Secondary option: install globally for session hooks
+
+Install globally **only if you want the agent SessionStart hook functionality**:
 
 ```bash
 npm i -g jira-axi
 ```
 
-A global install is what `setup hooks` needs: the SessionStart hooks it writes call a bare `jira-axi` command with no args, which only resolves when the bin is on `PATH`.
+The hooks invoke the bin itself, so `setup hooks` requires this global install.
 
-For a one-off command you can run `npx -y jira-axi <command>` without installing, but that is NOT recommended when you use `setup hooks` - `npx` does not give the hooks a stable command to call.
+What the hook adds to every agent session:
+
+- `acli: installed` - whether the required `acli` prerequisite is actually present, before you run a command that needs it.
+- `my_open_workitems[N]{key,summary,status}` - your own open Jira work items, each with key, summary and status.
+- `help[N]` - a contextual line naming the available commands.
+
+Every command below works identically under `npx`.
 
 ## Prerequisites
 

@@ -10,15 +10,21 @@ Self-contained: auth is delegated to `acli`'s own login, so there is no extra cr
 
 ## Install
 
-Install globally so a stable `jira-axi` bin lands on your `PATH` (recommended):
+`npx` is the default and needs no install:
+
+```bash
+npx -y jira-axi@latest workitem list --project TEAM
+```
+
+Or install globally, **only if you want the agent SessionStart hook functionality** (`setup hooks` requires it):
 
 ```bash
 npm i -g jira-axi
 ```
 
-A global install is what `setup hooks` needs: the SessionStart hooks it writes call a bare `jira-axi` command with no args, which only resolves when the bin is on `PATH`.
+<!-- Absolute URL on purpose: `docs/` is not in the published npm tarball (see `files` in package.json), so a relative ./docs/... link 404s for every reader on npmjs.com. Do not "simplify" it to a relative path. -->
 
-For a one-off command you can run `npx -y jira-axi <command>` without installing, but that is NOT recommended when you use `setup hooks` - `npx` does not give the hooks a stable command to call.
+What the hooks add: [Getting started](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/getting-started.md#install).
 
 ## Prerequisites
 

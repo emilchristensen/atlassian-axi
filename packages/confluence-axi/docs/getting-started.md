@@ -7,15 +7,32 @@ For exhaustive flags see [commands](./commands.md), [auth](./auth.md), and [limi
 
 ## Install
 
-Install globally so a stable `confluence-axi` bin lands on your `PATH` (recommended):
+`npx` is the default and needs no install:
+
+```bash
+npx -y confluence-axi@latest search "space = ENG AND type = page"
+```
+
+The `@latest` pin ensures you always run the newest published version.
+
+### Secondary option: install globally for session hooks
+
+Install globally **only if you want the agent SessionStart hook functionality**:
 
 ```bash
 npm i -g confluence-axi
 ```
 
-A global install is what `setup hooks` needs: the SessionStart hooks it writes call a bare `confluence-axi` command with no args, which only resolves when the bin is on `PATH`.
+The hooks invoke the bin itself, so `setup hooks` requires this global install.
 
-For a one-off command you can run `npx -y confluence-axi <command>` without installing, but that is NOT recommended when you use `setup hooks` - `npx` does not give the hooks a stable command to call.
+What the hook adds to every agent session:
+
+- `site: <site>` - which Confluence site the credential currently targets.
+- `auth: ok (<mode>)` - the active auth mode and whether it actually works, before you run a command that needs it.
+- `spaces[N]{key,name,type,id}` - the spaces the account can reach, with the keys and ids other commands take as arguments.
+- `help[N]` - a contextual line naming the available commands.
+
+Every command below works identically under `npx`.
 
 ## Prerequisites
 

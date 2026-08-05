@@ -3,7 +3,7 @@
 Agent-ergonomic Jira CLI, backed by Atlassian's `acli`.
 Every command emits token-efficient TOON output, mutations are idempotent, and errors carry next-step suggestions.
 
-Install it globally (`npm i -g jira-axi`) so a stable `jira-axi` bin is on `PATH` - this is what `setup hooks` needs. `npx -y jira-axi <command>` works for a one-off but is not recommended with `setup hooks`.
+Install and invocation guidance lives in [Getting started](./getting-started.md#install) - `npx` is the default, and a global install is the secondary option that enables the session hooks.
 
 `jira-axi` replaces the Jira half of the sunset combined `atlassian-axi` CLI; the Confluence half is now the separate `confluence-axi` package.
 

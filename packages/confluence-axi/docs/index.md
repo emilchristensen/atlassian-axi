@@ -3,7 +3,7 @@
 Agent-ergonomic CLI for Confluence Cloud, calling the Confluence REST API directly.
 Every command emits token-efficient TOON output, mutations are idempotent, and errors carry next-step suggestions.
 
-Install it globally (`npm i -g confluence-axi`) so a stable `confluence-axi` bin is on `PATH` - this is what `setup hooks` needs. `npx -y confluence-axi <command>` works for a one-off but is not recommended with `setup hooks`.
+Install and invocation guidance lives in [Getting started](./getting-started.md#install) - `npx` is the default, and a global install is the secondary option that enables the session hooks.
 
 ## Read this first
 
