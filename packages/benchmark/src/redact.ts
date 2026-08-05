@@ -46,6 +46,8 @@ function loadLocalSubstitutions(): ReadonlyArray<readonly [RegExp, string]> {
 
 // Generic patterns only - nothing here identifies the site or its users.
 const GENERIC_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, string]> = [
+  // Local worktree paths carry no information a reader needs.
+  [/\/Users\/\S*?\/atlassian-axi\/packages\//g, "<repo>/packages/"],
   // Atlassian accountIds (opaque user identifiers), 24- and 32-hex forms.
   [/\b[0-9a-f]{32}\b/g, "redacted-account-id-32xxx"],
   [/\b[0-9a-f]{24}\b/g, "redacted-account-id-xxxxx"],

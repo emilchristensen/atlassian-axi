@@ -1,0 +1,30 @@
+{
+  "provenance": "measured",
+  "note": "Per accuracy run: executor agent tool calls (commands run), total tokens consumed by the executor subagent (includes agent-harness overhead, so only relative deltas are meaningful), and wall-clock duration. Executor model claude-fable-5, one run per task per surface, 2026-08-05. MCP runs do not exist (surface not drivable here).",
+  "runs": [
+    { "task": "A-J1", "surface": "jira-axi", "toolUses": 1, "subagentTokens": 44459, "durationMs": 17345 },
+    { "task": "A-J2", "surface": "jira-axi", "toolUses": 1, "subagentTokens": 44685, "durationMs": 18191 },
+    { "task": "A-J3", "surface": "jira-axi", "toolUses": 1, "subagentTokens": 44429, "durationMs": 15963 },
+    { "task": "A-J4", "surface": "jira-axi", "toolUses": 1, "subagentTokens": 45575, "durationMs": 20399 },
+    { "task": "A-J5", "surface": "jira-axi", "toolUses": 1, "subagentTokens": 45569, "durationMs": 19785 },
+    { "task": "A-J1", "surface": "acli", "toolUses": 5, "subagentTokens": 45859, "durationMs": 42609 },
+    { "task": "A-J2", "surface": "acli", "toolUses": 7, "subagentTokens": 46702, "durationMs": 68631 },
+    { "task": "A-J3", "surface": "acli", "toolUses": 6, "subagentTokens": 48564, "durationMs": 58191 },
+    { "task": "A-J4", "surface": "acli", "toolUses": 4, "subagentTokens": 45380, "durationMs": 32460 },
+    { "task": "A-J5", "surface": "acli", "toolUses": 3, "subagentTokens": 44623, "durationMs": 29253 },
+    { "task": "A-C1", "surface": "confluence-axi", "toolUses": 2, "subagentTokens": 48746, "durationMs": 39589 },
+    { "task": "A-C2", "surface": "confluence-axi", "toolUses": 1, "subagentTokens": 44906, "durationMs": 20394 },
+    { "task": "A-C3", "surface": "confluence-axi", "toolUses": 1, "subagentTokens": 44265, "durationMs": 14856 },
+    { "task": "A-C4", "surface": "confluence-axi", "toolUses": 1, "subagentTokens": 44075, "durationMs": 15241 },
+    { "task": "A-C5", "surface": "confluence-axi", "toolUses": 1, "subagentTokens": 44284, "durationMs": 19108 },
+    { "task": "A-C6", "surface": "confluence-axi", "toolUses": 0, "subagentTokens": 42112, "durationMs": 7802 },
+    { "task": "A-C7", "surface": "confluence-axi", "toolUses": 0, "subagentTokens": 42359, "durationMs": 11252 },
+    { "task": "A-C1", "surface": "acli", "toolUses": 6, "subagentTokens": 51636, "durationMs": 74229 },
+    { "task": "A-C2", "surface": "acli", "toolUses": 14, "subagentTokens": 57218, "durationMs": 135586 },
+    { "task": "A-C3", "surface": "acli", "toolUses": 5, "subagentTokens": 46691, "durationMs": 51373 },
+    { "task": "A-C4", "surface": "acli", "toolUses": 5, "subagentTokens": 46106, "durationMs": 54860 },
+    { "task": "A-C5", "surface": "acli", "toolUses": 9, "subagentTokens": 53174, "durationMs": 113963 },
+    { "task": "A-C6", "surface": "acli", "toolUses": 6, "subagentTokens": 45552, "durationMs": 41824 },
+    { "task": "A-C7", "surface": "acli", "toolUses": 6, "subagentTokens": 46343, "durationMs": 47867 }
+  ]
+}

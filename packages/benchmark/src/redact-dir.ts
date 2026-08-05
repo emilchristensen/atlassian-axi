@@ -5,7 +5,7 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { redact } from "./redact.js";
 
-const dir = process.argv[2];
+const dir = process.argv.slice(2).find((a) => a !== "--");
 if (!dir) {
   console.error("usage: tsx src/redact-dir.ts <dir>");
   process.exit(2);
