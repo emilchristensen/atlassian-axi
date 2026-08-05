@@ -33,6 +33,8 @@ packages/
                    #   Bundled into each CLI at build; never published.
   jira-axi/        # published: jira-axi
   confluence-axi/  # published: confluence-axi
+  benchmark/       # private benchmark harness - never published; see
+                   #   docs/benchmark-atlassian-agent-surfaces.md for results
 ```
 
 Turborepo + pnpm workspaces. Each CLI is built with `tsup`, which inlines `@atlassian-axi/core`, so every published package is self-contained (only `axi-sdk-js` stays an external runtime dependency).

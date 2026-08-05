@@ -16,7 +16,12 @@ packages/
                    #   subcommand plumbing, the suggestion ENGINE, the error ENGINE.
   jira-axi/        # published: jira-axi   (bin: jira-axi)
   confluence-axi/  # published: confluence-axi (bin: confluence-axi)
+  benchmark/       # @atlassian-axi/benchmark - PRIVATE, never published. Harness
+                   #   behind docs/benchmark-atlassian-agent-surfaces.md (AXI CLIs
+                   #   vs Rovo MCP vs raw acli).
 ```
+
+- **Benchmark facts.** Figures regenerate via `pnpm --filter @atlassian-axi/benchmark run bench` (needs live acli + confluence-axi auth; read-only, write paths probed only on nonexistent targets). The Rovo MCP server is OAuth-only - unauthenticated `tools/list` returns 401 - so MCP figures stay derived-from-docs and MCP accuracy cells `not-rated`. Every committed artifact is deterministically redacted (`src/redact.ts`, applied to transcripts via `bench:redact`); never commit an unredacted live capture, and keep the tokenizer dep (`gpt-tokenizer`) out of the published packages. Accuracy scoring is a separate pass against pre-declared `artifacts/expectations.md` - amend expectations only before runs, visibly.
 
 - **core is bundled, not depended-on at runtime.** Each CLI's `tsup` build inlines `@atlassian-axi/core` (and `@toon-format/toon`) via `noExternal`, so each published package is self-contained; only `axi-sdk-js` stays an external runtime dep. core is a `workspace:*` devDependency of each CLI. Never publish core.
 - **Commands are FLATTENED per CLI** (single-domain, no resource-group prefix): `jira-axi workitem list`, `jira-axi board list-sprints <ID>`, `confluence-axi page get <id>`, `confluence-axi search "<CQL>"`. There is no `jira`/`confluence` sub-namespace.
