@@ -1,6 +1,17 @@
 # Pre-declared expectations and rating scale
 
 Declared and committed before any accuracy run was executed.
+
+## Amendments (made after the harness output probes, still before any accuracy run)
+
+Three acli command syntaxes declared below were found wrong by the harness's direct output probes, before any accuracy transcript existed; the corrected forms are:
+
+- A-J2 acli: `acli jira workitem comment list --key TEAM-43` (`comment list` rejects a positional key with "required flag(s) \"key\" not set", unlike `workitem view`, which accepts one).
+- A-C3 acli: `acli confluence page view --id 18753552796 --include-direct-children --json` (without `--json` the include flag is accepted but its data is silently absent from the rendered output).
+- A-C4 acli: `acli confluence page view --id 18753814575 --include-labels --json` (same silent-drop behaviour).
+
+The expected operation choice and expected result properties are unchanged; scoring accepts either the original or corrected literal syntax as the "expected operation" where the operation choice is right.
+The git history of this file shows the amendment as a separate commit dated before the transcripts were committed.
 The scoring pass (`artifacts/scoring.md`) rates each committed transcript against this file and nothing else.
 
 ## Rating scale

@@ -1,0 +1,13 @@
+usage: jira-axi board <subcommand> [flags]
+subcommands[4]:
+  list, view <ID>, list-sprints <ID>, list-projects <ID>
+flags{list}:
+  --name <substring>, --project <KEY>, --type <scrum|kanban|simple>, --limit <n> (default 30)
+flags{list-sprints}:
+  --state <future,active,closed> (comma-separated), --limit <n> (default 30)
+flags{list-projects}:
+  --limit <n> (default 30)
+examples:
+  jira-axi board list --project TEAM
+  jira-axi board view 1013
+  jira-axi board list-sprints 1013 --state active

@@ -46,7 +46,8 @@ function loadLocalSubstitutions(): ReadonlyArray<readonly [RegExp, string]> {
 
 // Generic patterns only - nothing here identifies the site or its users.
 const GENERIC_SUBSTITUTIONS: ReadonlyArray<readonly [RegExp, string]> = [
-  // Atlassian accountIds (opaque user identifiers).
+  // Atlassian accountIds (opaque user identifiers), 24- and 32-hex forms.
+  [/\b[0-9a-f]{32}\b/g, "redacted-account-id-32xxx"],
   [/\b[0-9a-f]{24}\b/g, "redacted-account-id-xxxxx"],
   [/\b(?:557058|712020|5[0-9a-f]{7}):[0-9a-f-]{8,}\b/g, "redacted:account-id"],
 ];

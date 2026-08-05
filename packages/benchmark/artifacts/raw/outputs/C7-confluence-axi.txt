@@ -1,0 +1,12 @@
+# task: C7 Create a page (error probe on nonexistent space)
+# surface: confluence-axi
+# command: confluence-axi page create --space NOPESPACE --title benchmark probe --body <p>probe</p>
+# exit: 1
+# provenance: measured-error-probe (write path never verified live; see derived-from-docs write rows)
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+error: "Space not found: NOPESPACE"
+code: NOT_FOUND
+help[2]:
+  Space keys are case-sensitive (usually uppercase)
+  Run `confluence-axi space list` to see available space keys
+

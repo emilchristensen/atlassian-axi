@@ -1,0 +1,24 @@
+Transitioning a work item can mean moving it to another status, or performing a looped transition where the transition allows you to perform an action but keep the work item in its current status.
+
+Usage:
+  acli jira workitem transition [flags]
+
+Examples:
+# Transition work item with work item keys
+$ acli jira workitem transition --key "KEY-1,KEY-2" --status "Done"
+
+# Transition work item with JQL query
+$ acli jira workitem transition --jql "project = TEAM" --status "In Progress"
+
+# Transition work item with filter ID
+$ acli jira workitem transition --filter 10001 --status "To Do" --yes
+
+Flags:
+      --filter string   Filter ID of work items to be transitioned
+  -h, --help            Show help for command
+      --ignore-errors   Ignore the errors and continue
+      --jql string      JQL query for work items to be transitioned
+      --json            Generate a JSON output
+  -k, --key string      A list of work item keys to be transitioned
+  -s, --status string   Status to transition the work item
+  -y, --yes             Confirm transition without prompting

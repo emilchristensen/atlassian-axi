@@ -1,0 +1,20 @@
+# task: C1 Read a page by id
+# surface: confluence-axi
+# command: confluence-axi page get 18753552796
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+page:
+  id: "18753552796"
+  title: draw.io Configuration Home
+  status: current
+  spaceId: "18753552445"
+  parentId: null
+  version: 1
+  updated: 2y ago
+  body: "<ac:structured-macro ac:name=\"panel\" ac:schema-version=\"1\" ac:macro-id=\"bc82cb0f-6564-4928-a24c-f325fc29da0f\"><ac:parameter ac:name=\"bgColor\">#E3FCEF</ac:parameter><ac:rich-text-body>\n        <h3><strong>Welcome to your new space!</strong></h3>\n        <p>Spaces help your team structure, organize, and share work, so every team member has visibility into institutional knowledge and access to the information they need to do their best work.</p>\n    </ac:rich-text-body></ac:structured-macro>\n<p />\n<h1><strong>Get started with the basics</strong></h1>\n<p><strong>Start editing this page:</strong></p>\n<ac:task-list>\n<ac:task>\n<ac:task-id>11</ac:task-id>\n<ac:task-status>incomplete</ac:task-status>\n<ac:task-body><span class=\"placeholder-inline-tasks\">Click the pencil icon ✏️ or <code>e</code> on y\n... (truncated, 2917 chars total - use --full to see complete body)"
+help[3]:
+  Run `confluence-axi page update 18753552796 --body-file <path>` to edit it
+  Run `confluence-axi page children 18753552796` to list its child pages
+  Run `confluence-axi search "<CQL>"` to find related pages
+

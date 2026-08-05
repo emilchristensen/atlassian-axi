@@ -1,0 +1,12 @@
+# task: C1 Read a page by id
+# surface: acli
+# command: acli confluence page view --id 18753552796
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+[1m┌[0m[1m─────────────[0m[1m┬[0m[1m────────────────────────────[0m[1m┬[0m[1m─────────[0m[1m┬[0m[1m─────────────[0m[1m┬[0m[1m───────────[0m[1m┬[0m[1m──────────────────────────[0m[1m┐[0m
+[1m│[0m[1m ID          [0m[1m│[0m[1m Title                      [0m[1m│[0m[1m Status  [0m[1m│[0m[1m Space ID    [0m[1m│[0m[1m Parent ID [0m[1m│[0m[1m Created                  [0m[1m│[0m
+[1m├[0m[1m─────────────[0m[1m┼[0m[1m────────────────────────────[0m[1m┼[0m[1m─────────[0m[1m┼[0m[1m─────────────[0m[1m┼[0m[1m───────────[0m[1m┼[0m[1m──────────────────────────[0m[1m┤[0m
+│ 18753552796 │ draw.io Configuration Home │ current │ 18753552445 │           │ 2023-10-03T13:27:32.225Z │
+└─────────────┴────────────────────────────┴─────────┴─────────────┴───────────┴──────────────────────────┘
+

@@ -1,0 +1,10 @@
+# task: J5 Add a comment (error probe on nonexistent key)
+# surface: acli
+# command: acli jira workitem comment create --key NOPE-99999 --body benchmark probe --yes
+# exit: 1
+# provenance: measured-error-probe (write path never verified live; see derived-from-docs write rows)
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+
+[stderr]
+✗ Error: unknown flag: --yes
+

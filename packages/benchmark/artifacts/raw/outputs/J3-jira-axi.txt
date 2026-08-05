@@ -1,0 +1,16 @@
+# task: J3 JQL search
+# surface: jira-axi
+# command: jira-axi workitem search project = TEAM AND summary ~ "scratch" ORDER BY key ASC
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+count: 4
+workitems[4]{key,summary,status,assignee}:
+  TEAM-40,"[scratch] ADF before-fix demo (delete me)",todo,unassigned
+  TEAM-41,"[scratch] ADF after-fix demo (delete me)",done,unassigned
+  TEAM-42,"[scratch] axi finalize E2E edited (delete me)",done,Example User
+  TEAM-43,"[scratch] jira-axi E2E edited (delete me)",done,Example User
+help[2]:
+  Run `jira-axi workitem view <KEY>` to view details
+  Run `jira-axi workitem transition <KEY> --to <status>` to move one
+

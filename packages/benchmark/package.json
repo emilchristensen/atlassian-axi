@@ -10,7 +10,8 @@
     "bench": "tsx src/context-cost.ts && tsx src/output-cost.ts && tsx src/coverage.ts",
     "bench:context": "tsx src/context-cost.ts",
     "bench:output": "tsx src/output-cost.ts",
-    "bench:coverage": "tsx src/coverage.ts"
+    "bench:coverage": "tsx src/coverage.ts",
+    "bench:redact": "tsx src/redact-dir.ts"
   },
   "devDependencies": {
     "gpt-tokenizer": "^3.4.0"

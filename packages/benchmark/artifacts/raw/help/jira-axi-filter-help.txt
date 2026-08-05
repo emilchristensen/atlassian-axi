@@ -1,0 +1,16 @@
+usage: jira-axi filter <subcommand> [flags]
+subcommands[4]:
+  list, search, view <ID>, update <ID>
+flags{list}:
+  --favourite (my favourite filters; default is filters I own), --limit <n> (default 30, applied client-side)
+flags{search}:
+  --name <substring>, --owner <email>, --limit <n> (default 30)
+flags{view}:
+  --full (complete description without truncation)
+flags{update}:
+  --name <text>, --description <text>, --jql <query> (no-op success when nothing changes)
+examples:
+  jira-axi filter list
+  jira-axi filter search --name backlog
+  jira-axi filter view 33312
+  jira-axi filter update 33312 --jql "project = TEAM AND status = Open"

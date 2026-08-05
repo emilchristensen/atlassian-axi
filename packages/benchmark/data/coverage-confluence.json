@@ -71,7 +71,7 @@
       "operation": "List pages in a space",
       "confluence-axi": { "status": "supported", "how": "search \"space = <KEY> and type = page\"", "provenance": "measured" },
       "MCP": { "status": "supported", "how": "getPagesInConfluenceSpace", "provenance": "derived-from-docs" },
-      "acli": { "status": "unsupported", "how": "no page list; space view does not enumerate pages", "provenance": "measured" }
+      "acli": { "status": "partial", "how": "no page list, but the tree can be walked: space list --expand homepage gives the homepage id, then recursive page view --include-direct-children --json enumerates it (demonstrated live in transcript A-C2-acli)", "provenance": "measured" }
     },
     {
       "operation": "Space admin (create/update/archive/restore)",

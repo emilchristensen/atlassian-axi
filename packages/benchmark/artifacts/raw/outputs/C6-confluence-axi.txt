@@ -1,0 +1,17 @@
+# task: C6 List spaces
+# surface: confluence-axi
+# command: confluence-axi space list
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+count: 5
+spaces[5]{key,name,type,id}:
+  DRAWIOCONFIG,draw.io Configuration,global,"18753552445"
+  ClientA,CLIENTA,global,"19291242508"
+  CLIENTB,CLIENTB,global,"19402326020"
+  CLIENTC,Client C Portal,global,"19789512757"
+  INTD,Internal Space D,global,"20552646675"
+help[2]:
+  Run `confluence-axi search "space = <KEY> AND type = page"` to list a space's pages
+  Run `confluence-axi page create --space <KEY> --title "..." --body-file <path>` to create a page
+

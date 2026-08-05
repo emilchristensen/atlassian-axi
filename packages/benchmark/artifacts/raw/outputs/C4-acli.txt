@@ -1,0 +1,45 @@
+# task: C4 List a page's labels
+# surface: acli
+# command: acli confluence page view --id 18753814575 --include-labels --json
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+{
+  "_links": {
+    "base": "https://example.atlassian.net/wiki",
+    "editui": "/pages/resumedraft.action?draftId=18753814575",
+    "edituiv2": "/spaces/DRAWIOCONFIG/pages/edit-v2/18753814575",
+    "tinyui": "/x/L4DQXQQ",
+    "webui": "/spaces/DRAWIOCONFIG/pages/18753814575/Configuration"
+  },
+  "authorId": "redacted-account-id-xxxxx",
+  "body": {},
+  "createdAt": "2023-10-03T13:27:34.086Z",
+  "id": "18753814575",
+  "labels": {
+    "_links": {
+      "self": "/api/v2/pages/18753814575/labels"
+    },
+    "meta": {
+      "hasMore": false
+    },
+    "results": []
+  },
+  "lastOwnerId": null,
+  "ownerId": "redacted-account-id-xxxxx",
+  "parentId": "18753552796",
+  "parentType": "page",
+  "position": 302,
+  "spaceId": "18753552445",
+  "status": "current",
+  "title": "Configuration",
+  "version": {
+    "authorId": "redacted-account-id-xxxxx",
+    "createdAt": "2023-10-03T13:27:34.086Z",
+    "message": "",
+    "minorEdit": false,
+    "ncsStepVersion": "1",
+    "number": 1
+  }
+}
+

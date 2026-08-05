@@ -1,0 +1,74 @@
+# task: C3 List a page's children
+# surface: acli
+# command: acli confluence page view --id 18753552796 --include-direct-children --json
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+{
+  "_links": {
+    "base": "https://example.atlassian.net/wiki",
+    "editui": "/pages/resumedraft.action?draftId=18753552796",
+    "edituiv2": "/spaces/DRAWIOCONFIG/pages/edit-v2/18753552796",
+    "tinyui": "/x/nIHMXQQ",
+    "webui": "/spaces/DRAWIOCONFIG/overview"
+  },
+  "authorId": "redacted-account-id-xxxxx",
+  "body": {},
+  "createdAt": "2023-10-03T13:27:32.225Z",
+  "directChildren": {
+    "_links": {
+      "self": "/api/v2/pages/18753552796/direct-children"
+    },
+    "meta": {
+      "hasMore": false
+    },
+    "results": [
+      {
+        "childPosition": 27,
+        "id": "18754043910",
+        "status": "current",
+        "title": "Templates",
+        "type": "page"
+      },
+      {
+        "childPosition": 302,
+        "id": "18753814575",
+        "status": "current",
+        "title": "Configuration",
+        "type": "page"
+      },
+      {
+        "childPosition": 507,
+        "id": "18754109484",
+        "status": "current",
+        "title": "Libraries",
+        "type": "page"
+      },
+      {
+        "childPosition": 1296,
+        "id": "19548602380",
+        "status": "current",
+        "title": "Logs",
+        "type": "page"
+      }
+    ]
+  },
+  "id": "18753552796",
+  "lastOwnerId": null,
+  "ownerId": "redacted-account-id-xxxxx",
+  "parentId": null,
+  "parentType": null,
+  "position": 729,
+  "spaceId": "18753552445",
+  "status": "current",
+  "title": "draw.io Configuration Home",
+  "version": {
+    "authorId": "redacted-account-id-xxxxx",
+    "createdAt": "2023-10-03T13:27:32.225Z",
+    "message": "",
+    "minorEdit": false,
+    "ncsStepVersion": null,
+    "number": 1
+  }
+}
+

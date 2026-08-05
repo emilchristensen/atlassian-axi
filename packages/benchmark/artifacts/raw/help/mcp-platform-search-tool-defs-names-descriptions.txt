@@ -1,0 +1,10 @@
+[
+  {
+    "name": "searchAtlassian",
+    "description": "Search across Jira and Confluence using natural language via Rovo. (beta)"
+  },
+  {
+    "name": "fetchAtlassian",
+    "description": "Fetch Jira or Confluence content by Atlassian Resource Identifier (ARI). (beta)"
+  }
+]

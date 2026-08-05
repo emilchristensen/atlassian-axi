@@ -1,0 +1,34 @@
+View details of a Confluence page.
+
+Usage:
+  acli confluence page view [flags]
+
+Examples:
+# View a page by ID
+$ acli confluence page view --id 123456789
+
+# View a page in JSON format
+$ acli confluence page view --id 123456789 --json
+
+# View a page requesting a specific body representation
+$ acli confluence page view --id 123456789 --body-format storage
+
+
+Flags:
+      --body-format string                         Body representation to request (e.g. storage, atlas_doc_format, view)
+      --get-draft                                  When true, allows returning the draft version (if accessible)
+  -h, --help                                       Show help for command
+      --id string                                  Page ID for the page to be displayed
+      --include-collaborators                      Include collaborators info
+      --include-direct-children                    Include direct child pages
+      --include-favorited-by-current-user-status   Include whether the page is favorited by the current user
+      --include-labels                             Include page labels
+      --include-likes                              Include likes / reactions info
+      --include-operations                         Include allowed operations on the page
+      --include-properties                         Include page content properties
+      --include-version                            Include the detailed version object
+      --include-versions                           Include versions list/summary
+      --include-webresources                       Include required webresources metadata
+      --json                                       Output in JSON format
+      --status string                              Filter by page status (comma-separated list: current,draft,archived)
+      --version int                                Specific version number of the page to retrieve

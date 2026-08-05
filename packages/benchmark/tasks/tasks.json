@@ -20,7 +20,7 @@
       "kind": "read",
       "commands": {
         "jira-axi": ["workitem", "view", "TEAM-43", "--comments"],
-        "acli": ["jira", "workitem", "comment", "list", "TEAM-43"]
+        "acli": ["jira", "workitem", "comment", "list", "--key", "TEAM-43"]
       },
       "mcp": { "tool": "getJiraIssue (comment field)", "note": "derived-from-docs; no dedicated comment-list tool is documented" }
     },
@@ -87,7 +87,7 @@
       "kind": "read",
       "commands": {
         "confluence-axi": ["page", "children", "18753552796"],
-        "acli": ["confluence", "page", "view", "--id", "18753552796", "--include-direct-children"]
+        "acli": ["confluence", "page", "view", "--id", "18753552796", "--include-direct-children", "--json"]
       },
       "mcp": { "tool": "getConfluencePageDescendants", "note": "derived-from-docs; not drivable here" }
     },
@@ -98,7 +98,7 @@
       "kind": "read",
       "commands": {
         "confluence-axi": ["page", "labels", "18753814575"],
-        "acli": ["confluence", "page", "view", "--id", "18753814575", "--include-labels"]
+        "acli": ["confluence", "page", "view", "--id", "18753814575", "--include-labels", "--json"]
       },
       "mcp": null
     },

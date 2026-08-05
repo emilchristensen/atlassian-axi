@@ -1,0 +1,10 @@
+usage: jira-axi project <subcommand> [flags]
+subcommands[2]:
+  list, view <KEY>
+flags{list}:
+  --limit <n> (default 30)
+flags{view}:
+  --full (complete description without truncation)
+examples:
+  jira-axi project list
+  jira-axi project view TEAM

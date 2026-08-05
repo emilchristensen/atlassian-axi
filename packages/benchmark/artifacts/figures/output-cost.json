@@ -1,0 +1,417 @@
+{
+  "method": "gpt-tokenizer o200k_base",
+  "versions": {
+    "jira-axi": "1.0.3",
+    "confluence-axi": "1.0.3",
+    "acli": "acli version 1.3.22-stable"
+  },
+  "rows": [
+    {
+      "task": "J1",
+      "title": "View a work item",
+      "kind": "read",
+      "surface": "jira-axi",
+      "command": "jira-axi workitem view TEAM-43",
+      "exitCode": 0,
+      "tokens": 193,
+      "provenance": "measured"
+    },
+    {
+      "task": "J1",
+      "title": "View a work item",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli jira workitem view TEAM-43",
+      "exitCode": 0,
+      "tokens": 68,
+      "provenance": "measured"
+    },
+    {
+      "task": "J1",
+      "title": "View a work item",
+      "kind": "read",
+      "surface": "mcp",
+      "command": "tool: getJiraIssue",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "J2",
+      "title": "Read the comments on a work item",
+      "kind": "read",
+      "surface": "jira-axi",
+      "command": "jira-axi workitem view TEAM-43 --comments",
+      "exitCode": 0,
+      "tokens": 236,
+      "provenance": "measured"
+    },
+    {
+      "task": "J2",
+      "title": "Read the comments on a work item",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli jira workitem comment list --key TEAM-43",
+      "exitCode": 0,
+      "tokens": 282,
+      "provenance": "measured"
+    },
+    {
+      "task": "J2",
+      "title": "Read the comments on a work item",
+      "kind": "read",
+      "surface": "mcp",
+      "command": "tool: getJiraIssue (comment field)",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; no dedicated comment-list tool is documented; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "J3",
+      "title": "JQL search",
+      "kind": "read",
+      "surface": "jira-axi",
+      "command": "jira-axi workitem search project = TEAM AND summary ~ \"scratch\" ORDER BY key ASC",
+      "exitCode": 0,
+      "tokens": 157,
+      "provenance": "measured"
+    },
+    {
+      "task": "J3",
+      "title": "JQL search",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli jira workitem search --jql project = TEAM AND summary ~ \"scratch\" ORDER BY key ASC",
+      "exitCode": 0,
+      "tokens": 716,
+      "provenance": "measured"
+    },
+    {
+      "task": "J3",
+      "title": "JQL search",
+      "kind": "read",
+      "surface": "mcp",
+      "command": "tool: searchJiraIssuesUsingJql",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "J4",
+      "title": "Transition a work item (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "surface": "jira-axi",
+      "command": "jira-axi workitem transition NOPE-99999 --to Done",
+      "exitCode": 1,
+      "tokens": 65,
+      "provenance": "measured-error-probe (write path never verified live; see derived-from-docs write rows)"
+    },
+    {
+      "task": "J4",
+      "title": "Transition a work item (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "surface": "acli",
+      "command": "acli jira workitem transition --key NOPE-99999 --status Done --yes",
+      "exitCode": 0,
+      "tokens": 27,
+      "provenance": "measured-error-probe (write path never verified live; see derived-from-docs write rows)"
+    },
+    {
+      "task": "J4",
+      "title": "Transition a work item (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "surface": "mcp",
+      "command": "tool: transitionJiraIssue",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "J5",
+      "title": "Add a comment (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "surface": "jira-axi",
+      "command": "jira-axi workitem comment NOPE-99999 --body benchmark probe",
+      "exitCode": 1,
+      "tokens": 65,
+      "provenance": "measured-error-probe (write path never verified live; see derived-from-docs write rows)"
+    },
+    {
+      "task": "J5",
+      "title": "Add a comment (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "surface": "acli",
+      "command": "acli jira workitem comment create --key NOPE-99999 --body benchmark probe --yes",
+      "exitCode": 1,
+      "tokens": 14,
+      "provenance": "measured-error-probe (write path never verified live; see derived-from-docs write rows)"
+    },
+    {
+      "task": "J5",
+      "title": "Add a comment (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "surface": "mcp",
+      "command": "tool: addCommentToJiraIssue",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "C1",
+      "title": "Read a page by id",
+      "kind": "read",
+      "surface": "confluence-axi",
+      "command": "confluence-axi page get 18753552796",
+      "exitCode": 0,
+      "tokens": 398,
+      "provenance": "measured"
+    },
+    {
+      "task": "C1",
+      "title": "Read a page by id",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli confluence page view --id 18753552796",
+      "exitCode": 0,
+      "tokens": 474,
+      "provenance": "measured"
+    },
+    {
+      "task": "C1",
+      "title": "Read a page by id",
+      "kind": "read",
+      "surface": "mcp",
+      "command": "tool: getConfluencePage",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "C2",
+      "title": "CQL search",
+      "kind": "read",
+      "surface": "confluence-axi",
+      "command": "confluence-axi search space = DRAWIOCONFIG and type = page",
+      "exitCode": 0,
+      "tokens": 258,
+      "provenance": "measured"
+    },
+    {
+      "task": "C2",
+      "title": "CQL search",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli confluence search space = DRAWIOCONFIG and type = page",
+      "exitCode": 0,
+      "tokens": 89,
+      "provenance": "measured-gap-probe (command does not exist; output is the CLI's own error)",
+      "note": "unsupported on this surface"
+    },
+    {
+      "task": "C2",
+      "title": "CQL search",
+      "kind": "read",
+      "surface": "mcp",
+      "command": "tool: searchConfluenceUsingCql",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "C3",
+      "title": "List a page's children",
+      "kind": "read",
+      "surface": "confluence-axi",
+      "command": "confluence-axi page children 18753552796",
+      "exitCode": 0,
+      "tokens": 104,
+      "provenance": "measured"
+    },
+    {
+      "task": "C3",
+      "title": "List a page's children",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli confluence page view --id 18753552796 --include-direct-children --json",
+      "exitCode": 0,
+      "tokens": 509,
+      "provenance": "measured"
+    },
+    {
+      "task": "C3",
+      "title": "List a page's children",
+      "kind": "read",
+      "surface": "mcp",
+      "command": "tool: getConfluencePageDescendants",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "C4",
+      "title": "List a page's labels",
+      "kind": "read",
+      "surface": "confluence-axi",
+      "command": "confluence-axi page labels 18753814575",
+      "exitCode": 0,
+      "tokens": 34,
+      "provenance": "measured"
+    },
+    {
+      "task": "C4",
+      "title": "List a page's labels",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli confluence page view --id 18753814575 --include-labels --json",
+      "exitCode": 0,
+      "tokens": 342,
+      "provenance": "measured"
+    },
+    {
+      "task": "C4",
+      "title": "List a page's labels",
+      "kind": "read",
+      "surface": "mcp",
+      "command": null,
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "no documented MCP tool covers this operation"
+    },
+    {
+      "task": "C5",
+      "title": "List a page's attachments",
+      "kind": "read",
+      "surface": "confluence-axi",
+      "command": "confluence-axi page attachments 18753814575",
+      "exitCode": 0,
+      "tokens": 98,
+      "provenance": "measured"
+    },
+    {
+      "task": "C5",
+      "title": "List a page's attachments",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli confluence page attachments --id 18753814575",
+      "exitCode": 1,
+      "tokens": 14,
+      "provenance": "measured-gap-probe (command does not exist; output is the CLI's own error)",
+      "note": "unsupported on this surface"
+    },
+    {
+      "task": "C5",
+      "title": "List a page's attachments",
+      "kind": "read",
+      "surface": "mcp",
+      "command": null,
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "no documented MCP tool covers this operation"
+    },
+    {
+      "task": "C6",
+      "title": "List spaces",
+      "kind": "read",
+      "surface": "confluence-axi",
+      "command": "confluence-axi space list",
+      "exitCode": 0,
+      "tokens": 148,
+      "provenance": "measured"
+    },
+    {
+      "task": "C6",
+      "title": "List spaces",
+      "kind": "read",
+      "surface": "acli",
+      "command": "acli confluence space list",
+      "exitCode": 0,
+      "tokens": 613,
+      "provenance": "measured"
+    },
+    {
+      "task": "C6",
+      "title": "List spaces",
+      "kind": "read",
+      "surface": "mcp",
+      "command": "tool: getConfluenceSpaces",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "C7",
+      "title": "Create a page (error probe on nonexistent space)",
+      "kind": "write-probe",
+      "surface": "confluence-axi",
+      "command": "confluence-axi page create --space NOPESPACE --title benchmark probe --body <p>probe</p>",
+      "exitCode": 1,
+      "tokens": 47,
+      "provenance": "measured-error-probe (write path never verified live; see derived-from-docs write rows)"
+    },
+    {
+      "task": "C7",
+      "title": "Create a page (error probe on nonexistent space)",
+      "kind": "write-probe",
+      "surface": "acli",
+      "command": "acli confluence page create --space NOPESPACE --title benchmark probe",
+      "exitCode": 1,
+      "tokens": 14,
+      "provenance": "measured-gap-probe (command does not exist; output is the CLI's own error)",
+      "note": "unsupported on this surface"
+    },
+    {
+      "task": "C7",
+      "title": "Create a page (error probe on nonexistent space)",
+      "kind": "write-probe",
+      "surface": "mcp",
+      "command": "tool: createConfluencePage",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    },
+    {
+      "task": "C8",
+      "title": "Update a page (error probe on nonexistent page id)",
+      "kind": "write-probe",
+      "surface": "confluence-axi",
+      "command": "confluence-axi page update 99999999999 --title benchmark probe",
+      "exitCode": 1,
+      "tokens": 69,
+      "provenance": "measured-error-probe (write path never verified live; see derived-from-docs write rows)"
+    },
+    {
+      "task": "C8",
+      "title": "Update a page (error probe on nonexistent page id)",
+      "kind": "write-probe",
+      "surface": "acli",
+      "command": "acli confluence page update --id 99999999999 --title benchmark probe",
+      "exitCode": 1,
+      "tokens": 14,
+      "provenance": "measured-gap-probe (command does not exist; output is the CLI's own error)",
+      "note": "unsupported on this surface"
+    },
+    {
+      "task": "C8",
+      "title": "Update a page (error probe on nonexistent page id)",
+      "kind": "write-probe",
+      "surface": "mcp",
+      "command": "tool: updateConfluencePage",
+      "exitCode": null,
+      "tokens": null,
+      "provenance": "not-measured",
+      "note": "derived-from-docs; not drivable here; server requires interactive OAuth, unauthenticated access returns HTTP 401"
+    }
+  ]
+}

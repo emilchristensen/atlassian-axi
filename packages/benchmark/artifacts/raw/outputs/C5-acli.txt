@@ -1,0 +1,10 @@
+# task: C5 List a page's attachments
+# surface: acli
+# command: acli confluence page attachments --id 18753814575
+# exit: 1
+# provenance: measured-gap-probe (command does not exist; output is the CLI's own error)
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+
+[stderr]
+✗ Error: unknown flag: --id
+

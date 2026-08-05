@@ -1,0 +1,58 @@
+[
+  {
+    "name": "getJiraIssue",
+    "description": "Retrieve issue by ID or key."
+  },
+  {
+    "name": "getJiraIssueRemoteIssueLinks",
+    "description": "List remote issue links (for example, Confluence links) on a Jira issue."
+  },
+  {
+    "name": "getJiraIssueTypeMetaWithFields",
+    "description": "Get create-field metadata for a project and issue type."
+  },
+  {
+    "name": "getJiraProjectIssueTypesMetadata",
+    "description": "List issue types available in a Jira project."
+  },
+  {
+    "name": "getIssueLinkTypes",
+    "description": "List available issue link types."
+  },
+  {
+    "name": "getTransitionsForJiraIssue",
+    "description": "List available workflow transitions for an issue."
+  },
+  {
+    "name": "getVisibleJiraProjects",
+    "description": "List Jira projects the user can access."
+  },
+  {
+    "name": "lookupJiraAccountId",
+    "description": "Find Jira user account IDs by name or email."
+  },
+  {
+    "name": "addCommentToJiraIssue",
+    "description": "Add a comment to an existing Jira issue, or update an existing comment when commentID is provided."
+  },
+  {
+    "name": "addWorklogToJiraIssue",
+    "description": "Adds a time-tracking worklog to a Jira issue."
+  },
+  {
+    "name": "createJiraIssue",
+    "description": "Create a link between two Jira issues."
+  },
+  {
+    "name": "editJiraIssue",
+    "description": "Update fields on an existing Jira issue."
+  },
+  {
+    "name": "transitionJiraIssue",
+    "description": "Perform a workflow transition on a Jira issue."
+  },
+  {
+    "name": "searchJiraIssuesUsingJql",
+    "description": "Search Jira issues using a JQL query."
+  }
+]

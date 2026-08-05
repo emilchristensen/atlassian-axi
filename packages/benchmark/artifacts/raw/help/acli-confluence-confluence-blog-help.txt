@@ -1,0 +1,14 @@
+Confluence blog commands.
+
+Usage:
+  acli confluence blog [command]
+
+Available Commands:
+  create      Create a new Confluence blog post in the specified space.
+  list        List Confluence blog posts.
+  view        View details of a Confluence blog post.
+
+Flags:
+  -h, --help   Show help for command
+
+Use "acli confluence blog [command] --help" for more information about a command.

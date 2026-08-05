@@ -1,0 +1,19 @@
+Jira Cloud commands.
+
+Usage:
+  acli jira [command]
+
+Available Commands:
+  auth        Authenticate to use Jira with OAuth or API token.
+  board       Jira board commands.
+  dashboard   Jira dashboard commands.
+  field       Jira field commands.
+  filter      Jira filter commands.
+  project     Jira project commands.
+  sprint      Jira sprint commands.
+  workitem    Jira work item commands.
+
+Flags:
+  -h, --help   Show help for command
+
+Use "acli jira [command] --help" for more information about a command.

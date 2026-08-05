@@ -1,0 +1,14 @@
+# task: J2 Read the comments on a work item
+# surface: acli
+# command: acli jira workitem comment list --key TEAM-43
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+[1m┌[0m[1m────────[0m[1m┬[0m[1m──────────────────[0m[1m┬[0m[1m────────────────────────────────────────────[0m[1m┐[0m
+[1m│[0m[1m ID     [0m[1m│[0m[1m Author           [0m[1m│[0m[1m Body                                       [0m[1m│[0m
+[1m├[0m[1m────────[0m[1m┼[0m[1m──────────────────[0m[1m┼[0m[1m────────────────────────────────────────────[0m[1m┤[0m
+│ 610954 │ Example User │ E2E comment with a  code  span and  bold . │
+├────────┼──────────────────┼────────────────────────────────────────────┤
+│ 610956 │ Example User │ envelope shape probe                       │
+└────────┴──────────────────┴────────────────────────────────────────────┘
+

@@ -1,0 +1,10 @@
+# task: J5 Add a comment (error probe on nonexistent key)
+# surface: jira-axi
+# command: jira-axi workitem comment NOPE-99999 --body benchmark probe
+# exit: 1
+# provenance: measured-error-probe (write path never verified live; see derived-from-docs write rows)
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+error: Issue does not exist or you do not have permission to see it.
+code: NOT_FOUND
+help[1]: "Find the right key/ID with the matching list or search command (e.g. `jira-axi workitem search \"<JQL>\"`, `jira-axi board list`)"
+
