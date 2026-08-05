@@ -43,7 +43,7 @@ Two modes. Resolution order: `ATLASSIAN_API_TOKEN` env > OAuth session > stored 
   confluence-axi auth login
   ```
 
-See [docs/auth.md](./docs/auth.md) for the resolution order, env vars, storage, `--site`, registering your own app, and the threat model.
+See [docs/auth.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/confluence-axi/docs/auth.md) for the resolution order, env vars, storage, `--site`, registering your own app, and the threat model.
 
 ## Commands
 
@@ -84,12 +84,12 @@ Markdown is NOT converted; passing markdown stores it literally.
 
 ## Docs
 
-- [docs/index.md](./docs/index.md) - documentation home.
-- [docs/getting-started.md](./docs/getting-started.md) - install, auth quickstart, first commands, hooks, verify.
-- [docs/commands.md](./docs/commands.md) - full `page` / `space` / `search` reference.
-- [docs/auth.md](./docs/auth.md) - auth modes, env vars, storage, `--site`, registering your own OAuth app, threat model.
-- [docs/limitations.md](./docs/limitations.md) - what the tool deliberately cannot do.
-- [docs/setup.md](./docs/setup.md) - `setup hooks`, `update`.
+- [docs/index.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/confluence-axi/docs/index.md) - documentation home.
+- [docs/getting-started.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/confluence-axi/docs/getting-started.md) - install, auth quickstart, first commands, hooks, verify.
+- [docs/commands.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/confluence-axi/docs/commands.md) - full `page` / `space` / `search` reference.
+- [docs/auth.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/confluence-axi/docs/auth.md) - auth modes, env vars, storage, `--site`, registering your own OAuth app, threat model.
+- [docs/limitations.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/confluence-axi/docs/limitations.md) - what the tool deliberately cannot do.
+- [docs/setup.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/confluence-axi/docs/setup.md) - `setup hooks`, `update`.
 
 ## License
 

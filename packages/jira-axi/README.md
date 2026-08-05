@@ -80,17 +80,17 @@ Per-command help is always available: `jira-axi <resource> --help` (e.g. `jira-a
 ## Output and behavior
 
 All structured output is TOON-encoded and token-efficient; there is no plain-text or JSON mode.
-Long free text truncates by default with a size marker - pass `--full` on the detail command that renders it (see [Commands](./docs/commands.md)).
+Long free text truncates by default with a size marker - pass `--full` on the detail command that renders it (see [Commands](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/commands.md)).
 Mutations run non-interactively (`acli --yes`), are idempotent, and re-fetch the authoritative post-state, so re-running a failed mutation is safe.
 
 ## Docs
 
-See [./docs](./docs/index.md):
+See [docs/index.md](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/index.md):
 
-- [Getting started](./docs/getting-started.md)
-- [Commands](./docs/commands.md)
-- [Limitations](./docs/limitations.md)
-- [Setup and update](./docs/setup.md)
+- [Getting started](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/getting-started.md)
+- [Commands](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/commands.md)
+- [Limitations](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/limitations.md)
+- [Setup and update](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/setup.md)
 
 ## License
 
