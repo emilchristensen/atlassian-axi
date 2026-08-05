@@ -11,6 +11,7 @@ Install and invocation guidance lives in [Getting started](./getting-started.md#
 
 - [Getting started](./getting-started.md) - install, the `acli` prerequisite and login, first commands, session hooks.
 - [Limitations](./limitations.md) - what the tool deliberately cannot do. Check here before an operation that might silently fail or no-op.
+- [Release history](../CHANGELOG.md) - what changed in each published version.
 
 ## Command reference
 
