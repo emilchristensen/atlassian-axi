@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.3](https://github.com/emilchristensen/atlassian-axi/compare/confluence-axi-v1.0.2...confluence-axi-v1.0.3) (2026-08-05)
+
+
+### Bug Fixes
+
+* **jira-axi:** help and suggestion strings named a nonexistent bare `jira` binary ([#68](https://github.com/emilchristensen/atlassian-axi/issues/68)) ([ddbdba2](https://github.com/emilchristensen/atlassian-axi/commit/ddbdba212563ef01987500bb60f18b3af7de0e84))
+* make jira-axi and confluence-axi skills accurate, trigger-worthy, and npx-first ([#65](https://github.com/emilchristensen/atlassian-axi/issues/65)) ([85eca64](https://github.com/emilchristensen/atlassian-axi/commit/85eca649195d9a9563400e5574cc9c6c982cd9b5))
+
 ## [1.0.2](https://github.com/emilchristensen/atlassian-axi/compare/confluence-axi-v1.0.1...confluence-axi-v1.0.2) (2026-07-24)
 
 
