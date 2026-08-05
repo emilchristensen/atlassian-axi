@@ -118,7 +118,7 @@ async function viewSprint(args: string[], ctx?: SiteContext): Promise<string> {
   if (parsed.help) return SPRINT_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `jira-axi sprint view <ID>` (find IDs via `jira board list-sprints <BOARD_ID>`)",
+    "Run `jira-axi sprint view <ID>` (find IDs via `jira-axi board list-sprints <BOARD_ID>`)",
     "sprint ID",
   );
   rejectExtraPositional(args, "This command takes a single sprint <ID>: jira-axi sprint view <ID>");
@@ -151,7 +151,7 @@ async function listWorkitems(
   );
   const boardId = requireNumericId(
     parsed.values["--board"],
-    "Pass --board <ID> (the Jira agile API scopes sprint work items by board; find IDs via `jira board list`)",
+    "Pass --board <ID> (the Jira agile API scopes sprint work items by board; find IDs via `jira-axi board list`)",
     "--board",
   );
   const jql = parsed.values["--jql"];
@@ -234,7 +234,7 @@ async function createSprint(
   }
   const board = requireNumericId(
     parsed.values["--board"],
-    'Run `jira-axi sprint create --board <ID> --name "..."` (find IDs via `jira board list`)',
+    'Run `jira-axi sprint create --board <ID> --name "..."` (find IDs via `jira-axi board list`)',
     "--board",
   );
 
@@ -302,7 +302,7 @@ async function updateSprint(
   if (parsed.help) return SPRINT_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `jira-axi sprint update <ID> --state closed` (find IDs via `jira board list-sprints <BOARD_ID>`)",
+    "Run `jira-axi sprint update <ID> --state closed` (find IDs via `jira-axi board list-sprints <BOARD_ID>`)",
     "sprint ID",
   );
   rejectExtraPositional(

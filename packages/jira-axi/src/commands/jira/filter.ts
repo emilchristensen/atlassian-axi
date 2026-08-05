@@ -225,7 +225,7 @@ async function viewFilter(args: string[], ctx?: SiteContext): Promise<string> {
   const full = parsed.bools["--full"];
   const id = requireNumericId(
     parsed.positional,
-    "Run `jira-axi filter view <ID>` (find IDs via `jira filter list` or `jira filter search`)",
+    "Run `jira-axi filter view <ID>` (find IDs via `jira-axi filter list` or `jira-axi filter search`)",
     "filter ID",
   );
   rejectExtraPositional(args, "This command takes a single filter <ID>: jira-axi filter view <ID>");

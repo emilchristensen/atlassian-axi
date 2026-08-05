@@ -149,7 +149,7 @@ async function viewBoard(args: string[], ctx?: SiteContext): Promise<string> {
   if (parsed.help) return BOARD_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `jira-axi board view <ID>` (find IDs via `jira board list`)",
+    "Run `jira-axi board view <ID>` (find IDs via `jira-axi board list`)",
     "board ID",
   );
   rejectExtraPositional(args, "This command takes a single <ID>: jira-axi board view <ID>");
@@ -192,7 +192,7 @@ async function listSprints(
   if (parsed.help) return BOARD_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `jira-axi board list-sprints <ID>` (find IDs via `jira board list`)",
+    "Run `jira-axi board list-sprints <ID>` (find IDs via `jira-axi board list`)",
     "board ID",
   );
   rejectExtraPositional(
@@ -259,7 +259,7 @@ async function listProjects(
   if (parsed.help) return BOARD_HELP;
   const id = requireNumericId(
     parsed.positional,
-    "Run `jira-axi board list-projects <ID>` (find IDs via `jira board list`)",
+    "Run `jira-axi board list-projects <ID>` (find IDs via `jira-axi board list`)",
     "board ID",
   );
   rejectExtraPositional(
