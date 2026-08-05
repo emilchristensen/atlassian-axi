@@ -25,6 +25,7 @@ Each target is written independently, so read the reported `status`:
 The `integrations:` line always lists what was attempted, not what succeeded - the `failures[n]:` block is what tells you which targets are missing.
 
 **Caveats:**
+- Restart your agent session after running this so the new hook takes effect.
 - Idempotent - safe to re-run; it installs if missing and repairs if present. Fix the file named in a failure and re-run.
 - A partial install still exits 0, so check the `status` line rather than the exit code.
 - Modifies real user config files under `~/.claude`, `~/.codex`, and OpenCode's config directory. This is a real filesystem write, not a dry run.

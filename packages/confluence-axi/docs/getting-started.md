@@ -5,32 +5,58 @@
 Use this doc to install, authenticate, and run your first commands.
 For exhaustive flags see [commands](./commands.md), [auth](./auth.md), and [limitations](./limitations.md).
 
-## Install
+## Quick Start
 
-`npx` is the default and needs no install:
+Install the confluence-axi skill in the Agent Skills format with npx skills:
 
 ```bash
-npx -y confluence-axi@latest search "space = ENG AND type = page"
+npx -y skills@latest add emilchristensen/atlassian-axi --skill confluence-axi -g
+```
+
+That is the entire setup - no npm install needed.
+The skill teaches your agent to run confluence-axi through `npx -y confluence-axi@latest`, so the CLI comes along on demand.
+You still need credentials for your Confluence Cloud site - an API token (see [Auth quickstart](#auth-quickstart)) or an OAuth session - and Node >= 20.
+
+The skill is not a user-facing slash command (`user-invocable: false`).
+Its frontmatter also includes Hermes Agent metadata (`metadata.hermes`) so Hermes can categorize it as a productivity skill tagged for Atlassian, Confluence, and REST.
+Just ask for anything that touches Confluence - reading a page by id, writing or editing page content, finding pages with CQL, listing a page's children, labels, or attachments, browsing spaces, or checking Confluence auth - and the agent loads the skill on its own when it recognizes the task.
+
+`-g` installs the skill user-level for all projects; drop it to install for the current project only (`./.agents/skills/`, symlinked into each agent's own skill directory).
+
+## Other Ways to Install
+
+The skill is the recommended path, but it is not the only one.
+
+### Zero setup
+
+confluence-axi is an AXI, so any capable agent can run the CLI directly with nothing installed at all.
+Just tell your agent:
+
+```
+Execute `npx -y confluence-axi@latest` to get Confluence tools.
 ```
 
 The `@latest` pin ensures you always run the newest published version.
 
-### Secondary option: install globally for session hooks
+### Session hook
 
-Install globally **only if you want the agent SessionStart hook functionality**:
+Want ambient Confluence context - the resolved site, auth state, and reachable spaces - fed into every agent session instead of loading on demand?
+Install the CLI globally and opt into the hook:
 
 ```bash
-npm i -g confluence-axi
+npm install -g confluence-axi
+confluence-axi setup hooks
 ```
 
-The hooks invoke the bin itself, so `setup hooks` requires this global install.
-
-What the hook adds to every agent session:
+This installs a SessionStart hook for Claude Code, Codex, and OpenCode that invokes the installed bin with no args at the start of each session, adding:
 
 - `site: <site>` - which Confluence site the credential currently targets.
 - `auth: ok (<mode>)` - the active auth mode and whether it actually works, before you run a command that needs it.
 - `spaces[N]{key,name,type,id}` - the spaces the account can reach, with the keys and ids other commands take as arguments.
 - `help[N]` - a contextual line naming the available commands.
+
+Restart your agent session after running this so the new hook takes effect.
+For global installs, run `confluence-axi update --check` to see whether a newer release is available, or `confluence-axi update` to upgrade.
 
 Every command below works identically under `npx`.
 

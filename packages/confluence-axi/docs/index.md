@@ -3,7 +3,7 @@
 Agent-ergonomic CLI for Confluence Cloud, calling the Confluence REST API directly.
 Every command emits token-efficient TOON output, mutations are idempotent, and errors carry next-step suggestions.
 
-Install and invocation guidance lives in [Getting started](./getting-started.md#install) - `npx` is the default, and a global install is the secondary option that enables the session hooks.
+Install and invocation guidance lives in [Getting started](./getting-started.md#quick-start) - installing the agent skill is the recommended path, with zero-setup `npx` and a global install for session hooks as the other options.
 
 ## Read this first
 

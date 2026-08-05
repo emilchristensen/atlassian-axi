@@ -5,31 +5,57 @@
 Use this doc to install, authenticate `acli`, and run your first commands.
 For exhaustive flags see [commands](./commands.md) and [limitations](./limitations.md).
 
-## Install
+## Quick Start
 
-`npx` is the default and needs no install:
+Install the jira-axi skill in the Agent Skills format with npx skills:
 
 ```bash
-npx -y jira-axi@latest workitem list --project TEAM
+npx -y skills@latest add emilchristensen/atlassian-axi --skill jira-axi -g
+```
+
+That is the entire setup - no npm install needed.
+The skill teaches your agent to run jira-axi through `npx -y jira-axi@latest`, so the CLI comes along on demand.
+You still need `acli` installed (`brew install acli`) and authenticated via `acli jira auth login` (Node >= 20 required).
+
+The skill is not a user-facing slash command (`user-invocable: false`).
+Its frontmatter also includes Hermes Agent metadata (`metadata.hermes`) so Hermes can categorize it as a productivity skill tagged for Atlassian, Jira, and acli.
+Just ask for anything that touches Jira - viewing or editing a work item, moving a ticket through its workflow, assigning it, reading or adding comments, searching with JQL, or working with boards, sprints, and filters - and the agent loads the skill on its own when it recognizes the task.
+
+`-g` installs the skill user-level for all projects; drop it to install for the current project only (`./.agents/skills/`, symlinked into each agent's own skill directory).
+
+## Other Ways to Install
+
+The skill is the recommended path, but it is not the only one.
+
+### Zero setup
+
+jira-axi is an AXI, so any capable agent can run the CLI directly with nothing installed at all.
+Just tell your agent:
+
+```
+Execute `npx -y jira-axi@latest` to get Jira tools.
 ```
 
 The `@latest` pin ensures you always run the newest published version.
 
-### Secondary option: install globally for session hooks
+### Session hook
 
-Install globally **only if you want the agent SessionStart hook functionality**:
+Want ambient Jira context - your open work items and whether `acli` is ready - fed into every agent session instead of loading on demand?
+Install the CLI globally and opt into the hook:
 
 ```bash
-npm i -g jira-axi
+npm install -g jira-axi
+jira-axi setup hooks
 ```
 
-The hooks invoke the bin itself, so `setup hooks` requires this global install.
-
-What the hook adds to every agent session:
+This installs a SessionStart hook for Claude Code, Codex, and OpenCode that invokes the installed bin with no args at the start of each session, adding:
 
 - `acli: installed` - whether the required `acli` prerequisite is actually present, before you run a command that needs it.
 - `my_open_workitems[N]{key,summary,status}` - your own open Jira work items, each with key, summary and status.
 - `help[N]` - a contextual line naming the available commands.
+
+Restart your agent session after running this so the new hook takes effect.
+For global installs, run `jira-axi update --check` to see whether a newer release is available, or `jira-axi update` to upgrade.
 
 Every command below works identically under `npx`.
 

@@ -11,21 +11,16 @@ Agent-ergonomic Atlassian CLIs, split into two focused, independently published 
 | [`jira-axi`](./packages/jira-axi)             | Jira CLI backed by Atlassian's [`acli`](https://developer.atlassian.com/cloud/acli/). Commands: `workitem`, `project`, `board`, `sprint`, `filter`, `dashboard`, `field`. | None of its own - delegates entirely to acli's own `acli jira auth login`. Self-contained, no credential setup. |
 | [`confluence-axi`](./packages/confluence-axi) | Confluence Cloud CLI over the REST API directly. Commands: `page`, `space`, `search`.                                                                                     | OAuth 3LO (bring your own app) or API token.                                                                    |
 
-`npx` is the default and needs no install:
+Installing the agent skill is the recommended path (Agent Skills format, via npx skills):
 
 ```
-npx -y jira-axi@latest workitem list --project TEAM
-npx -y confluence-axi@latest search "space = ENG AND type = page"
+npx -y skills@latest add emilchristensen/atlassian-axi --skill jira-axi -g
+npx -y skills@latest add emilchristensen/atlassian-axi --skill confluence-axi -g
 ```
 
-Or install globally, **only if you want the agent SessionStart hook functionality** (`setup hooks` requires it):
+Other ways: any capable agent can run each CLI directly with zero setup (`npx -y jira-axi@latest`, `npx -y confluence-axi@latest`), or install globally (`npm i -g jira-axi` / `npm i -g confluence-axi`) **only if you want the agent SessionStart hook functionality** (`setup hooks` requires it).
 
-```
-npm i -g jira-axi
-npm i -g confluence-axi
-```
-
-Install and invocation guidance is per package, including what the hooks add: [jira-axi](./packages/jira-axi/docs/getting-started.md#install), [confluence-axi](./packages/confluence-axi/docs/getting-started.md#install).
+Install and invocation guidance is per package, including what the hooks add: [jira-axi](./packages/jira-axi/docs/getting-started.md#quick-start), [confluence-axi](./packages/confluence-axi/docs/getting-started.md#quick-start).
 
 Commands are flattened per CLI: `jira-axi workitem list` (not `jira-axi jira workitem list`), `confluence-axi page get <id>`.
 

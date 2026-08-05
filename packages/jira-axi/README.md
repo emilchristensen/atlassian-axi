@@ -8,23 +8,39 @@ Self-contained: auth is delegated to `acli`'s own login, so there is no extra cr
 > The resource-group prefix is gone: what was `atlassian-axi jira workitem list` is now `jira-axi workitem list`.
 > The Confluence half moved to the separate [`confluence-axi`](https://www.npmjs.com/package/confluence-axi) package.
 
-## Install
+## Quick Start
 
-`npx` is the default and needs no install:
+Install the jira-axi skill in the Agent Skills format with npx skills:
+
+```bash
+npx -y skills@latest add emilchristensen/atlassian-axi --skill jira-axi -g
+```
+
+That is the entire setup - no npm install needed.
+The skill teaches your agent to run jira-axi through `npx -y jira-axi@latest`, so the CLI comes along on demand.
+You still need `acli` installed and authenticated (see [Prerequisites](#prerequisites)).
+`-g` installs the skill user-level for all projects; drop it to install for the current project only.
+
+## Other Ways to Install
+
+The skill is the recommended path, but it is not the only one.
+
+Zero setup - any capable agent can run the CLI directly with nothing installed at all:
 
 ```bash
 npx -y jira-axi@latest workitem list --project TEAM
 ```
 
-Or install globally, **only if you want the agent SessionStart hook functionality** (`setup hooks` requires it):
+Session hook - install globally, **only if you want the agent SessionStart hook functionality** (`setup hooks` requires it):
 
 ```bash
 npm i -g jira-axi
+jira-axi setup hooks
 ```
 
 <!-- Absolute URL on purpose: `docs/` is not in the published npm tarball (see `files` in package.json), so a relative ./docs/... link 404s for every reader on npmjs.com. Do not "simplify" it to a relative path. -->
 
-What the hooks add: [Getting started](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/getting-started.md#install).
+Both paths in detail, including what the hooks add: [Getting started](https://github.com/emilchristensen/atlassian-axi/blob/main/packages/jira-axi/docs/getting-started.md#other-ways-to-install).
 
 ## Prerequisites
 
@@ -39,7 +55,7 @@ acli jira auth login
 
 If `acli` is not installed or not logged in, `jira-axi` commands error with a next-step suggestion.
 
-## Quickstart
+## First commands
 
 ```bash
 # one-time: log acli into your Jira site
