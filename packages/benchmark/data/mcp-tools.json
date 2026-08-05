@@ -1,0 +1,47 @@
+{
+  "provenance": "derived-from-docs",
+  "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/supported-tools/",
+  "fetchedAt": "2026-08-05",
+  "serverVersion": "1.1.3 (server.json in https://github.com/atlassian/atlassian-mcp-server, fetched 2026-08-05)",
+  "endpoint": "https://mcp.atlassian.com/v1/mcp (streamable HTTP; also /v1/mcp/authv2)",
+  "schemaNote": "Atlassian publishes tool names and descriptions but NOT the raw inputSchema JSON that an MCP client loads into context. Unauthenticated tools/list was attempted on 2026-08-05 and returned HTTP 401 invalid_token, so the real schema payload could not be captured. Token figures computed from this file are therefore a LOWER BOUND on the real context cost of the MCP surface.",
+  "outOfScope": "The server also exposes Jira Service Management, Bitbucket Cloud, Compass, and Teamwork Graph tool groups; they are outside this benchmark's Jira/Confluence scope and are not counted.",
+  "common": [
+    { "name": "atlassianUserInfo", "description": "Get the current authenticated user's account information." },
+    { "name": "getAccessibleAtlassianResources", "description": "List all Atlassian sites and apps accessible to the authenticated user, including their cloudId values." }
+  ],
+  "jira": [
+    { "name": "getJiraIssue", "description": "Retrieve issue by ID or key.", "group": "read_jira" },
+    { "name": "getJiraIssueRemoteIssueLinks", "description": "List remote issue links (for example, Confluence links) on a Jira issue.", "group": "read_jira" },
+    { "name": "getJiraIssueTypeMetaWithFields", "description": "Get create-field metadata for a project and issue type.", "group": "read_jira" },
+    { "name": "getJiraProjectIssueTypesMetadata", "description": "List issue types available in a Jira project.", "group": "read_jira" },
+    { "name": "getIssueLinkTypes", "description": "List available issue link types.", "group": "read_jira" },
+    { "name": "getTransitionsForJiraIssue", "description": "List available workflow transitions for an issue.", "group": "read_jira" },
+    { "name": "getVisibleJiraProjects", "description": "List Jira projects the user can access.", "group": "read_jira" },
+    { "name": "lookupJiraAccountId", "description": "Find Jira user account IDs by name or email.", "group": "read_jira" },
+    { "name": "addCommentToJiraIssue", "description": "Add a comment to an existing Jira issue, or update an existing comment when commentID is provided.", "group": "write_jira" },
+    { "name": "addWorklogToJiraIssue", "description": "Adds a time-tracking worklog to a Jira issue.", "group": "write_jira" },
+    { "name": "createJiraIssue", "description": "Create a link between two Jira issues.", "group": "write_jira", "note": "Description as published on the supported-tools page on 2026-08-05; it appears to be a documentation error (the tool by its name and grouping creates an issue)." },
+    { "name": "editJiraIssue", "description": "Update fields on an existing Jira issue.", "group": "write_jira" },
+    { "name": "transitionJiraIssue", "description": "Perform a workflow transition on a Jira issue.", "group": "write_jira" },
+    { "name": "searchJiraIssuesUsingJql", "description": "Search Jira issues using a JQL query.", "group": "search_jira" }
+  ],
+  "confluence": [
+    { "name": "getConfluencePage", "description": "Get a Confluence page or live doc by ID.", "group": "read_confluence" },
+    { "name": "getConfluencePageDescendants", "description": "List descendant pages under a parent page.", "group": "read_confluence" },
+    { "name": "getConfluencePageFooterComments", "description": "List footer comments on a page.", "group": "read_confluence" },
+    { "name": "getConfluencePageInlineComments", "description": "List inline comments on a page.", "group": "read_confluence" },
+    { "name": "getConfluenceCommentChildren", "description": "List child comments (replies) of a comment.", "group": "read_confluence" },
+    { "name": "getConfluenceSpaces", "description": "List Confluence spaces.", "group": "read_confluence" },
+    { "name": "getPagesInConfluenceSpace", "description": "List pages in a space.", "group": "read_confluence" },
+    { "name": "createConfluencePage", "description": "Create a new Confluence page or live doc.", "group": "write_confluence" },
+    { "name": "updateConfluencePage", "description": "Update an existing Confluence page or live doc.", "group": "write_confluence" },
+    { "name": "createConfluenceFooterComment", "description": "Create a footer comment or reply on a page.", "group": "write_confluence" },
+    { "name": "createConfluenceInlineComment", "description": "Create an inline comment tied to selected text.", "group": "write_confluence" },
+    { "name": "searchConfluenceUsingCql", "description": "Search Confluence content using CQL.", "group": "search_confluence" }
+  ],
+  "platform": [
+    { "name": "searchAtlassian", "description": "Search across Jira and Confluence using natural language via Rovo. (beta)", "group": "search_atlassian" },
+    { "name": "fetchAtlassian", "description": "Fetch Jira or Confluence content by Atlassian Resource Identifier (ARI). (beta)", "group": "search_atlassian" }
+  ]
+}

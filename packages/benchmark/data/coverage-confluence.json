@@ -1,0 +1,107 @@
+{
+  "product": "Confluence",
+  "surfaces": ["confluence-axi", "MCP", "acli"],
+  "acliPageReadOnlyGap": "acli 1.3.22-stable has a Confluence command tree, but its page commands are READ-ONLY: `acli confluence page` exposes exactly one subcommand, `view`. There is no acli command for creating, updating, or deleting a page, no CQL search, no attachment listing, and no label mutation. Its Confluence write surface is spaces (archive/create/list/restore/update/view) and blogs (create/list/view) only. Verified live from `acli confluence --help` and `acli confluence page --help` on 2026-08-05.",
+  "provenanceKey": {
+    "measured": "verified live against the installed CLI (confluence-axi 1.0.3 from this repo, acli 1.3.22-stable) via its help output or a live read-only invocation on 2026-08-05",
+    "derived-from-docs": "taken from the Atlassian Rovo MCP Server supported-tools documentation (fetched 2026-08-05); the server could not be driven here"
+  },
+  "rows": [
+    {
+      "operation": "Read a page by id",
+      "confluence-axi": { "status": "supported", "how": "page get <id> [--full] [--format storage|adf]", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getConfluencePage", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "page view --id <id> (its only page subcommand)", "provenance": "measured" }
+    },
+    {
+      "operation": "Create a page",
+      "confluence-axi": { "status": "supported", "how": "page create --space <KEY> --title ... --body/--body-file [--parent <id>]", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "createConfluencePage", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no page create subcommand (page is view-only)", "provenance": "measured" }
+    },
+    {
+      "operation": "Update a page (title or body)",
+      "confluence-axi": { "status": "supported", "how": "page update <id> [--title] [--body|--body-file] (full-body replace with macro-loss guard)", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "updateConfluencePage", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no page update subcommand", "provenance": "measured" }
+    },
+    {
+      "operation": "Delete a page",
+      "confluence-axi": { "status": "supported", "how": "page delete <id>", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no delete tool documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no page delete subcommand", "provenance": "measured" }
+    },
+    {
+      "operation": "CQL search",
+      "confluence-axi": { "status": "supported", "how": "search \"<CQL>\" [--limit] [--fields]", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "searchConfluenceUsingCql", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no search command anywhere in the confluence tree", "provenance": "measured" }
+    },
+    {
+      "operation": "List a page's children",
+      "confluence-axi": { "status": "supported", "how": "page children <id> [--limit]", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getConfluencePageDescendants", "provenance": "derived-from-docs" },
+      "acli": { "status": "partial", "how": "page view --id <id> --include-direct-children (direct children only, embedded in the view payload)", "provenance": "measured" }
+    },
+    {
+      "operation": "List a page's attachments",
+      "confluence-axi": { "status": "supported", "how": "page attachments <id> [--filename] [--media-type]", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no attachment tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no attachment subcommand or view flag", "provenance": "measured" }
+    },
+    {
+      "operation": "List a page's labels",
+      "confluence-axi": { "status": "supported", "how": "page labels <id> [--prefix]", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no label tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "partial", "how": "page view --id <id> --include-labels (embedded in the view payload)", "provenance": "measured" }
+    },
+    {
+      "operation": "Add/remove page labels",
+      "confluence-axi": { "status": "supported", "how": "page labels <id> --add/--remove <name,...>", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no label tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no label mutation anywhere", "provenance": "measured" }
+    },
+    {
+      "operation": "List spaces",
+      "confluence-axi": { "status": "supported", "how": "space list [--fields]", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getConfluenceSpaces", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "space list", "provenance": "measured" }
+    },
+    {
+      "operation": "List pages in a space",
+      "confluence-axi": { "status": "supported", "how": "search \"space = <KEY> and type = page\"", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getPagesInConfluenceSpace", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no page list; space view does not enumerate pages", "provenance": "measured" }
+    },
+    {
+      "operation": "Space admin (create/update/archive/restore)",
+      "confluence-axi": { "status": "unsupported", "how": "space is list-only", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no space-admin tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "space create/update/archive/restore", "provenance": "measured" }
+    },
+    {
+      "operation": "Blog posts (create/list/view)",
+      "confluence-axi": { "status": "unsupported", "how": "no blog command", "provenance": "measured" },
+      "MCP": { "status": "partial", "how": "CQL search can find blog posts (type = blogpost); no create tool documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "blog create/list/view", "provenance": "measured" }
+    },
+    {
+      "operation": "Page comments (footer and inline)",
+      "confluence-axi": { "status": "unsupported", "how": "no comment commands", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getConfluencePageFooterComments/InlineComments, createConfluenceFooterComment/InlineComment, getConfluenceCommentChildren", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no comment commands", "provenance": "measured" }
+    },
+    {
+      "operation": "Page version history",
+      "confluence-axi": { "status": "partial", "how": "page get shows the current version number only", "provenance": "measured" },
+      "MCP": { "status": "not-established", "how": "docs do not state whether getConfluencePage returns version history", "provenance": "derived-from-docs" },
+      "acli": { "status": "partial", "how": "page view --include-versions / --version <n> (versions list and point-in-time reads)", "provenance": "measured" }
+    },
+    {
+      "operation": "Natural-language cross-product search",
+      "confluence-axi": { "status": "unsupported", "how": "CQL only", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "searchAtlassian (beta, Rovo)", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no search at all", "provenance": "measured" }
+    }
+  ]
+}
