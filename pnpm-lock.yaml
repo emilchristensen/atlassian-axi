@@ -42,6 +42,12 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@22.20.1)(tsx@4.23.1)
 
+  packages/benchmark:
+    devDependencies:
+      gpt-tokenizer:
+        specifier: ^3.4.0
+        version: 3.4.0
+
   packages/confluence-axi:
     dependencies:
       axi-sdk-js:
@@ -920,6 +926,9 @@ packages:
   globals@17.7.0:
     resolution: {integrity: sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg==}
     engines: {node: '>=18'}
+
+  gpt-tokenizer@3.4.0:
+    resolution: {integrity: sha512-wxFLnhIXTDjYebd9A9pGl3e31ZpSypbpIJSOswbgop5jLte/AsZVDvjlbEuVFlsqZixVKqbcoNmRlFDf6pz/UQ==}
 
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
@@ -2033,6 +2042,8 @@ snapshots:
       is-glob: 4.0.3
 
   globals@17.7.0: {}
+
+  gpt-tokenizer@3.4.0: {}
 
   ignore@5.3.2: {}
 

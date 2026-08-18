@@ -1,0 +1,10 @@
+[
+  {
+    "name": "atlassianUserInfo",
+    "description": "Get the current authenticated user's account information."
+  },
+  {
+    "name": "getAccessibleAtlassianResources",
+    "description": "List all Atlassian sites and apps accessible to the authenticated user, including their cloudId values."
+  }
+]

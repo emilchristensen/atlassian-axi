@@ -1,0 +1,154 @@
+{
+  "product": "Jira",
+  "surfaces": ["jira-axi", "MCP", "acli"],
+  "provenanceKey": {
+    "measured": "verified live against the installed CLI (jira-axi 1.0.3 from this repo, acli 1.3.22-stable) via its help output or a live read-only invocation on 2026-08-05",
+    "derived-from-docs": "taken from the Atlassian Rovo MCP Server supported-tools documentation (fetched 2026-08-05); the server could not be driven here"
+  },
+  "rows": [
+    {
+      "operation": "View a work item",
+      "jira-axi": { "status": "supported", "how": "workitem view <KEY>", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getJiraIssue", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem view <KEY>", "provenance": "measured" }
+    },
+    {
+      "operation": "JQL search",
+      "jira-axi": { "status": "supported", "how": "workitem search \"<JQL>\"", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "searchJiraIssuesUsingJql", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem search --jql \"<JQL>\"", "provenance": "measured" }
+    },
+    {
+      "operation": "Filtered list without hand-writing JQL",
+      "jira-axi": { "status": "supported", "how": "workitem list --project/--assignee/--status (builds the JQL)", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "only raw JQL via searchJiraIssuesUsingJql", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "workitem search requires --jql; there is no workitem list", "provenance": "measured" }
+    },
+    {
+      "operation": "Create a work item",
+      "jira-axi": { "status": "supported", "how": "workitem create", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "createJiraIssue (+ getJiraIssueTypeMetaWithFields for required fields)", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem create", "provenance": "measured" }
+    },
+    {
+      "operation": "Edit work item fields",
+      "jira-axi": { "status": "supported", "how": "workitem edit <KEY>", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "editJiraIssue", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem edit", "provenance": "measured" }
+    },
+    {
+      "operation": "Transition a work item",
+      "jira-axi": { "status": "supported", "how": "workitem transition <KEY> --to <status>", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getTransitionsForJiraIssue + transitionJiraIssue (two calls: the transition id must be looked up first)", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem transition --key <KEY> --status <status>", "provenance": "measured" }
+    },
+    {
+      "operation": "Assign a work item",
+      "jira-axi": { "status": "supported", "how": "workitem assign <KEY> --assignee <email|@me>", "provenance": "measured" },
+      "MCP": { "status": "partial", "how": "editJiraIssue with an accountId from lookupJiraAccountId (no dedicated assign tool)", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem assign", "provenance": "measured" }
+    },
+    {
+      "operation": "Read comments",
+      "jira-axi": { "status": "supported", "how": "workitem view <KEY> --comments", "provenance": "measured" },
+      "MCP": { "status": "partial", "how": "no dedicated comment-list tool documented; comments come back inside getJiraIssue fields", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem comment list <KEY>", "provenance": "measured" }
+    },
+    {
+      "operation": "Add a comment",
+      "jira-axi": { "status": "supported", "how": "workitem comment <KEY> --body <text>", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "addCommentToJiraIssue", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem comment create --key <KEY> --body <text>", "provenance": "measured" }
+    },
+    {
+      "operation": "Markdown body stored as rich text (ADF)",
+      "jira-axi": { "status": "supported", "how": "create/edit/comment --body accepts markdown and converts to ADF", "provenance": "measured" },
+      "MCP": { "status": "not-established", "how": "the docs do not state the accepted body format", "provenance": "derived-from-docs" },
+      "acli": { "status": "partial", "how": "--body takes plain text or raw ADF JSON; no markdown conversion", "provenance": "measured" }
+    },
+    {
+      "operation": "List/view projects",
+      "jira-axi": { "status": "supported", "how": "project list / project view <KEY>", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getVisibleJiraProjects", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "project list / project view", "provenance": "measured" }
+    },
+    {
+      "operation": "Project admin (create/update/delete/archive/restore)",
+      "jira-axi": { "status": "unsupported", "how": "project is list/view only", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no project-admin tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "project create/update/delete/archive/restore", "provenance": "measured" }
+    },
+    {
+      "operation": "Boards (list, view, sprints of a board)",
+      "jira-axi": { "status": "supported", "how": "board list/view/list-sprints/list-projects", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no board tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "board search/view/list-sprints/list-projects (no board list; search is the list path)", "provenance": "measured" }
+    },
+    {
+      "operation": "Sprints (view, create, update/close, list work items)",
+      "jira-axi": { "status": "supported", "how": "sprint view/create/update/list-workitems", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no sprint tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "sprint subcommands", "provenance": "measured" }
+    },
+    {
+      "operation": "Saved filters (list/search/view/update)",
+      "jira-axi": { "status": "supported", "how": "filter list/search/view/update", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no filter tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "filter subcommands", "provenance": "measured" }
+    },
+    {
+      "operation": "Dashboards (list)",
+      "jira-axi": { "status": "supported", "how": "dashboard list", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no dashboard tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "dashboard search (no dashboard list)", "provenance": "measured" }
+    },
+    {
+      "operation": "Custom fields (create/update/delete/restore)",
+      "jira-axi": { "status": "supported", "how": "field create/update/delete/restore", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no field tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "field subcommands", "provenance": "measured" }
+    },
+    {
+      "operation": "Worklogs (log time on an item)",
+      "jira-axi": { "status": "unsupported", "how": "no worklog command", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "addWorklogToJiraIssue", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no worklog subcommand under workitem", "provenance": "measured" }
+    },
+    {
+      "operation": "Remote issue links (e.g. linked Confluence pages)",
+      "jira-axi": { "status": "unsupported", "how": "no remote-link command", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "getJiraIssueRemoteIssueLinks", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "workitem link covers item-to-item links only", "provenance": "measured" }
+    },
+    {
+      "operation": "Link two work items",
+      "jira-axi": { "status": "unsupported", "how": "no link command", "provenance": "measured" },
+      "MCP": { "status": "not-established", "how": "getIssueLinkTypes is documented read-only; no create-link tool is listed, though createJiraIssue's published description mentions linking (a likely docs error)", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem link create/delete/list/type", "provenance": "measured" }
+    },
+    {
+      "operation": "Work item attachments",
+      "jira-axi": { "status": "unsupported", "how": "no attachment command", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "no attachment tools documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem attachment subcommands", "provenance": "measured" }
+    },
+    {
+      "operation": "Bulk operations (bulk create, JQL-wide transition/comment)",
+      "jira-axi": { "status": "unsupported", "how": "single-item mutations only", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "single-item tools only", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "create-bulk; transition/comment accept --jql and --filter", "provenance": "measured" }
+    },
+    {
+      "operation": "Archive/unarchive/clone/delete work items, watchers",
+      "jira-axi": { "status": "unsupported", "how": "not exposed", "provenance": "measured" },
+      "MCP": { "status": "unsupported", "how": "not documented", "provenance": "derived-from-docs" },
+      "acli": { "status": "supported", "how": "workitem archive/unarchive/clone/delete/list-watchers/watcher", "provenance": "measured" }
+    },
+    {
+      "operation": "Resolve a user to an accountId",
+      "jira-axi": { "status": "unsupported", "how": "no user lookup (assign takes an email or @me directly)", "provenance": "measured" },
+      "MCP": { "status": "supported", "how": "lookupJiraAccountId", "provenance": "derived-from-docs" },
+      "acli": { "status": "unsupported", "how": "no user command group", "provenance": "measured" }
+    }
+  ]
+}

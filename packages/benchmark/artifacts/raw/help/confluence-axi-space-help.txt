@@ -1,0 +1,10 @@
+usage: confluence-axi space <subcommand> [flags]
+subcommands[1]:
+  list
+flags{list}:
+  --limit <n> (default 30)
+  --fields <a,b,c> (default key,name,type,id; key always included)
+examples:
+  confluence-axi space list
+  confluence-axi space list --limit 50
+  confluence-axi space list --fields name

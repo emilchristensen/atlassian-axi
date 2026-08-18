@@ -1,0 +1,153 @@
+{
+  "note": "Representative task set. kind=read tasks run live (read-only). kind=write-probe tasks target guaranteed-nonexistent items (NOPE-99999, page id 99999999999, space NOPESPACE) so they can never mutate the live site; they capture each surface's error/validation behaviour. Tasks whose acli command is null carry acliGapProbe: the harness runs that nonexistent acli command and records the CLI's own error as the measured proof of the gap.",
+  "site": "example.atlassian.net (redacted; a live corporate Confluence/Jira Cloud site)",
+  "tasks": [
+    {
+      "id": "J1",
+      "product": "jira",
+      "title": "View a work item",
+      "kind": "read",
+      "commands": {
+        "jira-axi": ["workitem", "view", "TEAM-43"],
+        "acli": ["jira", "workitem", "view", "TEAM-43"]
+      },
+      "mcp": { "tool": "getJiraIssue", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "J2",
+      "product": "jira",
+      "title": "Read the comments on a work item",
+      "kind": "read",
+      "commands": {
+        "jira-axi": ["workitem", "view", "TEAM-43", "--comments"],
+        "acli": ["jira", "workitem", "comment", "list", "--key", "TEAM-43"]
+      },
+      "mcp": { "tool": "getJiraIssue (comment field)", "note": "derived-from-docs; no dedicated comment-list tool is documented" }
+    },
+    {
+      "id": "J3",
+      "product": "jira",
+      "title": "JQL search",
+      "kind": "read",
+      "commands": {
+        "jira-axi": ["workitem", "search", "project = TEAM AND summary ~ \"scratch\" ORDER BY key ASC"],
+        "acli": ["jira", "workitem", "search", "--jql", "project = TEAM AND summary ~ \"scratch\" ORDER BY key ASC"]
+      },
+      "mcp": { "tool": "searchJiraIssuesUsingJql", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "J4",
+      "product": "jira",
+      "title": "Transition a work item (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "commands": {
+        "jira-axi": ["workitem", "transition", "NOPE-99999", "--to", "Done"],
+        "acli": ["jira", "workitem", "transition", "--key", "NOPE-99999", "--status", "Done", "--yes"]
+      },
+      "mcp": { "tool": "transitionJiraIssue", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "J5",
+      "product": "jira",
+      "title": "Add a comment (error probe on nonexistent key)",
+      "kind": "write-probe",
+      "commands": {
+        "jira-axi": ["workitem", "comment", "NOPE-99999", "--body", "benchmark probe"],
+        "acli": ["jira", "workitem", "comment", "create", "--key", "NOPE-99999", "--body", "benchmark probe", "--yes"]
+      },
+      "mcp": { "tool": "addCommentToJiraIssue", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "C1",
+      "product": "confluence",
+      "title": "Read a page by id",
+      "kind": "read",
+      "commands": {
+        "confluence-axi": ["page", "get", "18753552796"],
+        "acli": ["confluence", "page", "view", "--id", "18753552796"]
+      },
+      "mcp": { "tool": "getConfluencePage", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "C2",
+      "product": "confluence",
+      "title": "CQL search",
+      "kind": "read",
+      "commands": {
+        "confluence-axi": ["search", "space = DRAWIOCONFIG and type = page"],
+        "acli": null
+      },
+      "acliGapProbe": ["confluence", "search", "space = DRAWIOCONFIG and type = page"],
+      "mcp": { "tool": "searchConfluenceUsingCql", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "C3",
+      "product": "confluence",
+      "title": "List a page's children",
+      "kind": "read",
+      "commands": {
+        "confluence-axi": ["page", "children", "18753552796"],
+        "acli": ["confluence", "page", "view", "--id", "18753552796", "--include-direct-children", "--json"]
+      },
+      "mcp": { "tool": "getConfluencePageDescendants", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "C4",
+      "product": "confluence",
+      "title": "List a page's labels",
+      "kind": "read",
+      "commands": {
+        "confluence-axi": ["page", "labels", "18753814575"],
+        "acli": ["confluence", "page", "view", "--id", "18753814575", "--include-labels", "--json"]
+      },
+      "mcp": null
+    },
+    {
+      "id": "C5",
+      "product": "confluence",
+      "title": "List a page's attachments",
+      "kind": "read",
+      "commands": {
+        "confluence-axi": ["page", "attachments", "18753814575"],
+        "acli": null
+      },
+      "acliGapProbe": ["confluence", "page", "attachments", "--id", "18753814575"],
+      "mcp": null
+    },
+    {
+      "id": "C6",
+      "product": "confluence",
+      "title": "List spaces",
+      "kind": "read",
+      "commands": {
+        "confluence-axi": ["space", "list"],
+        "acli": ["confluence", "space", "list"]
+      },
+      "mcp": { "tool": "getConfluenceSpaces", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "C7",
+      "product": "confluence",
+      "title": "Create a page (error probe on nonexistent space)",
+      "kind": "write-probe",
+      "commands": {
+        "confluence-axi": ["page", "create", "--space", "NOPESPACE", "--title", "benchmark probe", "--body", "<p>probe</p>"],
+        "acli": null
+      },
+      "acliGapProbe": ["confluence", "page", "create", "--space", "NOPESPACE", "--title", "benchmark probe"],
+      "mcp": { "tool": "createConfluencePage", "note": "derived-from-docs; not drivable here" }
+    },
+    {
+      "id": "C8",
+      "product": "confluence",
+      "title": "Update a page (error probe on nonexistent page id)",
+      "kind": "write-probe",
+      "commands": {
+        "confluence-axi": ["page", "update", "99999999999", "--title", "benchmark probe"],
+        "acli": null
+      },
+      "acliGapProbe": ["confluence", "page", "update", "--id", "99999999999", "--title", "benchmark probe"],
+      "mcp": { "tool": "updateConfluencePage", "note": "derived-from-docs; not drivable here" }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+usage: jira-axi sprint <subcommand> [flags]
+subcommands[4]:
+  view <ID>, list-workitems <ID> --board <ID>, create, update <ID>
+flags{list-workitems}:
+  --board <ID> (required by the Jira agile API), --jql <query>, --fields <a,b,c>, --limit <n> (default 30)
+flags{create}:
+  --board <ID> (required), --name <text> (required), --start <ISO date>, --end <ISO date>, --goal <text>
+flags{update}:
+  --name <text>, --goal <text>, --state <future|active|closed> (no-op success when already there), --start <ISO date>, --end <ISO date>
+examples:
+  jira-axi sprint view 5205
+  jira-axi sprint list-workitems 5205 --board 1013
+  jira-axi sprint create --board 1013 --name "Sprint 13" --goal "Ship checkout"
+  jira-axi sprint update 5205 --state closed

@@ -1,0 +1,12 @@
+Confluence page commands.
+
+Usage:
+  acli confluence page [command]
+
+Available Commands:
+  view        View details of a Confluence page.
+
+Flags:
+  -h, --help   Show help for command
+
+Use "acli confluence page [command] --help" for more information about a command.

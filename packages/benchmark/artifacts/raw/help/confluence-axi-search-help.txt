@@ -1,0 +1,10 @@
+usage: confluence-axi search "<CQL>" [flags]
+CQL search across Confluence (v1 REST — the v2 API has no search endpoint).
+flags[2]:
+  --limit <n> (default 30)
+  --fields <a,b,c> (default id,type,title,space,modified,excerpt; id always included)
+examples:
+  confluence-axi search "space = ENG AND type = page"
+  confluence-axi search "title ~ 'release notes'" --limit 5
+  confluence-axi search "space = ENG" --fields title
+  confluence-axi search "text ~ 'pagination' AND lastmodified >= now('-30d')"

@@ -1,0 +1,27 @@
+usage: confluence-axi auth <login|status|logout> [flags]
+Manage Confluence auth. Two modes:
+  oauth      browser login (the default `auth login`) — Bearer tokens against
+             api.atlassian.com, auto-refreshed; needs an interactive terminal.
+  api-token  `auth login --token` — site+email+API token for agents/CI; the
+             token is read from stdin only, never as an argument.
+
+login            OAuth browser login. Opens auth.atlassian.com, catches the
+                 http://localhost:8765/callback redirect, stores tokens + cloudId
+                 in the 0600 config. --site <site> pre-selects among multiple sites.
+                 Requires your own registered 3LO app (no shipped default):
+                 ATLASSIAN_AXI_OAUTH_CLIENT_ID (required) + client secret from
+                 ATLASSIAN_AXI_OAUTH_CLIENT_SECRET env or prompted once and stored.
+login --token    API-token login (agents/CI; no browser).
+                 --site <site>   e.g. mysite.atlassian.net (falls back to ATLASSIAN_SITE / stored)
+                 --email <email> account email (falls back to ATLASSIAN_EMAIL / stored)
+                 token via stdin: echo -n "<token>" | confluence-axi auth login --token --site s --email e
+status           Active mode, token expiry, and the Confluence REST half.
+logout           Clear OAuth tokens + API credential/keychain.
+
+Resolution order: ATLASSIAN_API_TOKEN env > OAuth session > stored API token.
+
+examples:
+  confluence-axi auth login
+  echo -n "$TOKEN" | confluence-axi auth login --token --site acme.atlassian.net --email me@acme.com
+  confluence-axi auth status
+  confluence-axi auth logout

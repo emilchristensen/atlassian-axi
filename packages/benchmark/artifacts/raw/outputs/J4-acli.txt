@@ -1,0 +1,8 @@
+# task: J4 Transition a work item (error probe on nonexistent key)
+# surface: acli
+# command: acli jira workitem transition --key NOPE-99999 --status Done --yes
+# exit: 0
+# provenance: measured-error-probe (write path never verified live; see derived-from-docs write rows)
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+✗ Failure: NOPE-99999 can't be transitioned: Issue does not exist or you do not have permission to see it.
+

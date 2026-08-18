@@ -1,0 +1,15 @@
+Confluence Cloud commands.
+
+Usage:
+  acli confluence [command]
+
+Available Commands:
+  auth        Authenticate to use Confluence with OAuth or API token.
+  blog        Confluence blog commands.
+  page        Confluence page commands.
+  space       Confluence space commands.
+
+Flags:
+  -h, --help   Show help for command
+
+Use "acli confluence [command] --help" for more information about a command.

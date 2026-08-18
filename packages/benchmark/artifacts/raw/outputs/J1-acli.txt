@@ -1,0 +1,17 @@
+# task: J1 View a work item
+# surface: acli
+# command: acli jira workitem view TEAM-43
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+Key: TEAM-43
+Type: Task
+Summary: [scratch] jira-axi E2E edited (delete me)
+Status: Done
+Assignee: user@example.com
+Description: E2E test
+Body with bold, italic, inline code, and a link.
+item one
+item two
+nestedcode block
+

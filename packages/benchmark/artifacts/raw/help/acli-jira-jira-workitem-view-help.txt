@@ -1,0 +1,32 @@
+Retrieve information about Jira work items.
+
+Usage:
+  acli jira workitem view [key] [flags]
+
+Examples:
+# View work item with work item keys
+$ acli jira workitem view KEY-123
+
+# View work item by reading work item keys from a JSON file
+$ acli jira workitem view KEY-123 --json
+
+# View work item with work item keys and a list of field to return
+$ acli jira workitem view KEY-123 --fields summary,comment
+
+# View work item with work item keys and view in a web browser
+$ acli jira workitem view KEY-123 --web
+
+Flags:
+  -f, --fields string   A list of fields to return for the work item. This parameter accepts a comma-separated list. Use it to retrieve a subset of fields.
+                        Allowed values:
+                        - '*all' - returns all fields
+                        - '*navigable' - returns navigable fields
+                        Any work item field, prefixed with a minus to exclude
+                        Examples:
+                        - 'summary,comment' - returns only the summary and comments fields
+                        - '-description' - returns all (default) fields except description
+                        - '*navigable,-comment' - returns all navigable fields except comment
+                         (default "key,issuetype,summary,status,assignee,description")
+  -h, --help            Show help for command
+      --json            Generate a JSON output
+  -w, --web             View the work item in the web browser.

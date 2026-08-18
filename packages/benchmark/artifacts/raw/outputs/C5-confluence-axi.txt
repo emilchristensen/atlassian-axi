@@ -1,0 +1,13 @@
+# task: C5 List a page's attachments
+# surface: confluence-axi
+# command: confluence-axi page attachments 18753814575
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+count: 1
+attachments[1]{id,title,mediaType,size,version,updated}:
+  att18753683505,configuration.json,application/json,1.7 KB,9,2y ago
+help[2]:
+  Narrow with `confluence-axi page attachments 18753814575 --filename <name>` or `--media-type <type>`
+  Run `confluence-axi page get 18753814575` to read the page itself
+

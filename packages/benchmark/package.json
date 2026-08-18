@@ -1,0 +1,19 @@
+{
+  "name": "@atlassian-axi/benchmark",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Unpublished benchmark harness comparing jira-axi/confluence-axi, the Atlassian Rovo MCP server, and raw acli. Never published; not a dependency of any published package.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "bench": "tsx src/context-cost.ts && tsx src/output-cost.ts && tsx src/coverage.ts",
+    "bench:context": "tsx src/context-cost.ts",
+    "bench:output": "tsx src/output-cost.ts",
+    "bench:coverage": "tsx src/coverage.ts",
+    "bench:redact": "tsx src/redact-dir.ts"
+  },
+  "devDependencies": {
+    "gpt-tokenizer": "^3.4.0"
+  }
+}

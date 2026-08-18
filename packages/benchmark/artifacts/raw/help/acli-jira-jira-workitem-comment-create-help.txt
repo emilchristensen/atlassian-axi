@@ -1,0 +1,26 @@
+Add a comment to a work item or multiple work items using the default visibility for the project.
+
+Usage:
+  acli jira workitem comment create [flags]
+
+Examples:
+# Comment on work item with work item keys
+$ acli jira workitem comment --key "KEY-1" --body "This is a comment"
+
+# Comment on work item with JQL query and plain text file 
+$ acli jira workitem comment --jql "project = TEAM" --body-file "comment.txt" --edit-last
+
+# Comment on work item with JQL query
+$ acli jira workitem comment --jql "project = TEAM" --editor
+
+Flags:
+  -b, --body string        Comment body in plain text or Atlassian Document Format (ADF)
+  -F, --body-file string   Plain text file with text or Atlassian Document Format (ADF)
+  -e, --edit-last          Edit the last comment from the same author
+      --editor             Skip prompts and open the text editor to write the body
+      --filter string      Filter ID of work items to comment
+  -h, --help               Show help for command
+      --ignore-errors      Ignore the errors and continue
+      --jql string         JQL query for work items to comment
+      --json               Generate a JSON output
+  -k, --key string         A list of work item keys to comment

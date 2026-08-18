@@ -1,0 +1,17 @@
+usage: jira-axi [command] [args] [flags]
+commands[9]:
+  (none)=dashboard, workitem, project, board, sprint, filter, dashboard, field, setup
+flags[2]:
+  --help, -v/-V/--version
+notes[2]:
+  Token-efficient TOON output, contextual suggestions, idempotent mutations.
+  Auth is delegated to acli's own login (`acli jira auth login`) - no extra credential setup.
+examples:
+  jira-axi
+  jira-axi workitem list --project TEAM
+  jira-axi board list-sprints 1013 --state active
+  jira-axi sprint list-workitems 5205 --board 1013
+  jira-axi setup hooks
+"built-in":
+  update: Upgrade `jira-axi.js` to the latest published version
+  "update --check": Report current vs latest without installing

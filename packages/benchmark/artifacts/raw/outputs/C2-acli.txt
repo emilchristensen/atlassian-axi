@@ -1,0 +1,22 @@
+# task: C2 CQL search
+# surface: acli
+# command: acli confluence search space = DRAWIOCONFIG and type = page
+# exit: 0
+# provenance: measured-gap-probe (command does not exist; output is the CLI's own error)
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+Confluence Cloud commands.
+
+Usage:
+  acli confluence [command]
+
+Available Commands:
+  auth        Authenticate to use Confluence with OAuth or API token.
+  blog        Confluence blog commands.
+  page        Confluence page commands.
+  space       Confluence space commands.
+
+Flags:
+  -h, --help   Show help for command
+
+Use "acli confluence [command] --help" for more information about a command.
+

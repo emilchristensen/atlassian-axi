@@ -1,0 +1,17 @@
+List comments for a work item.
+
+Usage:
+  acli jira workitem comment list [flags]
+
+Examples:
+# List work item comments
+$ acli jira workitem comment list --key TEST-123
+
+
+Flags:
+  -h, --help           Show help for command
+      --json           Output in JSON format
+      --key string     Work item key to list comments for
+      --limit int      Maximum number of comments to return per page (default 50)
+      --order string   Order comments by field (created, updated) (default "+created")
+      --paginate       Continue paginating to fetch all pages of results. The --limit is ignored

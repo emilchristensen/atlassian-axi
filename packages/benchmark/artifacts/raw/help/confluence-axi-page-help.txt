@@ -1,0 +1,23 @@
+usage: confluence-axi page <subcommand> [flags]
+subcommands[7]:
+  get <id>, create, update <id>, delete <id>, attachments <id>, labels <id>, children <id>
+flags{get}[2]:
+  --full (complete body without truncation), --format <storage|adf> (default storage)
+flags{create}[4]:
+  --space <KEY> (required), --title <text> (required), --body <text> or --body-file <path> (storage format; required), --parent <id>
+flags{update}[3]:
+  --title <text>, --body <text> or --body-file <path> (storage format; at least one required; version bump is automatic), --allow-macro-loss (permit dropping an embedded macro/whiteboard the current body still has; blocked by default)
+flags{attachments}[3]:
+  --limit <n> (default 30), --media-type <type>, --filename <name>
+flags{labels}[3]:
+  (no flags = list) --add <name,name,...> or --remove <name,name,...> (idempotent; exclusive; mutations manage GLOBAL-prefix labels only), --prefix <my|team|global|system> (list only), --limit <n> (list only, default 30)
+flags{children}[1]:
+  --limit <n> (default 30)
+examples:
+  confluence-axi page get 12345
+  confluence-axi page create --space ENG --title "Release notes" --body-file notes.html
+  confluence-axi page update 12345 --body "<p>Updated</p>"
+  confluence-axi page delete 12345
+  confluence-axi page attachments 12345
+  confluence-axi page labels 12345 --add release,july
+  confluence-axi page children 12345

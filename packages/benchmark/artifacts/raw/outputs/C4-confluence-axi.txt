@@ -1,0 +1,10 @@
+# task: C4 List a page's labels
+# surface: confluence-axi
+# command: confluence-axi page labels 18753814575
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+count: 0
+help[1]:
+  Run `confluence-axi page labels 18753814575 --add <name,name,...>` to add labels
+

@@ -1,0 +1,26 @@
+Searches for work item or multiple work items.
+
+Usage:
+  acli jira workitem search [flags]
+
+Examples:
+# Search for work items with JQL query
+$ acli jira workitem search --jql "project = TEAM" --paginate
+$ acli jira workitem search --jql "project = TEAM" --count
+$ acli jira workitem search --jql "project = TEAM" --fields "key,summary,assignee" --csv
+$ acli jira workitem search --jql "project = TEAM" --limit 50 --json
+# Search for work items with filter ID
+$ acli jira workitem search --filter 10001 --web
+
+
+Flags:
+      --count           Number of work items in the search
+      --csv             Generate a CSV output
+  -f, --fields string   Comma-separated list of fields to display in the output (default "issuetype,key,assignee,priority,status,summary")
+      --filter string   Filter ID of work items to be searched
+  -h, --help            Show help for command
+  -j, --jql string      JQL query to search for work items
+      --json            Generate a JSON output
+  -l, --limit int       Maximum number of work items to fetch
+      --paginate        Fetch all work items by paginating through the results
+  -w, --web             Search for work items in the web browser

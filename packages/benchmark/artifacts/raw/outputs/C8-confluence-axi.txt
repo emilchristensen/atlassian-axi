@@ -1,0 +1,12 @@
+# task: C8 Update a page (error probe on nonexistent page id)
+# surface: confluence-axi
+# command: confluence-axi page update 99999999999 --title benchmark probe
+# exit: 1
+# provenance: measured-error-probe (write path never verified live; see derived-from-docs write rows)
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+error: "Cannot find a page with id [99999999999]"
+code: NOT_FOUND
+help[2]:
+  Run `confluence-axi search "<CQL>"` to find the right page id
+  A 404 can also mean the credential was rejected — run `confluence-axi auth status` to check it
+

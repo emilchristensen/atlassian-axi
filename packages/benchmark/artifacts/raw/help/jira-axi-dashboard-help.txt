@@ -1,0 +1,8 @@
+usage: jira-axi dashboard <subcommand> [flags]
+subcommands[1]:
+  list
+flags{list}:
+  --name <substring>, --owner <email>, --limit <n> (default 30)
+examples:
+  jira-axi dashboard list
+  jira-axi dashboard list --name release --owner jane@acme.com

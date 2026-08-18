@@ -1,0 +1,50 @@
+[
+  {
+    "name": "getConfluencePage",
+    "description": "Get a Confluence page or live doc by ID."
+  },
+  {
+    "name": "getConfluencePageDescendants",
+    "description": "List descendant pages under a parent page."
+  },
+  {
+    "name": "getConfluencePageFooterComments",
+    "description": "List footer comments on a page."
+  },
+  {
+    "name": "getConfluencePageInlineComments",
+    "description": "List inline comments on a page."
+  },
+  {
+    "name": "getConfluenceCommentChildren",
+    "description": "List child comments (replies) of a comment."
+  },
+  {
+    "name": "getConfluenceSpaces",
+    "description": "List Confluence spaces."
+  },
+  {
+    "name": "getPagesInConfluenceSpace",
+    "description": "List pages in a space."
+  },
+  {
+    "name": "createConfluencePage",
+    "description": "Create a new Confluence page or live doc."
+  },
+  {
+    "name": "updateConfluencePage",
+    "description": "Update an existing Confluence page or live doc."
+  },
+  {
+    "name": "createConfluenceFooterComment",
+    "description": "Create a footer comment or reply on a page."
+  },
+  {
+    "name": "createConfluenceInlineComment",
+    "description": "Create an inline comment tied to selected text."
+  },
+  {
+    "name": "searchConfluenceUsingCql",
+    "description": "Search Confluence content using CQL."
+  }
+]

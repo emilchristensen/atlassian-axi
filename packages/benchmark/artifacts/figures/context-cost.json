@@ -1,0 +1,319 @@
+{
+  "method": "gpt-tokenizer o200k_base",
+  "note": "All figures are token counts over the exact texts committed under artifacts/raw/help/.",
+  "schemaNote": "Atlassian publishes tool names and descriptions but NOT the raw inputSchema JSON that an MCP client loads into context. Unauthenticated tools/list was attempted on 2026-08-05 and returned HTTP 401 invalid_token, so the real schema payload could not be captured. Token figures computed from this file are therefore a LOWER BOUND on the real context cost of the MCP surface.",
+  "components": [
+    {
+      "surface": "jira-axi",
+      "component": "SKILL.md",
+      "tokens": 1214,
+      "provenance": "measured",
+      "source": "packages/jira-axi/skills/jira-axi/SKILL.md"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "--help",
+      "tokens": 189,
+      "provenance": "measured",
+      "source": "`jira-axi --help` output, captured live"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "workitem --help",
+      "tokens": 478,
+      "provenance": "measured",
+      "source": "`jira-axi workitem --help` output, captured live"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "project --help",
+      "tokens": 72,
+      "provenance": "measured",
+      "source": "`jira-axi project --help` output, captured live"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "board --help",
+      "tokens": 159,
+      "provenance": "measured",
+      "source": "`jira-axi board --help` output, captured live"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "sprint --help",
+      "tokens": 233,
+      "provenance": "measured",
+      "source": "`jira-axi sprint --help` output, captured live"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "filter --help",
+      "tokens": 186,
+      "provenance": "measured",
+      "source": "`jira-axi filter --help` output, captured live"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "dashboard --help",
+      "tokens": 72,
+      "provenance": "measured",
+      "source": "`jira-axi dashboard --help` output, captured live"
+    },
+    {
+      "surface": "jira-axi",
+      "component": "field --help",
+      "tokens": 255,
+      "provenance": "measured",
+      "source": "`jira-axi field --help` output, captured live"
+    },
+    {
+      "surface": "confluence-axi",
+      "component": "SKILL.md",
+      "tokens": 1455,
+      "provenance": "measured",
+      "source": "packages/confluence-axi/skills/confluence-axi/SKILL.md"
+    },
+    {
+      "surface": "confluence-axi",
+      "component": "--help",
+      "tokens": 155,
+      "provenance": "measured",
+      "source": "`confluence-axi --help` output, captured live"
+    },
+    {
+      "surface": "confluence-axi",
+      "component": "page --help",
+      "tokens": 400,
+      "provenance": "measured",
+      "source": "`confluence-axi page --help` output, captured live"
+    },
+    {
+      "surface": "confluence-axi",
+      "component": "space --help",
+      "tokens": 90,
+      "provenance": "measured",
+      "source": "`confluence-axi space --help` output, captured live"
+    },
+    {
+      "surface": "confluence-axi",
+      "component": "search --help",
+      "tokens": 145,
+      "provenance": "measured",
+      "source": "`confluence-axi search --help` output, captured live"
+    },
+    {
+      "surface": "confluence-axi",
+      "component": "auth --help",
+      "tokens": 386,
+      "provenance": "measured",
+      "source": "`confluence-axi auth --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "--help",
+      "tokens": 173,
+      "provenance": "measured",
+      "source": "`acli --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira --help",
+      "tokens": 113,
+      "provenance": "measured",
+      "source": "`acli jira --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira workitem --help",
+      "tokens": 221,
+      "provenance": "measured",
+      "source": "`acli jira workitem --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira workitem view --help",
+      "tokens": 316,
+      "provenance": "measured",
+      "source": "`acli jira workitem view --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira workitem search --help",
+      "tokens": 301,
+      "provenance": "measured",
+      "source": "`acli jira workitem search --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira workitem transition --help",
+      "tokens": 252,
+      "provenance": "measured",
+      "source": "`acli jira workitem transition --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira workitem comment --help",
+      "tokens": 109,
+      "provenance": "measured",
+      "source": "`acli jira workitem comment --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira workitem comment list --help",
+      "tokens": 135,
+      "provenance": "measured",
+      "source": "`acli jira workitem comment list --help` output, captured live"
+    },
+    {
+      "surface": "acli-jira",
+      "component": "jira workitem comment create --help",
+      "tokens": 291,
+      "provenance": "measured",
+      "source": "`acli jira workitem comment create --help` output, captured live"
+    },
+    {
+      "surface": "acli-confluence",
+      "component": "confluence --help",
+      "tokens": 89,
+      "provenance": "measured",
+      "source": "`acli confluence --help` output, captured live"
+    },
+    {
+      "surface": "acli-confluence",
+      "component": "confluence page --help",
+      "tokens": 64,
+      "provenance": "measured",
+      "source": "`acli confluence page --help` output, captured live"
+    },
+    {
+      "surface": "acli-confluence",
+      "component": "confluence page view --help",
+      "tokens": 334,
+      "provenance": "measured",
+      "source": "`acli confluence page view --help` output, captured live"
+    },
+    {
+      "surface": "acli-confluence",
+      "component": "confluence space --help",
+      "tokens": 132,
+      "provenance": "measured",
+      "source": "`acli confluence space --help` output, captured live"
+    },
+    {
+      "surface": "acli-confluence",
+      "component": "confluence space list --help",
+      "tokens": 198,
+      "provenance": "measured",
+      "source": "`acli confluence space list --help` output, captured live"
+    },
+    {
+      "surface": "acli-confluence",
+      "component": "confluence blog --help",
+      "tokens": 89,
+      "provenance": "measured",
+      "source": "`acli confluence blog --help` output, captured live"
+    },
+    {
+      "surface": "mcp",
+      "component": "common tool defs (names+descriptions)",
+      "tokens": 71,
+      "provenance": "derived-from-docs",
+      "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/supported-tools/ (names + descriptions only; inputSchema JSON is not published, so this is a lower bound)"
+    },
+    {
+      "surface": "mcp",
+      "component": "jira tool defs (names+descriptions)",
+      "tokens": 432,
+      "provenance": "derived-from-docs",
+      "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/supported-tools/ (names + descriptions only; inputSchema JSON is not published, so this is a lower bound)"
+    },
+    {
+      "surface": "mcp",
+      "component": "confluence tool defs (names+descriptions)",
+      "tokens": 345,
+      "provenance": "derived-from-docs",
+      "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/supported-tools/ (names + descriptions only; inputSchema JSON is not published, so this is a lower bound)"
+    },
+    {
+      "surface": "mcp",
+      "component": "platform search tool defs (names+descriptions)",
+      "tokens": 74,
+      "provenance": "derived-from-docs",
+      "source": "https://support.atlassian.com/atlassian-rovo-mcp-server/docs/supported-tools/ (names + descriptions only; inputSchema JSON is not published, so this is a lower bound)"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenario": "Entry cost: what the surface loads before the first operation",
+      "description": "axi CLIs: the skill file an agent harness loads. acli: top-level + product help (no skill exists). MCP: every in-scope tool definition, injected whether or not it is used (lower bound; real inputSchema JSON is not published).",
+      "rows": [
+        {
+          "surface": "jira-axi",
+          "tokens": 1214,
+          "provenance": "measured"
+        },
+        {
+          "surface": "acli (jira)",
+          "tokens": 286,
+          "provenance": "measured"
+        },
+        {
+          "surface": "MCP (jira, lower bound)",
+          "tokens": 503,
+          "provenance": "derived-from-docs"
+        },
+        {
+          "surface": "confluence-axi",
+          "tokens": 1455,
+          "provenance": "measured"
+        },
+        {
+          "surface": "acli (confluence)",
+          "tokens": 262,
+          "provenance": "measured"
+        },
+        {
+          "surface": "MCP (confluence, lower bound)",
+          "tokens": 416,
+          "provenance": "derived-from-docs"
+        }
+      ]
+    },
+    {
+      "scenario": "Task-set discovery cost: help screens needed for the representative tasks",
+      "description": "The per-command help an agent reads to run the representative task set correctly, beyond the entry cost. axi CLIs: the skill already carries per-command usage, so this is optional; measured here as the resource helps the task set touches. acli: the subcommand help screens for the same tasks. MCP: zero (schemas already injected at entry).",
+      "rows": [
+        {
+          "surface": "jira-axi",
+          "tokens": 478,
+          "provenance": "measured"
+        },
+        {
+          "surface": "acli (jira)",
+          "tokens": 1625,
+          "provenance": "measured"
+        },
+        {
+          "surface": "MCP (jira)",
+          "tokens": 0,
+          "provenance": "derived-from-docs"
+        },
+        {
+          "surface": "confluence-axi",
+          "tokens": 635,
+          "provenance": "measured"
+        },
+        {
+          "surface": "acli (confluence)",
+          "tokens": 728,
+          "provenance": "measured"
+        },
+        {
+          "surface": "MCP (confluence)",
+          "tokens": 0,
+          "provenance": "derived-from-docs"
+        }
+      ]
+    }
+  ]
+}

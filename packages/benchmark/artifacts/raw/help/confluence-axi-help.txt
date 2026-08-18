@@ -1,0 +1,15 @@
+usage: confluence-axi [command] [args] [flags]
+commands[6]:
+  (none)=dashboard, auth, page, space, search, setup
+flags[3]:
+  --site <site> (after command) or ATLASSIAN_SITE env, --help, -v/-V/--version
+examples:
+  confluence-axi
+  confluence-axi auth status
+  confluence-axi page get 12345
+  confluence-axi space list
+  confluence-axi search "space = ENG"
+  confluence-axi setup hooks
+"built-in":
+  update: Upgrade `confluence-axi.js` to the latest published version
+  "update --check": Report current vs latest without installing

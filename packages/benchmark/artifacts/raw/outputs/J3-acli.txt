@@ -1,0 +1,22 @@
+# task: J3 JQL search
+# surface: acli
+# command: acli jira workitem search --jql project = TEAM AND summary ~ "scratch" ORDER BY key ASC
+# exit: 0
+# provenance: measured
+# redaction: site/user identifiers replaced per src/redact.ts; token count computed over this redacted text (excluding these header lines)
+[1m┌[0m[1m──────[0m[1m┬[0m[1m─────────[0m[1m┬[0m[1m───────────────────────────[0m[1m┬[0m[1m──────────[0m[1m┬[0m[1m────────[0m[1m┬[0m[1m───────────────────────────[0m[1m┐[0m
+[1m│[0m[1m Type [0m[1m│[0m[1m Key     [0m[1m│[0m[1m Assignee                  [0m[1m│[0m[1m Priority [0m[1m│[0m[1m Status [0m[1m│[0m[1m Summary                   [0m[1m│[0m
+[1m├[0m[1m──────[0m[1m┼[0m[1m─────────[0m[1m┼[0m[1m───────────────────────────[0m[1m┼[0m[1m──────────[0m[1m┼[0m[1m────────[0m[1m┼[0m[1m───────────────────────────[0m[1m┤[0m
+│ Task │ TEAM-40 │                           │ Normal   │ To Do  │ [scratch] ADF before-fix  │
+│      │         │                           │          │        │ demo (delete me)          │
+├──────┼─────────┼───────────────────────────┼──────────┼────────┼───────────────────────────┤
+│ Task │ TEAM-41 │                           │ Normal   │ Done   │ [scratch] ADF after-fix d │
+│      │         │                           │          │        │ emo (delete me)           │
+├──────┼─────────┼───────────────────────────┼──────────┼────────┼───────────────────────────┤
+│ Task │ TEAM-42 │ user@example.com │ Normal   │ Done   │ [scratch] axi finalize E2 │
+│      │         │                     │          │        │ E edited (delete me)      │
+├──────┼─────────┼───────────────────────────┼──────────┼────────┼───────────────────────────┤
+│ Task │ TEAM-43 │ user@example.com │ Normal   │ Done   │ [scratch] jira-axi E2E ed │
+│      │         │                     │          │        │ ited (delete me)          │
+└──────┴─────────┴───────────────────────────┴──────────┴────────┴───────────────────────────┘
+

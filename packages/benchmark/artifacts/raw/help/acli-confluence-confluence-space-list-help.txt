@@ -1,0 +1,27 @@
+List Confluence spaces.
+
+Usage:
+  acli confluence space list [flags]
+
+Examples:
+# List all accessible spaces
+$ acli confluence space list
+
+# List only personal spaces
+$ acli confluence space list --type personal
+
+# List spaces with expanded information
+$ acli confluence space list --expand description,homepage
+
+# List spaces in JSON format
+$ acli confluence space list --json
+
+
+Flags:
+      --expand string   Comma-separated list of properties to expand (description, homepage, permissions)
+  -h, --help            Show help for command
+      --json            Output in JSON format
+      --keys string     Comma-separated list of space keys to filter by
+  -l, --limit int       Maximum number of spaces to return (default 50)
+      --status string   Filter spaces by status (current, archived) (default "current")
+      --type string     Filter spaces by type (global, personal)
