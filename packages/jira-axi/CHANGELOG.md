@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/emilchristensen/atlassian-axi/compare/jira-axi-v1.0.3...jira-axi-v1.0.4) (2026-08-18)
+
+
+### Miscellaneous Chores
+
+* release 1.0.4 ([#71](https://github.com/emilchristensen/atlassian-axi/issues/71)) ([751b3d1](https://github.com/emilchristensen/atlassian-axi/commit/751b3d1026fdbd1d00dfa0145d4b2f4cd5d5e7cc))
+
 ## [1.0.3](https://github.com/emilchristensen/atlassian-axi/compare/jira-axi-v1.0.2...jira-axi-v1.0.3) (2026-08-05)
 
 
