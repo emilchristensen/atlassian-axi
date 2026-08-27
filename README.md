@@ -1,5 +1,18 @@
 # atlassian-axi (monorepo)
 
+> ## 🔒 Security-hardened fork — install from source
+>
+> This is the `Marl0nL/atlassian-axi` fork. It is **installed from source, not from npm**, and the npm/`npx` install commands further down (inherited from upstream) **do not apply here**.
+>
+> **➡️ Install: [`docs/INSTALL-FROM-FORK.md`](./docs/INSTALL-FROM-FORK.md)** (clone → `pnpm build` → `npm pack` → global install, or the one-shot `scripts/install-from-fork.sh`).
+>
+> What diverges from upstream:
+> - **Skills invoke the installed binary directly** — never `npx ...@latest`, and agents must never run the built-in `update` command (both execute unreviewed code from npm).
+> - **CI actions are SHA-pinned**; the release/publish workflows are gated off so this fork never publishes to npm.
+> - **Upstream syncs are review-gated** — pull, review the diff (credential/auth paths, workflows, each `SKILL.md`), then merge.
+>
+> Additional local hardening: jira-axi now strips C1/DEL control chars from remote Jira text (parity with confluence-axi); both skills carry an untrusted-content note.
+
 Agent-ergonomic Atlassian CLIs, split into two focused, independently published packages. Members of the AXI tool family (alongside `gh-axi`): token-efficient [TOON](https://toonformat.dev) output, contextual next-step suggestions, idempotent mutations, and agent SessionStart hooks.
 
 > **`atlassian-axi` (the single combined package) is sunset.** It is no longer published. Use the two packages below instead.

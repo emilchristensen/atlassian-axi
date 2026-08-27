@@ -12,28 +12,36 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # PUBLISH DISABLED ON THIS FORK. We install from source (see
+    # docs/INSTALL-FROM-FORK.md), never from npm, so release-please must never
+    # cut a release or run `npm publish` here. This guard skips the entire job
+    # unless the workflow is running on the UPSTREAM repo, so an accidental
+    # release/publish from the fork cannot happen. Do not remove without a
+    # deliberate decision to (re)enable fork publishing.
+    if: ${{ github.repository == 'emilchristensen/atlassian-axi' }}
     steps:
-      - uses: googleapis/release-please-action@v4
+      # Actions are SHA-pinned; trailing comment keeps the readable version.
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: ${{ steps.release.outputs.releases_created }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         if: ${{ steps.release.outputs.releases_created }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         if: ${{ steps.release.outputs.releases_created }}
         with:
           node-version: 24
           registry-url: "https://registry.npmjs.org"
           cache: pnpm
 
-      # Trusted publishing (OIDC) needs npm >= 11.5.1; pin it so we do not
-      # depend on whatever npm the Node image happens to bundle.
-      - run: npm install -g npm@latest
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; pin an EXACT version so
+      # the publish tooling is deterministic (fork hardening).
+      - run: npm install -g npm@11.5.1
         if: ${{ steps.release.outputs.releases_created }}
 
       - run: pnpm install --frozen-lockfile
@@ -49,6 +57,8 @@ jobs:
       # workflow release-please.yml). A package's FIRST publish must be
       # bootstrapped once (local `npm publish` with OTP) before its trusted
       # publisher can be configured - see AGENTS.md release flow.
+      # NOTE: the job-level `if` guard above means this step never runs on the
+      # fork; it is retained only so an upstream sync stays a clean merge.
       - name: Publish released packages
         if: ${{ steps.release.outputs.releases_created }}
         run: |

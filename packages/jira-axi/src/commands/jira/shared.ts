@@ -48,16 +48,30 @@ export function nameOf(value: unknown): string | null {
 }
 
 /**
+ * Neutralize non-printing control characters in remote-derived strings before
+ * they reach the terminal. TOON escapes C0 controls (incl. ESC/CR/BEL) but
+ * lets the C1 range through, so a work-item summary/description/comment
+ * carrying U+009B (8-bit CSI) or U+0080-U+009F could drive terminals that
+ * honour 8-bit controls — a terminal-escape injection from attacker-influenced
+ * Jira content. Strip C1 (0x80-0x9F) and DEL (0x7F); C0 is left to TOON's own
+ * escaping. Mirrors confluence-axi's stripControlChars (review finding F6).
+ */
+export function stripControlChars(text: string): string {
+  return text.replace(/[\u007f-\u009f]/g, "");
+}
+
+/**
  * Flatten an Atlassian Document Format (ADF) document to plain text. Jira
  * descriptions/comments arrive as ADF objects from the REST shape; plain-text
- * strings pass through untouched.
+ * strings pass through untouched. Remote text is stripped of C1/DEL controls
+ * (see stripControlChars) so a crafted body cannot smuggle a terminal-escape.
  */
 export function textOf(value: unknown): string {
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return stripControlChars(value);
   if (!value || typeof value !== "object") return "";
   const parts: string[] = [];
   walkAdf(value as JsonRecord, parts);
-  return parts.join("");
+  return stripControlChars(parts.join(""));
 }
 
 function walkAdf(node: JsonRecord, parts: string[]): void {
@@ -148,6 +162,17 @@ function assigneeOf(item: JsonRecord): string {
 }
 
 /**
+ * Work-item summary, stripped of C1/DEL controls. The summary is
+ * attacker-influenced remote text (anyone who can create/edit a ticket sets
+ * it), so neutralize a crafted 8-bit terminal-escape before it reaches the
+ * terminal — mirrors confluence-axi's title handling (review finding F6).
+ */
+function summaryOf(item: JsonRecord): string | null {
+  const summary = nameOf(fieldOf(item, "summary"));
+  return summary === null ? null : stripControlChars(summary);
+}
+
+/**
  * List schema: key, summary, short status, assignee. No `updated` column:
  * acli's search --fields whitelist rejects `updated` (verified live against
  * v1.3.22: "field 'updated' is not allowed"), so search payloads can never
@@ -155,7 +180,7 @@ function assigneeOf(item: JsonRecord): string {
  */
 export const workitemListSchema: FieldDef[] = [
   custom("key", (item: JsonRecord) => item.key ?? null),
-  custom("summary", (item: JsonRecord) => nameOf(fieldOf(item, "summary"))),
+  custom("summary", summaryOf),
   custom("status", shortStatus),
   custom("assignee", assigneeOf),
 ];
@@ -163,7 +188,7 @@ export const workitemListSchema: FieldDef[] = [
 /** Compact schema for the home dashboard's my-open-workitems block. */
 export const workitemDashboardSchema: FieldDef[] = [
   custom("key", (item: JsonRecord) => item.key ?? null),
-  custom("summary", (item: JsonRecord) => nameOf(fieldOf(item, "summary"))),
+  custom("summary", summaryOf),
   custom("status", shortStatus),
 ];
 
@@ -171,7 +196,7 @@ export const workitemDashboardSchema: FieldDef[] = [
 export function workitemViewSchema(full: boolean): FieldDef[] {
   return [
     custom("key", (item: JsonRecord) => item.key ?? null),
-    custom("summary", (item: JsonRecord) => nameOf(fieldOf(item, "summary"))),
+    custom("summary", summaryOf),
     custom("type", (item: JsonRecord) => nameOf(fieldOf(item, "issuetype"))),
     custom("status", (item: JsonRecord) =>
       nameOf(fieldOf(item, "status"))?.toLowerCase() ?? "unknown",
@@ -325,8 +350,12 @@ export function fieldsSchema(fields: string[]): FieldDef[] {
             return nameOf(fieldOf(item, "status"))?.toLowerCase() ?? "unknown";
           }
           if (value && typeof value === "object" && !Array.isArray(value)) {
-            return nameOf(value);
+            const collapsed = nameOf(value);
+            return collapsed === null ? null : stripControlChars(collapsed);
           }
+          // Arbitrary remote text via the --fields escape hatch: strip C1/DEL
+          // controls just like the default schemas do (review finding F6).
+          if (typeof value === "string") return stripControlChars(value);
           return value ?? null;
         }),
   );
